@@ -16,7 +16,7 @@ Based on [BrainCellNew](https://github.com/LeonidSavtchenko/BrainCellNew) by Leo
 
 Make sure you are on the correct branch:
 
-- `main` — stable development
+- `main` —  stable development
 - `ModifyBrainCell` — experiments and risky modifications
 
 You can check or switch branches in GitHub Desktop or using:
