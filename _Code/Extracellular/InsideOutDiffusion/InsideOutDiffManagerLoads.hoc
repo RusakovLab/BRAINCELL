@@ -1,0 +1,12 @@
+
+{ load_file("../Common/Species/SpeciesLibrary/SpeciesLibraryLoads.hoc") }
+{ load_file("../Common/RangeVarHistory/RangeVarHistoryLoads.hoc") }
+
+// !! maybe get rid of "Utils" folder with just 1 file
+{ load_file("Utils/Utils.hoc") }
+
+{ load_file("MiniSimManager/MiniSimManagerForInsideOutDiffusion.hoc") }
+
+{ load_file("Widgets/GeneralSettingsWidget.hoc") }
+
+{ load_file("Widgets/InsideOutDiffManagerMainWidget.hoc") }

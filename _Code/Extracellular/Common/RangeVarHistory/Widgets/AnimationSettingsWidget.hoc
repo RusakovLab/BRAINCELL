@@ -1,0 +1,241 @@
+
+begintemplate AnimationSettingsWidget
+
+    public show, showLastHandler, dismissHandler
+    public enumNeuronPyplotPlotly
+    
+    external unmapIfNotNil
+    external mwh
+    external lastUsedGridToWatchWidget
+    
+    objref mainBox, deck1, deck2
+    
+    enumNeuronPyplotPlotly = -1
+    is2dOr3D = -1
+    isOpacitiesOrColours = -1
+    isDesktopOrBrowser = -1
+    
+    objref parentWidget
+    isOutsideInOrInsideOutDiff = -1
+    objref record, player
+    objref neuronPlayerWidget
+    
+    objref gridSlicerWidget
+    
+    colWidth = -1
+    
+    
+    proc init() { localobj gridRegion
+        parentWidget = $o1
+        isOutsideInOrInsideOutDiff = $2
+        record = $o3
+        player = $o4
+        gridRegion = $o5
+        neuronPlayerWidget = $o6
+        
+        enumNeuronPyplotPlotly = 0
+        is2dOr3D = 1
+        isOpacitiesOrColours = 1
+        isDesktopOrBrowser = 1
+        
+        colWidth = 125
+        
+        gridSlicerWidget = new GridSlicerWidget(gridRegion, neuronPlayerWidget)
+    }
+    
+    _isCalledFromShow = -1
+    
+    proc show() { local isBinFileLoad, isStartAnim localobj hBox, spacerDeck
+        
+        isBinFileLoad = $1
+        isStartAnim = $2
+        
+        dismissHandler()
+        
+        if (isBinFileLoad || lastUsedGridToWatchWidget.enumWhereToWatch == 0) {
+            if (enumNeuronPyplotPlotly == 0) {
+                enumNeuronPyplotPlotly = 1
+            }
+            is2dOr3D = 0
+        }
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                spacerDeck = new Deck()
+                spacerDeck.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("Animation module:")
+                    if (isBinFileLoad) {
+                        xlabel("     Use NEURON (n/i)")
+                    } else {
+                        xradiobutton("Use NEURON", "animModuleChangedHandler(0)", enumNeuronPyplotPlotly == 0)
+                    }
+                    xradiobutton("Use Pyplot", "animModuleChangedHandler(1)", enumNeuronPyplotPlotly == 1)
+                    xradiobutton("Use Plotly", "animModuleChangedHandler(2)", enumNeuronPyplotPlotly == 2)
+                    xpanel()
+                }
+                spacerDeck.intercept(0)
+                spacerDeck.flip_to(0)
+                spacerDeck.map("", -1, -1, 0.8 * colWidth, 1)
+                spacerDeck = new Deck()
+                spacerDeck.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("Presentation:")
+                    if (isBinFileLoad) {
+                        xlabel("     2D slice (n/i)")
+                    } else {
+                        xradiobutton("2D slice (grid only)", "presChangedHandler(1, 0)", is2dOr3D)
+                    }
+                    xradiobutton("3D scene", "presChangedHandler(0, 0)", !is2dOr3D)
+                    xpanel()
+                }
+                spacerDeck.intercept(0)
+                spacerDeck.flip_to(0)
+                spacerDeck.map("", -1, -1, colWidth, 1)
+            }
+            hBox.intercept(0)
+            hBox.map()
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                deck1 = new Deck()
+                deck1.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("What to animate:")
+                    xlabel("     Colours")
+                    xpanel()
+                    xpanel("")
+                    xlabel("What to animate:")
+                    xradiobutton("Opacities", "isOpacitiesOrColours = 1", isOpacitiesOrColours)
+                    xradiobutton("Colours", "isOpacitiesOrColours = 0", !isOpacitiesOrColours)
+                    xpanel()
+                }
+                deck1.intercept(0)
+                // deck1.flip_to(*)    // Will be done below in animModuleChangedHandler -> presChangedHandler
+                deck1.map("", -1, -1, 0.8 * colWidth, 1)
+                deck2 = new Deck()
+                deck2.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("Where to show:")
+                    xlabel("     Desktop")
+                    xpanel()
+                    xpanel("")
+                    xlabel("Where to show:")
+                    xradiobutton("Desktop", "isDesktopOrBrowser = 1", isDesktopOrBrowser)
+                    xradiobutton("Browser", "isDesktopOrBrowser = 0", !isDesktopOrBrowser)
+                    xpanel()
+                    xpanel("")
+                    xlabel("Where to show:")
+                    xlabel("     Browser")
+                    xpanel()
+                }
+                deck2.intercept(0)
+                // deck2.flip_to(*)    // Will be done below in animModuleChangedHandler
+                deck2.map("", -1, -1, colWidth, 1)
+            }
+            hBox.intercept(0)
+            hBox.map()
+            xpanel("")
+            xlabel("")
+            // !! just for test
+            // !! retest this
+            // xbutton("!! Show some random test data", "playerTestHandler()")
+            xbutton("Show the last record once again", "showLastHandler()")
+            xpanel()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("Animation settings", 600, 530, 2 * colWidth + 4, 190)
+        
+        _isCalledFromShow = 1
+        {
+            animModuleChangedHandler(enumNeuronPyplotPlotly)
+        }
+        _isCalledFromShow = 0
+        
+        if (isBinFileLoad) {
+            mwh.showNotImplementedWarning("Cannot use \"NEURON\" animation module or \"2D slice\" presentation when loading a BIN file.")
+        }
+        
+        if (isStartAnim) {
+            showLastHandler()
+        }
+    }
+    
+    proc showLastHandler() {
+        strdef msg
+        
+        if (!record.isSmthRecordedOrLoaded) {
+            if (isOutsideInOrInsideOutDiff) {
+                msg = "Please run the simulation once or load a saved animation file."
+            } else {
+                msg = "Please calculate the diffusion first or load file B."
+            }
+            mwh.showWarningBox(msg)
+            return
+        }
+        
+        // !! why don't we do this for outside-in diffusion? maybe that's not needed even for inside-out one
+        if (!isOutsideInOrInsideOutDiff && enumNeuronPyplotPlotly == 0) {
+            // !! don't need to call this until we load file B
+            parentWidget.makeSureIonInserted()
+        }
+        
+        player.play(enumNeuronPyplotPlotly, is2dOr3D, isOpacitiesOrColours, isDesktopOrBrowser, gridSlicerWidget, 0)
+    }
+    
+    proc dismissHandler() {
+        gridSlicerWidget.dismissHandler()
+        unmapIfNotNil(mainBox)
+    }
+    
+    // All next staff is private
+    
+    
+    proc animModuleChangedHandler() { local cardIdx
+        
+        enumNeuronPyplotPlotly = $1
+        
+        presChangedHandler(is2dOr3D, 1)     // -> deck1
+        
+        cardIdx = enumNeuronPyplotPlotly
+        deck2.flip_to(cardIdx)
+        
+        // !! do we need to call neuronPlayerWidget.onAnimationSettingsChanged ?
+    }
+    
+    proc presChangedHandler() { local isCalledFromAnimChanged, cardIdx
+        is2dOr3D = $1
+        isCalledFromAnimChanged = $2
+        
+        cardIdx = (enumNeuronPyplotPlotly != 0 && !is2dOr3D)
+        deck1.flip_to(cardIdx)
+        
+        if (!_isCalledFromShow && isCalledFromAnimChanged) {
+            return
+        }
+        
+        gridSlicerWidget.dismissHandler()
+        if (is2dOr3D) {
+            gridSlicerWidget.show()
+        }
+        
+        if (enumNeuronPyplotPlotly == 0) {
+            neuronPlayerWidget.onAnimationSettingsChanged(is2dOr3D, gridSlicerWidget.projIdx, gridSlicerWidget.isOneLayerOrMean, gridSlicerWidget.sliceIdx_1Based, 1)
+        }
+    }
+    
+    // !! just for test
+    proc playerTestHandler() {
+        player.play(enumNeuronPyplotPlotly, is2dOr3D, isOpacitiesOrColours, isDesktopOrBrowser, gridRegion, gridSlicerWidget, 1)
+    }
+    
+endtemplate AnimationSettingsWidget

@@ -1,0 +1,182 @@
+
+// Plugin for SectionsSelectorWidget from NanoBranchesManager module
+// !! not used at the moment
+begintemplate PluginForSSW_FromNBM
+
+    public isCurrentSectSelectable, doneHandler, dismissHandler
+    public title, topHint, middleHintOrEmpty, bottomHintTempl
+    public selectable_refOrNil
+    
+    external nanoBranchesManager, seededDendrites_ref
+    external checkIfCurrentSecIsDendrite
+    external dendrite_ref
+    
+    strdef title, topHint, middleHintOrEmpty, bottomHintTempl
+    objref selectable_refOrNil
+    
+    
+    proc init() {
+        title = "Seeded dendrite(s)"
+        topHint = "Please select the dendrites that will be seeded with nanostructures."
+        middleHintOrEmpty = "The sections shown in black are not dendrites, and so cannot be selected."
+        bottomHintTempl = "%d dendrite section(s) selected"
+        selectable_refOrNil = dendrite_ref
+    }
+    
+    func isCurrentSectSelectable() {
+        return checkIfCurrentSecIsDendrite()
+    }
+    
+    proc doneHandler() { localobj selected_ref
+        selected_ref = $o1
+        
+        // Here is the result of selection
+        seededDendrites_ref = selected_ref
+        
+        nanoBranchesManager.reseedBranchesWithLastUsedArgs()
+    }
+    
+    proc dismissHandler() {
+        // !! maybe need to inform user that we'll reseed rather than restore the old nanostructures
+        nanoBranchesManager.reseedBranchesWithLastUsedArgs()
+    }
+    
+endtemplate PluginForSSW_FromNBM
+
+
+// Plugin for SectionsSelectorWidget from Spine Seeding Manager
+begintemplate PluginForSSW_FromSSM
+
+    public isCurrentSectSelectable, doneHandler, dismissHandler
+    public title, topHint, middleHintOrEmpty, bottomHintTempl
+    public selectable_refOrNil
+    
+    external checkIfCurrentSecIsDendrite
+    external dendrite_ref
+    
+    strdef title, topHint, middleHintOrEmpty, bottomHintTempl
+    objref selectable_refOrNil
+    
+    objref parentWidget
+    
+    
+    proc init() {
+        parentWidget = $o1
+        
+        title = "Seeded dendrite(s)"
+        topHint = "Please select the dendrites that will be seeded with spines."
+        middleHintOrEmpty = "The sections shown in black are not dendrites, and so cannot be selected."
+        bottomHintTempl = "%d dendrite section(s) selected"
+        selectable_refOrNil = dendrite_ref
+    }
+    
+    func isCurrentSectSelectable() {
+        return checkIfCurrentSecIsDendrite()
+    }
+    
+    proc doneHandler() { localobj selected_ref
+        selected_ref = $o1
+        parentWidget.onDoneInSectionsSelectorWidget(selected_ref)
+    }
+    
+    proc dismissHandler() {
+        // Empty by design
+        
+        // !! maybe need to inform user that we'll reseed rather than restore the old nanostructures
+    }
+    
+endtemplate PluginForSSW_FromSSM
+
+
+// Plugin for SectionsSelectorWidget from BiophysManager module
+begintemplate PluginForSSW_FromBM
+
+    public isCurrentSectSelectable, doneHandler, dismissHandler
+    public title, topHint, middleHintOrEmpty, bottomHintTempl
+    public selectable_refOrNil
+    
+    external mmcoWidget
+    external stringsEqual
+    
+    strdef title, topHint, middleHintOrEmpty, bottomHintTempl
+    objref selectable_refOrNil
+    
+    
+    proc init() { localobj comp
+        comp = $o1
+        
+        title = "Sections selector"
+        topHint = "Please select the sections that will be removed from this and assigned to a new compartment."
+        middleHintOrEmpty = "The sections shown in black are not in the base compartment, and so cannot be selected."
+        sprint(bottomHintTempl, "%s section(s) selected in \"%s\"", "%d", comp.name)
+        selectable_refOrNil = comp.list_ref
+    }
+    
+    func isCurrentSectSelectable() { local secIdx localobj sec_ref
+        strdef secName1, secName2
+        
+        secName1 = secname()
+        
+        // !! slow and inefficient implementation, just for demo
+        //    need to use Python's Set here
+        
+        // Don't replace with eachSecInList to avoid the error "The sectionstack index should be 1 but it is 2"
+        // (!! need to investigate what exactly causes this error: either plotShape.push_selected() upstream or
+        // the fact that this func is called inside "forsec" block)
+        for secIdx = 0, selectable_refOrNil.count() - 1 {
+            sec_ref = selectable_refOrNil.o(secIdx)
+            sec_ref.sec secName2 = secname()
+            if (stringsEqual(secName1, secName2)) {
+                return 1
+            }
+        }
+        return 0
+    }
+    
+    proc doneHandler() { localobj selected_ref
+        selected_ref = $o1
+        mmcoWidget.splitHandler_layer2(selected_ref)
+    }
+    
+    proc dismissHandler() {
+        // Empty by design
+    }
+    
+endtemplate PluginForSSW_FromBM
+
+
+// Plugin for SectionsSelectorWidget from GapJunctionManager module
+begintemplate PluginForSSW_FromGJM
+
+    public isCurrentSectSelectable, doneHandler, dismissHandler
+    public title, topHint, middleHintOrEmpty, bottomHintTempl
+    public selectable_refOrNil
+    
+    external gapJuncManagerMainWidget
+    
+    strdef title, topHint, middleHintOrEmpty, bottomHintTempl
+    objref selectable_refOrNil
+    
+    
+    proc init() { localobj nil
+        title = "Seeded section(s)"
+        topHint = "Please select the sections that will be seeded with gap junctions."
+        middleHintOrEmpty = ""
+        bottomHintTempl = "%d section(s) selected"
+        selectable_refOrNil = nil
+    }
+    
+    func isCurrentSectSelectable() {
+        return 1
+    }
+    
+    proc doneHandler() { localobj selected_ref
+        selected_ref = $o1
+        gapJuncManagerMainWidget.selectSectionsHandler_layer2(selected_ref)
+    }
+    
+    proc dismissHandler() {
+        // Empty by design
+    }
+    
+endtemplate PluginForSSW_FromGJM

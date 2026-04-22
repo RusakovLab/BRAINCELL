@@ -1,0 +1,74 @@
+
+begintemplate GeometryMath
+    
+    public len2D, dist2D_PtToPt, dist2D_PtToPt_squared, dist2D_PtToLine
+    public rndPt2D_unifByAreaInCircle, rndPt3D_unifByVolumeInSphere
+    
+    external math, pyObj
+    
+    objref guiMath
+    
+    
+    proc init() {
+        guiMath = new GUIMath()
+        
+        nrnpython("import math")
+    }
+    
+    func len2D() {
+        return sqrt(math.sumSq($1, $2))
+    }
+    
+    func dist2D_PtToPt() {
+        return len2D($1 - $3, $2 - $4)
+    }
+    
+    func dist2D_PtToPt_squared() {
+        return math.sumSq($1 - $3, $2 - $4)
+    }
+    
+    // !! see also: ExtracellularApplicatorUtils_Exported.hoc -> _getDistBetweenTwo3DPoints
+    
+    func dist2D_PtToLine() { local xPt, yPt localobj xLineVec, yLineVec
+        xPt = $1
+        yPt = $2
+        xLineVec = $o3
+        yLineVec = $o4
+        return guiMath.d2line(xPt, yPt, xLineVec.x[0], yLineVec.x[0], xLineVec.x[1], yLineVec.x[1])
+    }
+    
+    // Get a random 2D point with uniform distribution in circle area
+    proc rndPt2D_unifByAreaInCircle() { local x0, y0, R, r, phi localobj rng
+        rng = $o1
+        x0 = $2
+        y0 = $3
+        R = $4
+        
+        r = R * sqrt(rng.uniform(0, 1))
+        phi = rng.uniform(0, 2 * PI)
+        
+        $&5 = x0 + r * cos(phi)
+        $&6 = y0 + r * sin(phi)
+    }
+    
+    // Get a random 3D point with uniform distribution in sphere volume
+    proc rndPt3D_unifByVolumeInSphere() { local x0, y0, z0, R, r, theta, phi localobj rng
+        rng = $o1
+        x0 = $2
+        y0 = $3
+        z0 = $4
+        R = $5
+        
+        r = R * rng.uniform(0, 1) ^ (1 / 3)
+        theta = pyObj.math.acos(rng.uniform(-1, 1))
+        phi = rng.uniform(0, 2 * PI)
+        
+        $&6 = x0 + r * sin(theta) * cos(phi)
+        $&7 = y0 + r * sin(theta) * sin(phi)
+        $&8 = z0 + r * cos(theta)
+    }
+    
+endtemplate GeometryMath
+
+objref geomMath
+geomMath = new GeometryMath()

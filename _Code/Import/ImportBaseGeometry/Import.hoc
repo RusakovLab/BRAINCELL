@@ -1,0 +1,83 @@
+
+
+
+// !! BUG: import ADEL.morph.xml, then import other CA3-08.CNG.swc, then import other neuron_Eutectics.nts => Segmentation violation
+
+
+// !! we replace soma if it has only 1 point, but how about other sections?
+// !! consider scenario: soma was present and had 2+ pts, but user selected a section with only 1 point for soma using CellularCompartmentsWidget
+
+
+{ load_file("../CommonUtils.hoc") }
+
+{ load_file("TopLevelVars.hoc") }
+{ load_file("ListCopyUtils.hoc") }
+{ load_file("BatchUtils.hoc") }
+{ load_file("CheckUtils.hoc") }
+{ load_file("DefaultSelectionUtils.hoc") }
+{ load_file("SectionUtils.hoc") }
+{ load_file("SectionRefUtils.hoc") }
+{ load_file("PreviewUtils.hoc") }
+{ load_file("OtherUtils.hoc") }
+{ load_file("PythonUtilsForImport.hoc") }
+{ load_file("Widgets_layer2.hoc") }
+{ load_file("Import_layer2.hoc") }
+{ load_file("Widgets_layer1.hoc") }
+{ load_file("Import_layer1.hoc") }
+
+
+// Import a file
+// $s1 (optional) - HOC command to execute after successful import completion
+// $s2 (optional) - Path to the input file; if omitted, then file browser will be shown
+// Other input: isNanoCallbackReceived, isExternalSimStart, isAstrocyteOrNeuron (taken from the top level)
+// Output (all initialized on the top level):
+//      always: soma_ref, dendrite_ref (both List-s of SectionRef-s), NumberDendrites (scalar), usedNamesForSoma, usedNamesForDendrites (both List-s of String-s)
+//      only if !isAstrocyteOrNeuron: axon_ref (List of SectionRef-s), usedNamesForAxon (List of String-s)
+proc importHocOrSwcOrZipOrOtherFile() { local numArg, isCancel localobj pyEnumInFileType
+    strdef filePathName, dllDirPath, fileExtLower
+    
+    if (isNanoCallbackReceived) {
+        printImportFailedMsgAndRaiseError("Please restart and try again")
+    }
+    
+    numArg = numarg()
+    if (numArg > 2) {
+        codeContractViolation()
+    }
+    
+    if (numArg >= 1) {
+        importCompleteHandler = $s1
+    } else {
+        importCompleteHandler = ""
+    }
+    
+    if (numArg == 2) {
+        filePathName = $s2
+    } else {
+        if (!isExternalSimStart) {
+            pyEnumInFileType = pyEnumInFileTypes.baseGeometryAny
+        } else {
+            pyEnumInFileType = pyEnumInFileTypes.baseGeometryHoc
+        }
+        isCancel = fbh.showLoadFileDialog(pyEnumInFileType, filePathName)
+        if (isCancel) {
+            return
+        }
+        if (isExternalSimStart) {
+            dllDirPath = pyObj.getDirPath(filePathName)
+            mechsDllUtils.loadMechsDllFromThisFolder(dllDirPath)
+        }
+    }
+    
+    createOrCleanUpTempFolderForImport()
+    
+    getFileExtLowerCase(filePathName, fileExtLower)
+    
+    if (stringsEqual(fileExtLower, "hoc")) {
+        importHocFile_layer1(filePathName, 0, 0, -1, 0)
+    } else if (stringsEqual(fileExtLower, "zip")) {
+        importSwcFileFromZipArchive_layer1(filePathName)
+    } else {
+        importSwcOrOtherFile_layer1(filePathName)
+    }
+}

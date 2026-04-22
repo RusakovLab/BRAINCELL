@@ -1,0 +1,236 @@
+
+// !! taken from SeededDendritesSelectionWidget and generalized; need to integrate it back
+begintemplate SectionsSelectorWidget
+
+    public show, dismissHandler
+    
+    external addThisAndFilteredChildSecRefsToTheList, removeAllDupSecRefsFromTheList
+    external mwh
+    external concatenateTwoLists, stringEmpty, unmapIfNotNil, codeContractViolation
+    external eachSecInList
+    external enumMouseEvents, enumColours
+    
+    objref in_plugin
+    
+    isSelectWholeSubtree = -1
+    
+    selectableColour = -1
+    notSelectableColour = -1
+    selectedColour = -1
+    
+    strdef numSelectedSectsHint
+    
+    objref mainBox, shape
+    
+    objref selected_ref
+    
+    
+    proc init() { local pluginType, numArg localobj oldSelected_ref, parentWidget, comp, nil
+        
+        pluginType = $1
+        
+        numArg = numarg()
+        if ((pluginType != 1 && numArg != 2) || (pluginType == 1 && numArg != 3)) {
+            codeContractViolation()
+        }
+        
+        if (pluginType == 0) {
+            // !! not used at the moment
+            codeContractViolation()
+            
+            oldSelected_ref = $o2
+            in_plugin = new PluginForSSW_FromNBM()
+        } else if (pluginType == 1) {
+            oldSelected_ref = $o2
+            parentWidget = $o3
+            in_plugin = new PluginForSSW_FromSSM(parentWidget)
+        } else if (pluginType == 2) {
+            comp = $o2
+            in_plugin = new PluginForSSW_FromBM(comp)
+        } else if (pluginType == 3) {
+            oldSelected_ref = $o2
+            in_plugin = new PluginForSSW_FromGJM()
+        } else {
+            codeContractViolation()
+        }
+        
+        isSelectWholeSubtree = 1
+        
+        selectableColour = enumColours.blue
+        notSelectableColour = enumColours.black
+        selectedColour = enumColours.red
+        
+        selected_ref = new List()
+        if (oldSelected_ref != nil) {
+            concatenateTwoLists(selected_ref, oldSelected_ref)
+        }
+    }
+    
+    proc show() { local numArg, x, y
+        strdef middleHintOrEmpty, title
+        
+        numArg = numarg()
+        if (numArg == 2) {
+            x = $1
+            y = $2
+        } else if (numArg != 0) {
+            codeContractViolation()
+        }
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            xlabel(in_plugin.topHint)
+            xlabel("")
+            xradiobutton("Select individual sections", "isSelectWholeSubtree = 0", !isSelectWholeSubtree)
+            xradiobutton("Select whole subtrees", "isSelectWholeSubtree = 1", isSelectWholeSubtree)
+            xlabel("")
+            // Usage of "Ctrl" is more natural for multiselect than "Shift", but for some reason, mouseEventsHandler is not called at all when "Ctrl" is pressed
+            xlabel("Hold \"Shift\" when clicking on sections to keep the previous selection.")
+            middleHintOrEmpty = in_plugin.middleHintOrEmpty
+            if (!stringEmpty(middleHintOrEmpty)) {
+                xlabel(middleHintOrEmpty)
+            }
+            xpanel()
+            // !! think about showing only selectable sections (call "new Shape" with the SectionList arg)
+            //    OR propose user a choice: showing all in black and blue OR blue only (radiobuttons)
+            shape = new Shape()
+            colourizeCompartments()
+            selectSections()
+            shape.menu_tool("Selected Section(s)", "mouseEventsHandler")
+            shape.exec_menu("Selected Section(s)")
+            xpanel("")
+            xvarlabel(numSelectedSectsHint)
+            xbutton("Done", "doneHandler()")
+            xpanel()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        title = in_plugin.title
+        if (numArg == 2) {
+            mainBox.map(title, x, y, -1, -1)
+        } else {
+            mainBox.map(title)
+        }
+        
+        shape.exec_menu("View = plot")
+    }
+    
+    proc dismissHandler() {
+        unmapIfNotNil(mainBox)
+        in_plugin.dismissHandler()
+    }
+    
+    // All next staff is private
+    
+    
+    proc colourizeCompartments() { localobj selectable_refOrNil, nil
+        selectable_refOrNil = in_plugin.selectable_refOrNil
+        if (selectable_refOrNil != nil) {
+            shape.color_all(notSelectableColour)
+            for eachSecInList(selectable_refOrNil) {
+                shape.color(selectableColour)
+            }
+        } else {
+            shape.color_all(selectableColour)
+        }
+    }
+    
+    proc selectSections() {
+        if (selected_ref.count() != 0) {
+            showSelectedSectsAndUpdateHint()
+        }
+    }
+    
+    // Mouse events handler: section selection and highlighting
+    // $1 - Event type: 1, 2, 3 means move, press, release respectively
+    // $2 - x
+    // $3 - y
+    // $4 - Keystate: reflects the state of Control (bit 1), Shift (bit 2), and Meta (bit 3) keys
+    proc mouseEventsHandler() { local eventType, x, y, keystate, isMultiselect, isSectSelectable
+        
+        eventType = $1
+        x = $2
+        y = $3
+        keystate = $4
+        
+        if (eventType != enumMouseEvents.press) {
+            return
+        }
+        
+        isMultiselect = (keystate == 2)     // 2: Shift
+        if (!isMultiselect) {
+            selected_ref.remove_all()
+            colourizeCompartments()
+        }
+        
+        // Make the nearest section currently accessed
+        shape.nearest(x, y)
+        shape.push_selected()
+        
+        // Check if the current section belongs to the selectable subset
+        isSectSelectable = in_plugin.isCurrentSectSelectable()
+        if (!isSectSelectable) {
+            pop_section()
+            updateNumSelectedSectsHint()
+            return
+        }
+        
+        if (!isSelectWholeSubtree) {
+            selected_ref.append(new SectionRef())
+        } else {
+            addThisAndFilteredChildSecRefsToTheList(selected_ref, in_plugin)
+        }
+        
+        pop_section()
+        
+        if (isMultiselect) {
+            removeAllDupSecRefsFromTheList(selected_ref)
+        }
+        
+        showSelectedSectsAndUpdateHint()
+    }
+    
+    proc showSelectedSectsAndUpdateHint() {
+        for eachSecInList(selected_ref) {
+            shape.color(selectedColour)
+        }
+        
+        updateNumSelectedSectsHint()
+    }
+    
+    proc updateNumSelectedSectsHint() {
+        sprint(numSelectedSectsHint, in_plugin.bottomHintTempl, selected_ref.count())
+    }
+    
+    proc doneHandler() {
+        if (selected_ref.count() == 0) {
+            mwh.showMessageBox("Please select at least 1 section.", "Nothing selected")
+            return
+        }
+        
+        mainBox.unmap()
+        in_plugin.doneHandler(selected_ref)
+    }
+    
+endtemplate SectionsSelectorWidget
+
+
+/* !!
+// Handler of "Reseed" button from the main UI
+// Input: isAllOrSomeDendritesSeeded (taken from the top level)
+proc reseedStalksHandler() {
+    if (isAllOrSomeDendritesSeeded) {
+        seededDendrites_ref = dendrites_ref
+        nanoBranchesManager.reseedBranchesWithLastUsedArgs()
+    } else {
+        // !! after the next operation and before closing ssWidget, interaction with MainUI nanogeometry panels causes an error,
+        //    so maybe need to hide MainUI temporarily
+        nanoBranchesManager.deleteBranches()
+        
+        ssWidget = new SectionsSelectorWidget(0, *)
+        ssWidget.show()
+    }
+}
+*/

@@ -1,0 +1,287 @@
+
+begintemplate FrapUtils
+    
+    public createRangeVarGraph, showWatchedPathBox, showSelectedSectionsBox, showTimeGraphBox, getSecCentreCoords, viewDirIdxToTwoCoords, mouseEventsHandlerForCylinderAndSphereFrapSims, resizeSpotOrRange, runFrapParallelTrials, printBleachingStarted, printDoneOrStopped
+    public rng
+    
+    external addVarToGraph, removeItemFromList, listOfSecRefToSecList, printMsgAndRaiseError, codeContractViolation
+    external math, geomMath, rngUtils, cbbUtils, graphUtils, mwh
+    external altRunControlWidget
+    external dendrite_ref
+    external fast_flush_list, graphList, flush_list
+    external enumMouseEvents, enumColours
+    external tstop
+    
+    objref rng
+    
+    
+    proc init() {
+        rng = rngUtils.getFor_sim_frap()
+    }
+    
+    // !! BUG: there is no guarantee that the chosen path goes through the bleaching area or the distance centre
+    proc createRangeVarGraph() { local yMin, yMax, numDendSecs, begDendSecIdx, begDendCoord, endDendSecIdx, endDendCoord, distMin, distMax localobj rangeVarPlot, rangeVarGraph
+        
+        yMin = $1
+        yMax = $2
+        
+        numDendSecs = dendrite_ref.count()
+        if (numDendSecs < 3) {
+            printMsgAndRaiseError("At least 3 dendrite sections are required.")
+        }
+        
+        begDendSecIdx = math.min(10, numDendSecs - 1)
+        begDendCoord = 0
+        
+        endDendSecIdx = 1
+        endDendCoord = 1
+        
+        rangeVarPlot = new RangeVarPlot("frapioni")
+        
+        dendrite_ref.o(begDendSecIdx).sec {
+            rangeVarPlot.begin(begDendCoord)
+            distMin = -distance(begDendCoord)
+        }
+        
+        dendrite_ref.o(endDendSecIdx).sec {
+            rangeVarPlot.end(endDendCoord)
+            distMax = distance(endDendCoord)
+        }
+        
+        rangeVarGraph = new Graph()
+        flush_list.append(rangeVarGraph)
+        graphUtils.setGraphSize(rangeVarGraph, distMin, distMax, yMin, yMax)
+        rangeVarGraph.xaxis()
+        rangeVarGraph.label(0.0340357, 0.94, "Concentration (mM)", 2, 1, 0, 0, 1)
+        rangeVarGraph.label(0.45, 0.01, "Distance (um)", 2, 1, 0, 0, 1)
+        rangeVarGraph.addobject(rangeVarPlot, enumColours.red, 1)
+        
+        $o3 = rangeVarPlot
+        $o4 = rangeVarGraph
+    }
+    
+    obfunc showWatchedPathBox() { localobj rangeVarPlot, watchedPathBox, watchedPathPlotShape, pathSecList
+        rangeVarPlot = $o1
+        
+        watchedPathBox = new VBox()
+        watchedPathBox.intercept(1)
+        {
+            watchedPathPlotShape = new PlotShape()
+            watchedPathPlotShape.color_all(enumColours.grey)
+            pathSecList = new SectionList()
+            rangeVarPlot.list(pathSecList)
+            watchedPathPlotShape.color_list(pathSecList, enumColours.red)
+        }
+        watchedPathBox.intercept(0)
+        watchedPathBox.map("Watched path")
+        
+        return watchedPathBox
+    }
+    
+    proc showSelectedSectionsBox() { localobj list_ref, plotShapeSelectedSections, selectedSectionsBox
+        list_ref = $o1
+        plotShapeSelectedSections = $o2
+        // $o3 is selectedSectionsBox
+        
+        selectedSectionsBox = new VBox()
+        selectedSectionsBox.intercept(1)
+        {
+            removeItemFromList(fast_flush_list, plotShapeSelectedSections)
+            plotShapeSelectedSections = new PlotShape(listOfSecRefToSecList(list_ref))
+            fast_flush_list.append(plotShapeSelectedSections)
+        }
+        selectedSectionsBox.intercept(0)
+        selectedSectionsBox.map("Selected sections")
+        
+        $o2 = plotShapeSelectedSections
+        $o3 = selectedSectionsBox
+    }
+    
+    proc showTimeGraphBox() { local yMin, yMax localobj sec_ref, timeGraph, timeGraphBox
+        strdef varStr
+        
+        sec_ref = $o1
+        yMin = $2
+        yMax = $3
+        timeGraph = $o4
+        // $o5 is timeGraphBox
+        
+        timeGraphBox = new VBox()
+        timeGraphBox.intercept(1)
+        {
+            removeItemFromList(graphList[0], timeGraph)
+            timeGraph = new Graph()
+            graphList[0].append(timeGraph)
+            sec_ref.sec {
+                sprint(varStr, "%s.frapioni(0.5)", secname())
+            }
+            addVarToGraph(timeGraph, varStr)
+            graphUtils.setGraphSize(timeGraph, 0, tstop, yMin, yMax)
+            timeGraph.label(0.44, 0.015, "t (ms)")
+            timeGraph.label(0.7, 0.945, "Concentration (mM)")
+        }
+        timeGraphBox.intercept(0)
+        timeGraphBox.map("Concentration vs Time")
+        
+        $o4 = timeGraph
+        $o5 = timeGraphBox
+    }
+    
+    // !! see also: getSomaSecCentreCoords
+    proc getSecCentreCoords() { local middlePtIdx
+        middlePtIdx = int(n3d() / 2)
+        $&1 = x3d(middlePtIdx)
+        $&2 = y3d(middlePtIdx)
+        $&3 = z3d(middlePtIdx)
+    }
+    
+    proc viewDirIdxToTwoCoords() { local viewDirIdx, x, y, z
+        viewDirIdx = $1
+        
+        getSecCentreCoords(&x, &y, &z)
+        
+        if (viewDirIdx == 0) {          // XY plane
+            $&2 = x
+            $&3 = y
+        } else if (viewDirIdx == 1) {   // ZY plane
+            $&2 = z
+            $&3 = y
+        } else if (viewDirIdx == 2) {   // XZ plane
+            $&2 = x
+            $&3 = z
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    func mouseEventsHandlerForCylinderAndSphereFrapSims() { local eventType, x_screen, y_screen, keystate, isPress, isMoveOrResize, radius, frapRadius, rangeRadius, isCancel
+        
+        eventType = $1
+        x_screen = $2
+        y_screen = $3
+        keystate = $4
+        // $&5 is enumLockLevel
+        // $&6 is xc_screen
+        // $&7 is yc_screen
+        // $&8 is frapRadius
+        // $&9 is rangeRadius
+        
+        // !! code dup. with SimFrapPlane.mouseEventsHandler
+        
+        // !! BUG: we don't lock it when user uses RunControl or AltRunControl
+        if ($&5 > 0) {
+            isPress = (eventType == enumMouseEvents.press)
+            if (!isPress || $&5 == 2) {
+                return 1
+            }
+            // Just to prevent "Didn't close the previous panel" error
+            $&5 = 2
+            // !! BUG: we still can hit "Segmentation violation" when clicking fast, but it seems to be a different error
+            mwh.showWarningBox("Cannot edit the FRAP spot when the simulation is running.")
+            $&5 = 1
+            return 1
+        }
+        
+        isMoveOrResize = (keystate != 2)    // 2: Shift
+        if (isMoveOrResize) {
+            $&6 = x_screen
+            $&7 = y_screen
+            return 0
+        } else {
+            radius = geomMath.dist2D_PtToPt($&6, $&7, x_screen, y_screen)
+            frapRadius = $&8
+            rangeRadius = $&9
+            isCancel = resizeSpotOrRange(radius, &frapRadius, &rangeRadius)
+            if (!isCancel) {
+                $&8 = frapRadius
+                $&9 = rangeRadius
+            }
+            return isCancel
+        }
+    }
+    
+    func resizeSpotOrRange() { local dist, diff1, diff2, isSpotOrRangeOrMinus1
+        
+        dist = $1
+        // $&2 is frapDist
+        // $&3 is rangeDist
+        
+        diff1 = $&2 - dist
+        diff2 = dist - $&3
+        if (diff1 > 0) {
+            isSpotOrRangeOrMinus1 = 1
+        } else if (diff2 > 0) {
+            isSpotOrRangeOrMinus1 = 0
+        } else {
+            isSpotOrRangeOrMinus1 = cbbUtils.getNearestAnchorPointIdxOrMinus1(diff2 ^ 2, diff1 ^ 2)
+        }
+        
+        if (isSpotOrRangeOrMinus1 == 1) {
+            $&2 = dist
+        } else if (isSpotOrRangeOrMinus1 == 0) {
+            $&3 = dist
+        } else if (isSpotOrRangeOrMinus1 == -1) {
+            return 1
+        } else {
+            codeContractViolation()
+        }
+        
+        return 0
+    }
+    
+    // Runs FRAP simulation numberOfTrials times.
+    // Each new run position of the spot is generated stochastically.
+    proc runFrapParallelTrials() { local numberOfTrials, isCalledFromPreRunOrPreContinue, trialIdx localobj sim
+        
+        sim = $o1
+        numberOfTrials = $2
+        isCalledFromPreRunOrPreContinue = $3
+        
+        sim.isIndOrCumCycles = 0
+        sim.iterations = 1
+        sim.updateTstop()
+        {
+            for trialIdx = 1, numberOfTrials {
+                printf("Trial %d of %d ...\n", trialIdx, numberOfTrials)
+                
+                if (isCalledFromPreRunOrPreContinue) {
+                    sim.preRun()
+                } else {
+                    sim.preContinue()
+                }
+                
+                altRunControlWidget.initAndRunHandler(1)
+                
+                if (stoprun) {
+                    break
+                }
+            }
+            
+            sim.postRun()
+        }
+        sim.isIndOrCumCycles = 1
+        sim.iterations = numberOfTrials
+        sim.updateTstop()
+        
+        printDoneOrStopped()
+    }
+    
+    proc printBleachingStarted() { localobj outTxtFile
+        outTxtFile = $o1
+        print "    Bleaching ..."
+        outTxtFile.printf("----- BLEACHING STARTED -----\n")
+    }
+    
+    proc printDoneOrStopped() {
+        if (stoprun) {
+            print "Stopped!"
+        } else {
+            print "Done!"
+        }
+    }
+    
+endtemplate FrapUtils
+
+
+objref frapUtils
+frapUtils = new FrapUtils()

@@ -1,0 +1,26 @@
+
+{ load_file("pointgrp.hoc") }
+
+// Show the PointProcessGroupManager with a predefined IClamp
+objref _iClampPPGM
+_iClampPPGM = new PointProcessGroupManager(0)
+{ object_push(_iClampPPGM) }
+{
+    ms = new MechanismStandard("IClamp")
+    ms.set("del", 0)
+    ms.set("dur", 100)
+    ms.set("amp", 0)
+    mnews("IClamp", ms)
+    select(0)
+    execute("soma_ref.o(0).sec _iClampPPGM.move(0.5)")
+}
+{ object_pop() }
+_iClampPPGM = _iClampPPGM.v1
+
+vBoxIClampPPGM = new VBox()
+{ vBoxIClampPPGM.intercept(1) }
+{
+    _iClampPPGM.map()
+}
+{ vBoxIClampPPGM.intercept(0) }
+{ vBoxIClampPPGM.map("PointProcessGroupManager", 61, 576, 559.8, 371.7) }

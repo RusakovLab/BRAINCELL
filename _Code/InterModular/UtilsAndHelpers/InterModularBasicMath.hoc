@@ -1,0 +1,95 @@
+
+begintemplate BasicMath
+
+    public inf, nan
+    public min, max, updateMinMax, updateMinMaxSum, isNaN, round, disableGreedyComparison, restoreGreedyComparison, sumSq
+    
+    external codeContractViolation
+    
+    inf = -1
+    nan = -1
+    
+    isGreedyComparisonEnabled = -1
+    float_epsilon_old = -1
+    
+    
+    proc init() {
+        sscanf("inf", "%f", &inf)
+        sscanf("nan", "%f", &nan)
+        
+        isGreedyComparisonEnabled = 1
+    }
+    
+    func min() {
+        if ($1 < $2) {
+            return $1
+        } else {
+            return $2
+        }
+    }
+    
+    func max() {
+        if ($1 > $2) {
+            return $1
+        } else {
+            return $2
+        }
+    }
+    
+    // !! maybe move to "GraphUtils.hoc"
+    proc updateMinMax() { local value
+        value = $3
+        $&1 = min($&1, value)
+        $&2 = max($&2, value)
+    }
+    
+    // !! maybe move to "GraphUtils.hoc"
+    proc updateMinMaxSum() { local value
+        value = $4
+        updateMinMax(&$&1, &$&2, value)
+        $&3 += value
+    }
+    
+    func isNaN() {
+        return !($1 == $1)  // Do not replace with "!="
+    }
+    
+    // Rounding to the nearest integer (for value >= 0 only)
+    func round() { local value
+        value = $1
+        if (value < 0) {
+            // Not implemented
+            codeContractViolation()
+        }
+        return int(value + 0.5)
+    }
+    
+    proc disableGreedyComparison() {
+        if (!isGreedyComparisonEnabled) {
+            codeContractViolation()
+        }
+        float_epsilon_old = float_epsilon
+        float_epsilon = 0
+        isGreedyComparisonEnabled = 0
+    }
+    
+    proc restoreGreedyComparison() {
+        if (isGreedyComparisonEnabled) {
+            codeContractViolation()
+        }
+        float_epsilon = float_epsilon_old
+        isGreedyComparisonEnabled = 1
+    }
+    
+    func sumSq() { local res, i
+        res = 0
+        for i = 1, numarg() {
+            res += $i ^ 2
+        }
+        return res
+    }
+    
+endtemplate BasicMath
+
+objref math
+math = new BasicMath()

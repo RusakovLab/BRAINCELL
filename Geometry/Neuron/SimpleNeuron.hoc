@@ -1,0 +1,70 @@
+// Create a soma
+create soma
+access soma
+
+// Set the geometry of the soma
+soma {
+    L = 20    // Length in micrometers
+    diam = 20 // Diameter in micrometers
+    insert hh // Insert Hodgkin-Huxley channels
+}
+
+// Create a dendrite
+create dend
+access dend
+
+// Set the geometry of the dendrite
+dend {
+    nseg = 5  // Number of segments
+    L = 200   // Length in micrometers
+    diam = 1  // Diameter in micrometers
+    insert pas // Insert passive properties
+    g_pas = 0.001 // Passive conductance
+    e_pas = -65  // Reversal potential for passive current
+}
+
+// Create an axon
+create axon
+access axon
+
+// Set the geometry of the axon
+axon {
+    nseg = 10  // Number of segments
+    L = 200   // Length in micrometers
+    diam = 1   // Diameter in micrometers
+    insert hh  // Insert Hodgkin-Huxley channels
+}
+
+// Connect the dendrite and axon to the soma
+connect dend(0), soma(0.5)
+connect axon(0), soma(0.5)
+
+// Define biophysical properties for the soma
+soma {
+    Ra = 100   // Axial resistance in Ohm*cm
+    cm = 1     // Membrane capacitance in uF/cm^2
+    gnabar_hh = 0.12  // Sodium conductance in S/cm^2
+    gkbar_hh = 0.036  // Potassium conductance in S/cm^2
+    gl_hh = 0.0003    // Leak conductance in S/cm^2
+    el_hh = -54.3     // Leak reversal potential in mV
+}
+
+// Define biophysical properties for the axon
+axon {
+    Ra = 100   // Axial resistance in Ohm*cm
+    cm = 1     // Membrane capacitance in uF/cm^2
+    gnabar_hh = 0.12  // Sodium conductance in S/cm^2
+    gkbar_hh = 0.036  // Potassium conductance in S/cm^2
+    gl_hh = 0.0003    // Leak conductance in S/cm^2
+    el_hh = -54.3     // Leak reversal potential in mV
+}
+
+// Define biophysical properties for the dendrite
+dend {
+    Ra = 150   // Axial resistance in Ohm*cm
+    cm = 1     // Membrane capacitance in uF/cm^2
+}
+
+
+
+

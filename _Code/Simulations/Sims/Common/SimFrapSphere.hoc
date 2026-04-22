@@ -1,0 +1,520 @@
+
+// !! TODO: get rid of "enumLockLevel" in favour of "altRunControlWidget.isRunning"
+
+{ load_file("Utils/FrapUtils.hoc") }
+
+obfunc setInitialSphereConcentration() { codeContractViolation() }
+
+// !! major code dup. with SimFrapPlane
+begintemplate SimFrapSphere
+    
+    public preShowCheck, show, preRun, preContinue, advance, postRun, simDismissHandler
+    public biophysJsonFileNameOrEmpty, isCustomProcAdvance, isAltRunControl
+    
+    // Used by frapUtils.runFrapParallelTrials
+    public isIndOrCumCycles, iterations, updateTstop
+    
+    // Just a workaround to avoid the error in GraphUtils.parseVarsFromTheGraph
+    public frapRadius, rangeRadius, BasicFRAP, AlphaFRAP, DFreeFRAP, iterationTime, iterationTimeRecovery
+    
+    external setInitialSphereConcentration, closeFileAndShowCompleteMsg
+    external createVecOfVals, removeItemFromList, unmapIfNotNil, codeContractViolation
+    external frapUtils, cbbUtils, geomMath, math, plotShapeUtils, mwh
+    external eachSecInList
+    external altRunControlWidget
+    external tstop
+    external flush_list, fast_flush_list, graphList
+    external enumColours
+    external soma_ref
+    
+    strdef biophysJsonFileNameOrEmpty
+    isCustomProcAdvance = -1
+    isAltRunControl = -1
+    
+    strdef menuToolName
+    
+    strdef outTxtFileName
+    strdef outTxtFileRelPathName
+    
+    // UI
+    objref mainBox, selectedSectionsBox, timeGraphBox, watchedPathBox
+    objref rangeVarGraph, plotShapeFrapioniSphere
+    objref plotShapeSelectedSections, timeGraph
+    
+    isIndOrCumCycles = -1
+    
+    // Concentration file
+    objref fileFrapSphereConcentration
+    
+    // Sections affected by FRAP
+    objref frapSphereSecList
+    
+    isBleachingOrRecovery = -1
+    
+    objref centerVec0, centerVec
+    viewDirIdx = -1
+    apIdx_last = -1
+    enumLockLevel = -1
+    
+    objref this
+    
+    
+    proc init() {
+        biophysJsonFileNameOrEmpty = "SimFrap.json"
+        isCustomProcAdvance = 1
+        isAltRunControl = 1
+        
+        menuToolName = "Edit FRAP Sphere"
+        
+        outTxtFileName = "SphereTimeFRAP.txt"
+        sprint(outTxtFileRelPathName, "Text results/%s", outTxtFileName)
+        
+        isIndOrCumCycles = 1
+        
+        viewDirIdx = 0      // XY plane
+        enumLockLevel = 0
+        
+        fileFrapSphereConcentration = new File()
+    }
+    
+    func preShowCheck() {
+        return 0
+    }
+    
+    // Opens FRAP Sphere simulation window.
+    proc show() {
+        initParamsFrapSphere()
+        showFrapSphereUi()
+    }
+    
+    func preRun() { local isInitOnly, isCancel
+        if (isIndOrCumCycles) {
+            isInitOnly = $1
+            if (isInitOnly) {
+                return 0
+            }
+            frapUtils.runFrapParallelTrials(this, iterations, 1)
+            return 1
+        } else {
+            isCancel = preContinue()
+            if (isCancel) {
+                return 1
+            }
+            
+            frapUtils.showSelectedSectionsBox(frapSphereSecList, plotShapeSelectedSections, selectedSectionsBox)
+            
+            frapUtils.showTimeGraphBox(frapSphereSecList.o(0), getYmin(), getYmax(), timeGraph, timeGraphBox)
+            
+            return 0
+        }
+    }
+    
+    func preContinue() {
+        if (isIndOrCumCycles) {
+            frapUtils.runFrapParallelTrials(this, 1, 0)
+            return 1
+        } else {
+            frapSphereSecList = setInitialSphereConcentration(centerVec, frapRadius, BasicFRAP, AlphaFRAP, DFreeFRAP)
+            
+            if (frapSphereSecList.count() == 0) {
+                mwh.showWarningBox("Cannot start the simulation because the initial bleaching sphere doesn't intersect any sections with FRAP mechanism.")
+                return 1
+            }
+            
+            frapUtils.showSelectedSectionsBox(frapSphereSecList, plotShapeSelectedSections, selectedSectionsBox)
+            
+            // Bleaching just started
+            isBleachingOrRecovery = 1
+            
+            enumLockLevel = 1
+            // Without this, the PlotShape won't be animated even though it was added to "fast_flush_list";
+            // surprisingly, the simulation performance is better when the PlotShape is animated
+            plotShapeFrapioniSphere.exec_menu("Shape Plot")
+            
+            fileFrapSphereConcentration.aopen(outTxtFileRelPathName)
+            
+            fileFrapSphereConcentration.printf("Time\tConcentration\n")
+            frapUtils.printBleachingStarted(fileFrapSphereConcentration)
+            
+            return 0
+        }
+    }
+    
+    // Switches between bleaching/recovery and writes concentration to file.
+    proc advance() { local secCylinderVolume, FraRec, FraBasic, isBleachingOrRecovery_new, isBleachingJustStarted, isRecoveryJustStarted, isEmpty
+        
+        fadvance()
+        
+        FraRec = 0
+        FraBasic = 0
+        
+        isBleachingOrRecovery_new = (t % (iterationTime+iterationTimeRecovery) < iterationTime)
+        
+        if (isBleachingOrRecovery_new != isBleachingOrRecovery) {
+            isBleachingJustStarted = (isBleachingOrRecovery_new > isBleachingOrRecovery)
+            isRecoveryJustStarted = !isBleachingJustStarted
+            isBleachingOrRecovery = isBleachingOrRecovery_new
+        } else {
+            isBleachingJustStarted = 0
+            isRecoveryJustStarted = 0
+        }
+        
+        if (isBleachingJustStarted) {
+            while (1) {
+                // Set new random coords for the FRAP spot sphere
+                geomMath.rndPt3D_unifByVolumeInSphere(frapUtils.rng, centerVec0.x[0], centerVec0.x[1], centerVec0.x[2], rangeRadius - frapRadius, &centerVec.x[0], &centerVec.x[1], &centerVec.x[2])
+                
+                updateSphereMarkers()
+                
+                // Set initial concentration
+                frapSphereSecList = setInitialSphereConcentration(centerVec, frapRadius, BasicFRAP, AlphaFRAP, DFreeFRAP)
+                
+                if (stoprun) {
+                    return
+                }
+                
+                doNotify()
+                
+                isEmpty = (frapSphereSecList.count() == 0)
+                if (!isEmpty) {
+                    break
+                }
+            }
+            
+            frapUtils.showSelectedSectionsBox(frapSphereSecList, plotShapeSelectedSections, selectedSectionsBox)
+        }
+        
+        for eachSecInList(frapSphereSecList) {
+            
+            // TODO: for FraRec, it would be better to step down from the section level to the segment level using "for (x, 0)"
+            secCylinderVolume = L*PI*diam^2/4
+            FraRec += frapioni(0.5)*secCylinderVolume
+            FraBasic += secCylinderVolume
+            
+            // Change Alpha for all sections in sphere
+            if (isBleachingJustStarted) {
+                // Bleaching every other iterationTime
+                Alpha_FRAP = AlphaFRAP*BasicFRAP
+            } else if (isRecoveryJustStarted) {
+                // Recovering every iterationTime
+                Alpha_FRAP = 0      // 1/ms
+            }
+        }
+        
+        fileFrapSphereConcentration.printf("%-6.5g\t%-6.5g\n", t, FraRec/FraBasic)
+        
+        if (t < tstop) {
+            if (isBleachingJustStarted) {
+                frapUtils.printBleachingStarted(fileFrapSphereConcentration)
+            } else if (isRecoveryJustStarted) {
+                print "    Recovery ..."
+                fileFrapSphereConcentration.printf("----- RECOVERY STARTED -----\n")
+            }
+        }
+        
+        timeGraph.exec_menu("View = plot")
+    }
+    
+    proc postRun() {
+        if (isIndOrCumCycles) {
+            codeContractViolation()
+        } else {
+            // Restoring the old FRAP spot (scatter centre)
+            centerVec.copy(centerVec0)
+            updateSphereMarkers()
+            
+            closeFileAndShowCompleteMsg(fileFrapSphereConcentration)
+            
+            enumLockLevel = 0
+            plotShapeFrapioniSphere.exec_menu(menuToolName)
+        }
+    }
+    
+    proc simDismissHandler() {
+        
+        removeItemFromList(flush_list, rangeVarGraph)
+        removeItemFromList(fast_flush_list, plotShapeFrapioniSphere)
+        removeItemFromList(fast_flush_list, plotShapeSelectedSections)
+        removeItemFromList(graphList[0], timeGraph)
+        
+        unmapIfNotNil(selectedSectionsBox)
+        unmapIfNotNil(timeGraphBox)
+        unmapIfNotNil(watchedPathBox)
+        unmapIfNotNil(mainBox)
+    }
+    
+    // All next staff is private
+    
+    
+    // Inits UI and simulation parameters.
+    proc initParamsFrapSphere() { local defaultX, defaultY, defaultZ, D
+        
+        // Bleaching sphere centre
+        // !! was: {0, 0, 0} um
+        soma_ref.o(0).sec {
+            frapUtils.getSecCentreCoords(&defaultX, &defaultY, &defaultZ)
+        }
+        
+        // Bleaching sphere radius
+        D = cbbUtils.analyzeCellBoundingBox()
+        frapRadius = math.round(D / 10) // !! was: 5 um
+        
+        rangeRadius = 2 * frapRadius    // !! was: static
+        
+        BasicFRAP = 0.2
+        DFreeFRAP = 0.3     // (um2/ms)
+        AlphaFRAP = 0.0001  // mM/ms
+        iterations = 4
+        iterationTime = 1000  // ms
+        iterationTimeRecovery = 1000  // ms
+        
+        updateTstop()
+        
+        centerVec0 = createVecOfVals(defaultX, defaultY, defaultZ)
+        centerVec = centerVec0.c()
+    }
+    
+    // Updates simulation time according to the number of iterations and their time.
+    proc updateTstop() {
+        tstop = iterations * (iterationTime + iterationTimeRecovery)
+    }
+    
+    // Shows FRAP Sphere UI.
+    proc showFrapSphereUi() { localobj vBox, hBox, rangeVarPlot
+        strdef text
+        
+        mainBox = new HBox()
+        mainBox.intercept(1)
+        {
+            vBox = new VBox()
+            vBox.intercept(1)
+            {
+                xpanel("")
+                xlabel("====================== Initial parameters ======================")
+                xlabel("Radius of bleaching area (sphere)")
+                xpvalue("Sphere radius (um)", &frapRadius, 1, "updateSphereMarkers()")
+                xlabel("---------------------------------------------------------------------------------------------------------------------")
+                xlabel("Initial indicator concentration")
+                xpvalue("Indicator concentration (mM)", &BasicFRAP, 1)
+                xlabel("Photobleaching rate")
+                xpvalue("Rate (mM/ms)", &AlphaFRAP, 1)
+                xpvalue("DFree (um2/ms)", &DFreeFRAP, 1)
+                xlabel("===========================================================")
+                xpanel(0)
+                
+                xpanel("")
+                xlabel("========================== Running ==========================")
+                xpvalue("Bleaching-recovery cycles", &iterations, 1, "updateTstop()")
+                xcheckbox("CHECKED - independent cycles, UNCHECKED - cumulative cycles", &isIndOrCumCycles)
+                xpvalue("Duration of bleaching (ms)", &iterationTime, 1, "updateTstop()")
+                xpvalue("Duration of recovery (ms)", &iterationTimeRecovery, 1, "updateTstop()")
+                xpvalue("Scatter radius (um)", &rangeRadius, 1, "updateSphereMarkers()")
+                sprint(text, "Run simulation. The results are saved to %s", outTxtFileName)
+                xlabel(text)
+                xbutton("Run FRAP", "altRunControlWidget.initAndRunHandler()")
+                xlabel("===========================================================")
+                xpanel()
+                
+                frapUtils.createRangeVarGraph(getYmin(), getYmax(), rangeVarPlot, rangeVarGraph)
+            }
+            vBox.intercept(0)
+            vBox.map()
+            
+            vBox = new VBox()
+            vBox.intercept(1)
+            {
+                hBox = new HBox()
+                hBox.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("")
+                    xradiobutton("XY projection", "viewDirectionChangedHandler(0)", viewDirIdx == 0)
+                    xradiobutton("ZY projection", "viewDirectionChangedHandler(1)", viewDirIdx == 1)
+                    xradiobutton("XZ projection", "viewDirectionChangedHandler(2)", viewDirIdx == 2)
+                    xpanel()
+                    xpanel("")
+                    xlabel("Hints: Click on the PlotShape to move the FRAP area (sphere),")
+                    xlabel("           hold \"Shift\" to adjust the spot and the scatter radii.")
+                    xlabel("Warning: Don't use \"3D Rotate\" when editing the circles")
+                    xlabel("                (toggle \"XY/ZY/XZ projection\" instead).")
+                    xpanel()
+                }
+                hBox.intercept(0)
+                hBox.map("", -1, -1, 1, 32)
+                
+                plotShapeFrapioniSphere = new PlotShape(0)
+                fast_flush_list.append(plotShapeFrapioniSphere)
+                plotShapeFrapioniSphere.size(-50,50,-50,50)
+                plotShapeFrapioniSphere.view(-50, -50, 100, 100, 165, 169, 400.64, 400.32)
+                plotShapeFrapioniSphere.exec_menu("Shape Plot")
+                plotShapeFrapioniSphere.exec_menu("View = plot")
+                plotShapeFrapioniSphere.menu_tool(menuToolName, "mouseEventsHandler")
+                plotShapeFrapioniSphere.variable("frapioni")
+                plotShapeFrapioniSphere.show(0)
+                plotShapeFrapioniSphere.scale(getYmin(), getYmax())
+                plotShapeFrapioniSphere.label(0.0340357, 0.94, "Concentration (mM)", 2, 1, 0, 0, 1)
+                
+                viewDirectionChangedHandler(viewDirIdx, 1)
+            }
+            vBox.intercept(0)
+            vBox.map()
+        }
+        mainBox.intercept(0)
+        mainBox.map("FRAP in Sphere")
+        
+        plotShapeFrapioniSphere.exec_menu(menuToolName)
+        
+        watchedPathBox = frapUtils.showWatchedPathBox(rangeVarPlot)
+    }
+    
+    proc viewDirectionChangedHandler() { local numArg, isCalledFromShow
+        numArg = numarg()
+        if (numArg < 1 || numArg > 2) {
+            codeContractViolation()
+        }
+        
+        viewDirIdx = $1
+        
+        if (numArg == 2) {
+            isCalledFromShow = $2
+            if (isCalledFromShow != 1) {
+                codeContractViolation()
+            }
+        } else {
+            isCalledFromShow = 0
+        }
+        
+        plotShapeUtils.setViewDir(plotShapeFrapioniSphere, viewDirIdx)
+        
+        updateSphereMarkers()
+        
+        if (!isCalledFromShow) {
+            plotShapeFrapioniSphere.exec_menu("View = plot")
+        }
+    }
+    
+    proc mouseEventsHandler() { local eventType, x_screen, y_screen, keystate, xc_screen, yc_screen, isCancel
+        eventType = $1
+        x_screen = $2
+        y_screen = $3
+        keystate = $4
+        
+        getCenterScreenCoords(centerVec, &xc_screen, &yc_screen)
+        
+        isCancel = frapUtils.mouseEventsHandlerForCylinderAndSphereFrapSims(eventType, x_screen, y_screen, keystate, &enumLockLevel, &xc_screen, &yc_screen, &frapRadius, &rangeRadius)
+        if (isCancel) {
+            return
+        }
+        
+        moveSphereCenter(xc_screen, yc_screen)
+        
+        updateSphereMarkers()
+    }
+    
+    proc updateSphereMarkers() { local xc_screen, yc_screen
+        plotShapeFrapioniSphere.erase()
+        
+        // The FRAP spot sphere
+        getCenterScreenCoords(centerVec, &xc_screen, &yc_screen)
+        plotShapeUtils.addCircleMarker(plotShapeFrapioniSphere, xc_screen, yc_screen, frapRadius)
+        
+        // The scatter range sphere
+        getCenterScreenCoords(centerVec0, &xc_screen, &yc_screen)
+        plotShapeUtils.addCircleMarker(plotShapeFrapioniSphere, xc_screen, yc_screen, rangeRadius, enumColours.grey)
+        
+        // The scatter range centre
+        plotShapeFrapioniSphere.mark(xc_screen, yc_screen, "S", 4, enumColours.red, 1)
+    }
+    
+    func getYmin() {
+        return 0.85*BasicFRAP
+    }
+    
+    func getYmax() {
+        return 1*BasicFRAP
+    }
+    
+    proc getCenterScreenCoords() { localobj _centerVec
+        _centerVec = $o1
+        
+        if (viewDirIdx == 0) {          // XY plane
+            $&2 = _centerVec.x[0]
+            $&3 = _centerVec.x[1]
+        } else if (viewDirIdx == 1) {   // ZY plane
+            $&2 = _centerVec.x[2]
+            $&3 = _centerVec.x[1]
+        } else if (viewDirIdx == 2) {   // XZ plane
+            $&2 = _centerVec.x[0]
+            $&3 = _centerVec.x[2]
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    proc moveSphereCenter() { local x_screen, y_screen
+        x_screen = $1
+        y_screen = $2
+        
+        if (viewDirIdx == 0) {          // XY plane
+            centerVec.x[0] = x_screen
+            centerVec.x[1] = y_screen
+        } else if (viewDirIdx == 1) {   // ZY plane
+            centerVec.x[2] = x_screen
+            centerVec.x[1] = y_screen
+        } else if (viewDirIdx == 2) {   // XZ plane
+            centerVec.x[0] = x_screen
+            centerVec.x[2] = y_screen
+        } else {
+            codeContractViolation()
+        }
+        
+        centerVec0.copy(centerVec)
+    }
+    
+endtemplate SimFrapSphere
+
+
+// Finds sections within a sphere and sets initial FRAP concentration on them.
+// $o1 - centerVec - center coordinates of the FRAP spot sphere
+// $2 - frapRadius - radius of the sphere
+// $3 - Basic concentration. The parameter can modulate the initial concentration of interest.
+// $4 - Alpha - affects speed of the bleaching
+// $5 - DFree
+// Returns: Sections affected by FRAP
+obfunc setInitialSphereConcentration() { local frapRadius, SphereRadiusSq, BasicConc, Alpha, DFree, x, y, z, distToCenterSq localobj centerVec, frapSphereSecList
+    
+    centerVec = $o1
+    frapRadius = $2
+    BasicConc = $3
+    Alpha = $4
+    DFree = $5
+    
+    SphereRadiusSq = frapRadius ^ 2
+    
+    frapSphereSecList = new List()
+    
+    forall {
+        if (!ismembrane("FRAP")) {
+            continue
+        }
+        
+        frapion0_FRAP = BasicConc   // mM, The concentration of molecules used for the FRAP
+        DFree_FRAP = DFree
+        
+        frapUtils.getSecCentreCoords(&x, &y, &z)
+        
+        // !! maybe implement a new func in geomMath for this
+        distToCenterSq = math.sumSq(x - centerVec.x[0], y - centerVec.x[1], z - centerVec.x[2])
+        
+        // Find all sections within the sphere
+        // TODO: it would be better to step down from the section level to the segment level (use interpEachSegmCentreCoordsFromSec3DPointCoords)
+        if (distToCenterSq < SphereRadiusSq) {
+            frapSphereSecList.append(new SectionRef())
+            Alpha_FRAP = Alpha * BasicConc
+        } else {
+            Alpha_FRAP = 0      // 1/ms
+        }
+    }
+    
+    return frapSphereSecList
+}

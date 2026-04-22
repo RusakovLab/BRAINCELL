@@ -1,0 +1,69 @@
+
+// !! code dup. with SEClampHelper
+begintemplate IClampHelper
+    
+    public deployClamp, removeClamp
+    public iClamp
+    // "ms" and "isRestoreParamsOnNextDeployment" are assigned from Python
+    
+    external vBoxIClampPPGM
+    external mwh
+    external unmapIfNotNil, printMsgAndRaiseError
+    
+    objref ms, iClamp
+    
+    isRestoreParamsOnNextDeployment = -1
+    
+    
+    proc init() {
+        ms = new MechanismStandard("IClamp", 1)
+        isRestoreParamsOnNextDeployment = 0
+    }
+    
+    proc deployClamp() { local hasCheckbox localobj list, nil
+        strdef line2Templ, line2
+        
+        hasCheckbox = $1
+        
+        if (iClamp != nil) {
+            // Already deployed
+            return
+        }
+        
+        load_file(1, "_Code/Clamps/IClampPointProcessGroupManager.hoc")
+        list = new List("IClamp")
+        if (list.count() != 1) {
+            printMsgAndRaiseError("More than one IClamp detected.")
+        }
+        iClamp = list.o(0)
+        if (isRestoreParamsOnNextDeployment) {
+            ms.out(iClamp)
+        }
+        line2Templ = "It will be deleted once you uncheck %sthe simulation button."
+        if (hasCheckbox) {
+            sprint(line2, line2Templ, "the checkbox, toggle \"test sines\" or uncheck ")
+        } else {
+            sprint(line2, line2Templ, "")
+        }
+        mwh.showMessageBox("IClamp was inserted into the centre of the first soma section.", line2, "IClamp inserted")
+    }
+    
+    proc removeClamp() { localobj nil
+        
+        if (iClamp == nil) {
+            // Already removed
+            return
+        }
+        
+        ms.in(iClamp)
+        isRestoreParamsOnNextDeployment = 1
+        
+        iClamp = nil
+        unmapIfNotNil(vBoxIClampPPGM)
+        vBoxIClampPPGM = nil    // Without this, the IClamp object won't be deleted
+    }
+    
+endtemplate IClampHelper
+
+objref iClampHelper
+iClampHelper = new IClampHelper()

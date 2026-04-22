@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BrainCell AI Agent — Setup & User Manual</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 14px; color: #2c3e50; max-width: 920px; margin: 0 auto; padding: 30px 40px; line-height: 1.65; }
+
+  h1 { color: #1F4E79; font-size: 26px; border-bottom: 3px solid #2E75B6; padding-bottom: 8px; margin-top: 44px; }
+  h2 { color: #2E75B6; font-size: 19px; margin-top: 30px; margin-bottom: 8px; }
+  h3 { color: #2c3e50; font-size: 15px; margin-top: 18px; }
+
+  .cover { text-align: center; padding: 40px 0 30px 0; border-bottom: 3px solid #2E75B6; margin-bottom: 30px; }
+  .cover .big  { font-size: 48px; font-weight: bold; color: #1F4E79; margin: 0; }
+  .cover .sub  { font-size: 22px; color: #2E75B6; margin: 10px 0 6px; }
+  .cover .tag  { font-size: 14px; color: #777; font-style: italic; margin-bottom: 24px; }
+
+  .meta { background:#E8F4F8; border-left:6px solid #2E75B6; display:inline-block;
+          padding:14px 22px; text-align:left; font-size:13px; color:#1A4A6A; }
+  .meta div { margin: 3px 0; }
+
+  .info-box { padding:13px 18px; border-radius:4px; margin:14px 0; border-left:6px solid; }
+  .teal   { background:#E8F4F8; border-color:#2E75B6; color:#1A4A6A; }
+  .green  { background:#E2F5E9; border-color:#27AE60; color:#1A5C2A; }
+  .amber  { background:#FFF8E1; border-color:#E67E22; color:#7D3C00; }
+  .red    { background:#FDEDEC; border-color:#E74C3C; color:#7B241C; }
+  .gray   { background:#F5F5F5; border-color:#999;    color:#555; }
+  .cyan   { background:#D6E4F0; border-color:#2E75B6; color:#1A4A6A; }
+
+  .code-block { background:#1E1E1E; color:#00FF00; padding:13px 18px; border-radius:4px;
+                border-left:5px solid #2E75B6; margin:12px 0; white-space:pre-wrap;
+                font-family:"Courier New",monospace; font-size:13px; line-height:1.7; }
+  code { background:#f0f0f0; color:#c0392b; padding:1px 5px; border-radius:3px;
+         font-family:"Courier New",monospace; font-size:13px; }
+
+  .step-box { display:flex; align-items:stretch; margin:14px 0; border-radius:4px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+  .step-num { background:#2E75B6; color:white; font-size:22px; font-weight:bold;
+              min-width:54px; display:flex; align-items:center; justify-content:center; }
+  .step-body { background:#D6E4F0; padding:12px 18px; flex:1; }
+  .step-body .title { font-weight:bold; font-size:16px; color:#1F4E79; margin-bottom:4px; }
+  .step-body .desc  { font-size:13px; color:#2c3e50; }
+
+  table { border-collapse:collapse; width:100%; margin:14px 0; font-size:13px; }
+  th { background:#1F4E79; color:white; padding:10px 12px; text-align:left; }
+  td { padding:9px 12px; border:1px solid #ccc; vertical-align:top; }
+  tr:nth-child(even) td { background:#E8F4F8; }
+  tr:nth-child(odd)  td { background:white; }
+
+  ul { padding-left:22px; } ul li { margin:5px 0; }
+  ol { padding-left:22px; } ol li { margin:7px 0; }
+
+  .hr { border:none; border-top:2px dashed #ccc; margin:40px 0; }
+  .tick { color:#27AE60; font-weight:bold; }
+  .warn { color:#E67E22; font-weight:bold; }
+  .print-note { background:#f9f9f9; border:1px solid #ddd; padding:8px 14px; font-size:12px;
+                color:#777; margin-bottom:20px; border-radius:3px; }
+  .badge { display:inline-block; background:#1F4E79; color:white; font-size:11px;
+           font-weight:bold; padding:2px 8px; border-radius:10px; margin-right:6px; }
+  .path { font-family:"Courier New",monospace; font-size:13px; background:#f0f0f0;
+          padding:2px 6px; border-radius:3px; color:#1F4E79; }
+
+  @media print {
+    .hr { page-break-before:always; border:none; margin:0; }
+    .print-note { display:none; }
+    body { padding:20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-note">💡 To save as PDF: press <strong>Ctrl+P</strong> → <strong>Save as PDF</strong></div>
+
+<!-- ═══ COVER ═══════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="big">BrainCell AI Agent</div>
+  <div class="sub">Complete Setup &amp; User Manual</div>
+  <div class="tag">From zero to working AI agent — step by step</div>
+  <div class="meta">
+    <div><strong>Files you received:</strong> &nbsp; braincell_mapper.py &nbsp;&amp;&nbsp; braincell_agent.py</div>
+    <div><strong>Requirements:</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Python (Anaconda), Anthropic API key</div>
+    <div><strong>Estimated setup time:</strong> &nbsp; 20–30 minutes</div>
+    <div><strong>Running cost:</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ~$5–20 / month (Anthropic API)</div>
+  </div>
+</div>
+
+<!-- ═══ OVERVIEW ═════════════════════════════════════════════════════════════ -->
+<h1>Overview — What You Are Setting Up</h1>
+
+<p>You have received two Python scripts that together create an AI assistant for the <strong>BrainCell</strong> NEURON codebase. Here is what each file does:</p>
+
+<table>
+  <tr><th>File</th><th>What it does</th><th>When to run</th></tr>
+  <tr>
+    <td><code>braincell_mapper.py</code></td>
+    <td>Scans all MOD, HOC, and Python files in your repository and creates a <strong>braincell_map.json</strong> index file</td>
+    <td>Once at the start, and again whenever you add new files to the repository</td>
+  </tr>
+  <tr>
+    <td><code>braincell_agent.py</code></td>
+    <td>The AI agent — reads your code and answers questions about biophysics, architecture, and can propose modifications</td>
+    <td>Every time you want to use the agent</td>
+  </tr>
+</table>
+
+<div class="info-box teal">
+  <strong>Setup sequence:</strong><br>
+  Step 1: Install Anaconda &nbsp;→&nbsp; Step 2: Get API key &nbsp;→&nbsp; Step 3: Install anthropic package &nbsp;→&nbsp;
+  Step 4: Edit the two files &nbsp;→&nbsp; Step 5: Run mapper &nbsp;→&nbsp; Step 6: Run agent &nbsp;→&nbsp; Ask questions!
+</div>
+
+<hr class="hr">
+
+<!-- ═══ SECTION 1 — PREREQUISITES ════════════════════════════════════════════ -->
+<h1>1. Prerequisites — What You Need First</h1>
+
+<h2>1.1 Python (Anaconda) — if not already installed</h2>
+
+<div class="step-box">
+  <div class="step-num">1</div>
+  <div class="step-body">
+    <div class="title">Download Anaconda</div>
+    <div class="desc">Go to <strong>anaconda.com/download</strong> and download the installer for Windows. Run it and accept all defaults.</div>
+  </div>
+</div>
+
+<div class="step-box">
+  <div class="step-num">2</div>
+  <div class="step-body">
+    <div class="title">Verify installation</div>
+    <div class="desc">Open <strong>Anaconda Prompt</strong> from the Start Menu and type:</div>
+  </div>
+</div>
+<div class="code-block">python --version</div>
+<p>You should see something like: <code>Python 3.11.x</code>. If so, Anaconda is working.</p>
+
+<h2>1.2 Check where Anaconda is installed</h2>
+<p>In Anaconda Prompt, type:</p>
+<div class="code-block">where python</div>
+<p>Note the path that appears — it will look like one of these:</p>
+<ul>
+  <li><span class="path">C:\Users\YourName\anaconda3\python.exe</span></li>
+  <li><span class="path">C:\ProgramData\Anaconda3\python.exe</span></li>
+</ul>
+<p>You will need this path in Step 4 if using Spyder.</p>
+
+<hr class="hr">
+
+<!-- ═══ SECTION 2 — PLACE THE FILES ══════════════════════════════════════════ -->
+<h1>2. Place the Files in the Right Location</h1>
+
+<div class="step-box">
+  <div class="step-num">1</div>
+  <div class="step-body">
+    <div class="title">Find your BrainCell repository folder</div>
+    <div class="desc">This is the folder that contains your MOD, HOC, and Python files. For example: <span class="path">D:\MyWork\BrainCell\</span></div>
+  </div>
+</div>
+
+<div class="step-box">
+  <div class="step-num">2</div>
+  <div class="step-body">
+    <div class="title">Copy both files into that folder</div>
+    <div class="desc">Place <code>braincell_mapper.py</code> and <code>braincell_agent.py</code> directly in the root of your BrainCell folder.</div>
+  </div>
+</div>
+
+<p>Your folder should now look like this:</p>
+<div class="code-block">D:\MyWork\BrainCell\
+  ├── braincell_mapper.py       &lt;-- you just added this
+  ├── braincell_agent.py        &lt;-- you just added this
+  ├── Mechanisms\
+  │     ├── Astrocyte\MOD_files\
+  │     ├── Neuron\MOD_files\
+  │     └── Common\MOD_files\
+  ├── _Code\
+  ├── Geometry\
+  └── ...other folders...</div>
+
+<div class="step-box">
+  <div class="step-num">3</div>
+  <div class="step-body">
+    <div class="title">Edit the repository path in braincell_mapper.py</div>
+    <div class="desc">Open <code>braincell_mapper.py</code> in any text editor (Notepad is fine). Find line 8 and change the path to match YOUR folder:</div>
+  </div>
+</div>
+<div class="code-block"># BEFORE (example — change this to your actual path):
+REPO = Path(r"C:\Leonid\GitHub\XiaolanWu\BrainCell")
+
+# AFTER (your actual path):
+REPO = Path(r"D:\MyWork\BrainCell")</div>
+
+<div class="step-box">
+  <div class="step-num">4</div>
+  <div class="step-body">
+    <div class="title">Edit the repository path in braincell_agent.py</div>
+    <div class="desc">Open <code>braincell_agent.py</code> in any text editor. Find line with <code>REPO = Path(...</code> and change it to the same path:</div>
+  </div>
+</div>
+<div class="code-block"># Change this to YOUR actual BrainCell folder path:
+REPO = Path(r"D:\MyWork\BrainCell")</div>
+
+<div class="info-box amber">
+  ⚠️ <strong>Important:</strong> Use a lowercase <strong>r</strong> before the quote marks: <code>r"D:\MyWork\BrainCell"</code><br>
+  This tells Python to treat backslashes as literal characters, not escape sequences.
+</div>
+
+<hr class="hr">
+
+<!-- ═══ SECTION 3 — API KEY ═══════════════════════════════════════════════════ -->
+<h1>3. Get Your Anthropic API Key</h1>
+
+<p>The AI agent uses the Anthropic API (Claude AI). You need an account and API key to use it.</p>
+
+<div class="step-box">
+  <div class="step-num">1</div>
+  <div class="step-body">
+    <div class="title">Create an Anthropic account</div>
+    <div class="desc">Go to <strong>console.anthropic.com</strong> and sign up (or sign in if you already have an account).</div>
+  </div>
+</div>
+
+<div class="step-box">
+  <div class="step-num">2</div>
+  <div class="step-body">
+    <div class="title">Get your API key</div>
+    <div class="desc">In the left sidebar, click <strong>API Keys</strong> → click <strong>Create Key</strong> → give it a name (e.g. "BrainCell") → copy the key.</div>
+  </div>
+</div>
+
+<p>Your key will look like this:</p>
+<div class="code-block">sk-ant-api03-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</div>
+
+<div class="info-box red">
+  🔴 <strong>Security warning:</strong> Never share your API key with anyone. Never paste it into chat messages, emails, or public documents. If you accidentally expose it, go to console.anthropic.com immediately and delete it, then create a new one.
+</div>
+
+<div class="step-box">
+  <div class="step-num">3</div>
+  <div class="step-body">
+    <div class="title">Add credits to your account</div>
+    <div class="desc">In the Console, click <strong>Billing</strong> → <strong>Add credits</strong>. Add $10 to start — this lasts weeks of normal use.</div>
+  </div>
+</div>
+
+<table>
+  <tr><th>Usage level</th><th>Approximate cost</th><th>Typical use</th></tr>
+  <tr><td>$5</td><td>~100–200 questions</td><td>Getting started</td></tr>
+  <tr><td>$10</td><td>~300–500 questions</td><td>Active research</td></tr>
+  <tr><td>$20/month</td><td>~600–1000 questions</td><td>Daily use</td></tr>
+</table>
+
+<div class="step-box">
+  <div class="step-num">4</div>
+  <div class="step-body">
+    <div class="title">Save the API key permanently on your Windows computer</div>
+    <div class="desc">Open <strong>Anaconda Prompt</strong> and run this command (replace with your actual key):</div>
+  </div>
+</div>
+<div class="code-block">setx ANTHROPIC_API_KEY "sk-ant-api03-YOUR_ACTUAL_KEY_HERE"</div>
+<p>You should see: <code>SUCCESS: Specified value was saved.</code></p>
+<p><strong>Close and reopen Anaconda Prompt</strong> — the key is now saved permanently and will be found automatically every time.</p>
+
+<div class="info-box green">
+  ✔ Verify it saved correctly — in a new Anaconda Prompt window type:<br>
+  <code>echo %ANTHROPIC_API_KEY%</code><br>
+  It should print your key starting with <code>sk-ant-...</code>
+</div>
+
+<hr class="hr">
+
+<!-- ═══ SECTION 4 — INSTALL PACKAGE ══════════════════════════════════════════ -->
+<h1>4. Install the Anthropic Python Package</h1>
+
+<p>The agent needs the <code>anthropic</code> Python package. Install it once:</p>
+
+<div class="step-box">
+  <div class="step-num">1</div>
+  <div class="step-body">
+    <div class="title">Open Anaconda Prompt</div>
+    <div class="desc">From Start Menu → search "Anaconda Prompt" → click to open.</div>
+  </div>
+</div>
+
+<div class="step-box">
+  <div class="step-num">2</div>
+  <div class="step-body">
+    <div class="title">Install the package</div>
+    <div class="desc">Type this command and press Enter:</div>
+  </div>
+</div>
+<div class="code-block">pip install anthropic</div>
+<p>You will see packages downloading and installing. Wait for it to finish.</p>
+
+<div class="step-box">
+  <div class="step-num">3</div>
+  <div class="step-body">
+    <div class="title">Verify installation</div>
+    <div class="desc">Type:</div>
+  </div>
+</div>
+<div class="code-block">python -c "import anthropic; print(anthropic.__version__)"</div>
+<p>You should see a version number like <code>0.40.0</code>. If so, the package is installed correctly.</p>
+
+<div class="info-box amber">
+  ⚠️ <strong>If you use Spyder IDE:</strong> Spyder may have its own Python that is separate from Anaconda. If you get <code>ModuleNotFoundError: No module named 'anthropic'</code> when running from Spyder, go to:<br><br>
+  <strong>Tools → Preferences → Python interpreter</strong><br>
+  Select <strong>"Use the following interpreter"</strong><br>
+  Enter your Anaconda Python path, for example: <code>C:\Users\YourName\anaconda3\python.exe</code><br>
+  Click OK → restart the kernel → run the install command again.
+</div>
+
+<hr class="hr">
+
+<!-- ═══ SECTION 5 — RUN THE MAPPER ═══════════════════════════════════════════ -->
+<h1>5. Run the Mapper — Create the Repository Index</h1>
+
+<p>The mapper scans your BrainCell repository and creates a <strong>braincell_map.json</strong> file that the agent uses to find relevant files quickly.</p>
+
+<div class="step-box">
+  <div class="step-num">1</div>
+  <div class="step-body">
+    <div class="title">Open Anaconda Prompt and navigate to your BrainCell folder</div>
+    <div class="desc">Replace the path below with your actual BrainCell folder:</div>
+  </div>
+</div>
+<div class="code-block">cd D:\MyWork\BrainCell</div>
+
+<div class="step-box">
+  <div class="step-num">2</div>
+  <div class="step-body">
+    <div class="title">Run the mapper</div>
+    <div class="desc">Type:</div>
+  </div>
+</div>
+<div class="code-block">python braincell_mapper.py</div>
+
+<p>You will see output like this:</p>
+<div class="code-block">Scanning BrainCell repository...
+==================================================
+  BRAINCELL REPOSITORY MAP
+==================================================
+  MOD files:    131
+  HOC files:    346
+  Python files: 74
+
+  Ion channels by ion type:
+    k           : 53 mechanisms
+    ca          : 27 mechanisms
+    na          : 24 mechanisms
+    ...
+
+  Map saved to: D:\MyWork\BrainCell\braincell_map.json</div>
+
+<div class="info-box green">
+  ✔ A file called <strong>braincell_map.json</strong> now exists in your BrainCell folder. The agent is ready to use.<br><br>
+  <strong>Run the mapper again</strong> any time you add new MOD or Python files to the repository.
+</div>
+
+<hr class="hr">
+
+<!-- ═══ SECTION 6 — RUN THE AGENT ════════════════════════════════════════════ -->
+<h1>6. Run the Agent and Ask Questions</h1>
+
+<div class="step-box">
+  <div class="step-num">1</div>
+  <div class="step-body">
+    <div class="title">Open Anaconda Prompt and navigate to your BrainCell folder</div>
+  </div>
+</div>
+<div class="code-block">cd D:\MyWork\BrainCell</div>
+
+<div class="step-box">
+  <div class="step-num">2</div>
+  <div class="step-body">
+    <div class="title">Run the agent</div>
+  </div>
+</div>
+<div class="code-block">python braincell_agent.py</div>
+
+<p>You will see the welcome message:</p>
+<div class="code-block">============================================================
+  BrainCell AI Agent
+  Repository: D:\MyWork\BrainCell
+  Index: 131 MOD  346 HOC  74 PY
+============================================================
+Type "help" for available commands, "exit" to quit.
+
+&gt;</div>
+
+<div class="step-box">
+  <div class="step-num">3</div>
+  <div class="step-body">
+    <div class="title">Type your first question at the &gt; prompt and press Enter</div>
+  </div>
+</div>
+<div class="code-block">&gt; How does GluTrans.mod work? Explain the biophysics.</div>
+
+<p>The agent will find the file, read it, and give you a detailed biophysical explanation. Wait 20–60 seconds for a response.</p>
+
+<hr class="hr">
+
+<!-- ═══ SECTION 7 — COMMANDS ══════════════════════════════════════════════════ -->
+<h1>7. Agent Commands and Usage</h1>
+
+<table>
+  <tr><th>Command</th><th>What it does</th><th>Example</th></tr>
+  <tr>
+    <td>Just type a question</td>
+    <td>Ask anything — agent searches for relevant files automatically</td>
+    <td><code>How does cadifus.mod model calcium diffusion?</code></td>
+  </tr>
+  <tr>
+    <td><code>ask &lt;question&gt;</code></td>
+    <td>Same as above — the "ask" prefix is optional</td>
+    <td><code>ask What is the role of the Na/K pump?</code></td>
+  </tr>
+  <tr>
+    <td><code>search &lt;keyword&gt;</code></td>
+    <td>Find all files related to a keyword</td>
+    <td><code>search calcium gap junction</code></td>
+  </tr>
+  <tr>
+    <td><code>explain &lt;filepath&gt;</code></td>
+    <td>Full biophysical explanation of one specific file</td>
+    <td><code>explain Mechanisms/Common/MOD_files/GluTrans.mod</code></td>
+  </tr>
+  <tr>
+    <td><code>modify &lt;filepath&gt; &lt;instruction&gt;</code></td>
+    <td>Ask the agent to modify a file — shows preview, asks your approval before saving</td>
+    <td><code>modify Mechanisms/Astrocyte/MOD_files/Kir4.mod  Add Q10 temperature dependence</code></td>
+  </tr>
+  <tr>
+    <td><code>help</code></td>
+    <td>Show all commands</td>
+    <td><code>help</code></td>
+  </tr>
+  <tr>
+    <td><code>exit</code></td>
+    <td>Quit the agent</td>
+    <td><code>exit</code></td>
+  </tr>
+</table>
+
+<h2>Example questions to get started</h2>
+<div class="code-block">&gt; How does GluTrans.mod work? Explain the biophysics.
+&gt; What mechanisms handle calcium dynamics in astrocytes?
+&gt; Find all MOD files that use KINETIC blocks
+&gt; Compare Kir.mod and Kir4.mod — what are the differences?
+&gt; Explain the architecture of the _Code/Managers/ folder
+&gt; search extracellular potassium
+&gt; explain Mechanisms/Neuron/MOD_files/AMPASyn.mod</div>
+
+<hr class="hr">
+
+<!-- ═══ SECTION 8 — MODIFYING FILES ═══════════════════════════════════════════ -->
+<h1>8. Modifying Files Safely</h1>
+
+<div class="info-box amber">
+  ⚠️ <strong>Before modifying any file:</strong> make sure your work is committed in Git so you can restore the original if needed.
+</div>
+
+<h2>8.1 How to request a modification</h2>
+<div class="code-block">&gt; modify Mechanisms/Astrocyte/MOD_files/Kir4.mod  Add Q10 temperature dependence (Q10=2.2)
+&gt; modify Mechanisms/Common/MOD_files/GluTrans.mod  Make the transporter density a RANGE variable
+&gt; modify Mechanisms/Common/MOD_files/cadifus.mod  Add a comment header explaining the IP3 kinetics</div>
+
+<h2>8.2 The approval workflow</h2>
+<ol>
+  <li>The agent reads the file</li>
+  <li>It writes a modified version and shows you a preview</li>
+  <li>It asks: <em>"Save changes? (y/n):"</em></li>
+  <li><strong>Read the preview carefully</strong> before typing y</li>
+  <li>Type <code>y</code> to save, or <code>n</code> to cancel</li>
+</ol>
+
+<h2>8.3 Undoing a change</h2>
+<p>If the modified file causes problems, restore the original from Git:</p>
+<div class="code-block">cd D:\MyWork\BrainCell
+git checkout Mechanisms/Common/MOD_files/GluTrans.mod</div>
+
+<hr class="hr">
+
+<!-- ═══ SECTION 9 — TROUBLESHOOTING ══════════════════════════════════════════ -->
+<h1>9. Troubleshooting</h1>
+
+<table>
+  <tr><th>Error message</th><th>Cause</th><th>Solution</th></tr>
+  <tr>
+    <td><code>ModuleNotFoundError: No module named 'anthropic'</code></td>
+    <td>Package not installed in the Python that is running the script</td>
+    <td>Run <code>pip install anthropic</code> in Anaconda Prompt. If using Spyder, change the Python interpreter to Anaconda (see Section 4).</td>
+  </tr>
+  <tr>
+    <td><code>AuthenticationError</code> or <code>Could not resolve authentication method</code></td>
+    <td>API key not found</td>
+    <td>Run <code>setx ANTHROPIC_API_KEY "sk-ant-..."</code> in Anaconda Prompt, then close and reopen the prompt.</td>
+  </tr>
+  <tr>
+    <td><code>FileNotFoundError: braincell_map.json not found</code></td>
+    <td>Mapper has not been run yet</td>
+    <td>Run <code>python braincell_mapper.py</code> first.</td>
+  </tr>
+  <tr>
+    <td><code>credit balance too low</code></td>
+    <td>No credits in your Anthropic account</td>
+    <td>Go to console.anthropic.com → Billing → Add credits.</td>
+  </tr>
+  <tr>
+    <td><code>REPO path not found</code> or files not being found</td>
+    <td>Wrong path set in the script</td>
+    <td>Open the script and check the <code>REPO = Path(r"...")</code> line. Make sure it matches your actual folder path exactly.</td>
+  </tr>
+  <tr>
+    <td>Agent gives wrong answer about a file</td>
+    <td>May have read wrong version</td>
+    <td>Ask: <em>"Please re-read the file and try again"</em></td>
+  </tr>
+  <tr>
+    <td>Very slow response (&gt;60 seconds)</td>
+    <td>Complex question, many files being read</td>
+    <td>Normal behaviour — wait for it to finish.</td>
+  </tr>
+</table>
+
+<hr class="hr">
+
+<!-- ═══ SECTION 10 — QUICK REFERENCE ═════════════════════════════════════════ -->
+<h1>10. Quick Reference — Print This Page</h1>
+
+<div class="info-box teal">
+  <strong>FIRST TIME SETUP (do once):</strong><br>
+  1. &nbsp; Install Anaconda from anaconda.com/download<br>
+  2. &nbsp; Go to console.anthropic.com → create account → API Keys → Create Key → copy it<br>
+  3. &nbsp; Add billing credits at console.anthropic.com → Billing<br>
+  4. &nbsp; In Anaconda Prompt: &nbsp;<code>setx ANTHROPIC_API_KEY "sk-ant-YOUR_KEY"</code><br>
+  5. &nbsp; In Anaconda Prompt: &nbsp;<code>pip install anthropic</code><br>
+  6. &nbsp; Copy both .py files into your BrainCell folder<br>
+  7. &nbsp; Edit <code>REPO = Path(r"...")</code> in both files to your BrainCell folder path<br>
+  8. &nbsp; In Anaconda Prompt: &nbsp;<code>cd D:\YourPath\BrainCell</code> &nbsp;then&nbsp; <code>python braincell_mapper.py</code>
+</div>
+
+<div class="info-box green">
+  <strong>EVERY SESSION:</strong><br>
+  1. &nbsp; Open Anaconda Prompt<br>
+  2. &nbsp; <code>cd D:\YourPath\BrainCell</code><br>
+  3. &nbsp; <code>python braincell_agent.py</code><br>
+  4. &nbsp; Type your question at the <code>&gt;</code> prompt
+</div>
+
+<div class="info-box cyan">
+  <strong>USEFUL COMMANDS:</strong><br>
+  <code>search &lt;keyword&gt;</code> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Find relevant files<br>
+  <code>explain Mechanisms/.../file.mod</code> &nbsp; Full explanation of one file<br>
+  <code>modify Mechanisms/.../file.mod  task</code> &nbsp; Propose a modification<br>
+  <code>help</code> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Show all commands<br>
+  <code>exit</code> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Quit the agent
+</div>
+
+<div class="info-box amber">
+  <strong>SAFETY:</strong><br>
+  • Never share your API key<br>
+  • Always commit in Git before modifying files<br>
+  • Always review the proposed change before typing <code>y</code> to save<br>
+  • To undo: <code>git checkout path/to/filename.mod</code>
+</div>
+
+<br>
+<p style="text-align:center; color:#999; font-size:12px; border-top:1px solid #eee; padding-top:16px;">
+  BrainCell AI Agent &bull; Complete Setup &amp; User Manual &bull; Savtchenko / Rusakov Lab, UCL &bull; 2026
+</p>
+
+</body>
+</html>

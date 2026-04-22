@@ -1,0 +1,42 @@
+// PhantomSpine.hoc
+// Creates a single geometrically negligible ("phantom") spine on dendrite[0](1)
+// when the user chose "Import neuron without spines".
+// Purpose: keep all BrainCell logic paths (SynManager, MechManager, NanoCore)
+//          intact -- they all expect at least one spine to exist.
+//
+// Geometry rationale:
+//   neck L = 0.01 um, diam = 0.01 um  -->  surface area ~ 3e-4 um2
+//   head L = 0.01 um, diam = 0.01 um  -->  surface area ~ 3e-4 um2
+//   Total added membrane ~ 6e-4 um2 vs typical dendrite ~ 1000s um2
+//   Electrotonic length   ~ 0.001 lambda  --> effectively invisible to dynamics
+
+// PhantomSpine.hoc
+// When "Import neuron without spines" is selected, injects one phantom ProtoSpine
+// into the first SpineSet so that NanoBranchesManager creates exactly one
+// NeuronNanoBranch[0] with correct naming -- keeping all downstream logic intact.
+
+proc createPhantomSpineOnFirstDendrite() { localobj spineSet, sec_ref, protoSpine, nil
+
+    if (!ImportWithoutSpines) {
+        return
+    }
+
+    if (spmAllSpineSets.count() < 1) {
+        return
+    }
+
+    if (dendrite_ref.count() < 1) {
+        return
+    }
+
+    spineSet = spmAllSpineSets.o(0)
+
+    spineSet.protoSpineList.remove_all()
+
+    dendrite_ref.o(0).sec {
+        sec_ref = new SectionRef()
+    }
+
+    protoSpine = new ProtoSpine(sec_ref, 1.0)
+    spineSet.protoSpineList.append(protoSpine)
+}

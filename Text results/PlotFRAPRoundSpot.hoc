@@ -1,0 +1,94 @@
+//load_file("nrngui.hoc")
+
+// Create objects for storing data
+objref data_file, data_vec_dist, data_vec_ratio, data_vec_con, data_vec_basic
+objref graph1, graph2, graph3
+strdef line
+
+data_file = new File()
+data_vec_dist = new Vector()
+data_vec_ratio = new Vector()
+data_vec_con = new Vector()
+data_vec_basic = new Vector()
+
+// Create and position the graphs
+graph1 = new Graph()
+graph2 = new Graph()
+graph3 = new Graph()
+
+
+
+// Read data from file
+proc read_data() {
+    data_file.ropen("CylinderTimeFRAP.txt")
+    data_file.gets(line)  // Skip header line
+    
+    while (!data_file.eof()) {
+        // Read each line and parse the space-separated values
+        dist = data_file.scanvar()
+        ratio = data_file.scanvar()
+        con = data_file.scanvar()
+        basic = data_file.scanvar()
+        
+        // Append to vectors only if valid numbers were read
+        if (dist != 0 || ratio != 0 || con != 0 || basic != 0) {
+            data_vec_dist.append(dist)
+            data_vec_ratio.append(ratio)
+            data_vec_con.append(con)
+            data_vec_basic.append(basic)
+        }
+    }
+    data_file.close()
+}
+
+// Plot the data as scatter plots
+proc plot_data() {
+
+    
+    // Graph 1: Distance vs FrapRatio
+    graph1.color(2)  // Red
+    for i = 0, data_vec_dist.size()-1 {
+        graph1.mark(data_vec_dist.x[i], data_vec_ratio.x[i], "O", 8, 2, 1)
+    }
+	graph1.size(0, 35, 0, 1)      // Distance vs FrapRatio
+    graph1.label(0.1, 0.9, "Distance vs Frap Ratio =Con/Basic")
+    graph1.exec_menu("View = plot")
+    
+    // Graph 2: Distance vs FrapCon
+    graph2.color(3)  // Blue
+    for i = 0, data_vec_dist.size()-1 {
+        graph2.mark(data_vec_dist.x[i], data_vec_con.x[i], "O", 8, 3, 1)
+    }
+	graph2.size(0, 35, 0, 20)     // Distance vs FrapCon
+    graph2.label(0.1, 0.9, "Distance vs Frap Concentration")
+    graph2.exec_menu("View = plot")
+    
+    // Graph 3: Distance vs FrapBasic
+    graph3.color(4)  // Green
+    for i = 0, data_vec_dist.size()-1 {
+        graph3.mark(data_vec_dist.x[i], data_vec_basic.x[i], "O", 8, 4, 1)
+    }
+	graph3.size(0, 35, 0, 60)     // Distance vs FrapBasic
+    graph3.label(0.1, 0.9, "Distance vs Frap Basic concentration")
+    graph3.exec_menu("View = plot")
+}
+
+// Add axis labels to all graphs
+proc add_labels() {
+    //graph1.xaxis(1)
+    //graph2.xaxis(1)
+    //graph3.xaxis(1)
+    
+    graph1.label(.5, 0, "Distance (um)", 2, 1, .5, 0, 1)
+    graph2.label(.5, 0, "Distance (um)", 2, 1, .5, 0, 1)
+    graph3.label(.5, 0, "Distance (um)", 2, 1, .5, 0, 1)
+    
+    graph1.label(0, .95, "FrapRatio (mM)", 2, 1, 0, 0, 1)
+    graph2.label(0, .95, "FrapCon (mM um^3)", 2, 1, 0, 0, 1)
+    graph3.label(0, .95, "FrapBasic (um^3)", 2, 1, 0, 0, 1)
+}
+
+// Execute all procedures
+read_data()
+plot_data()
+add_labels()

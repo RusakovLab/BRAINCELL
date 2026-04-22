@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K+ conc animation</title>
+    <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+    <style>
+        body { margin: 0; display: flex; flex-direction: column; align-items: center; font-family: Arial, sans-serif; }
+        #top-controls { width: 80vw; display: flex; justify-content: flex-start; margin-top: 10px; }
+        #plot { width: 90vw; height: 80vh; }
+        #controls { width: 80vw; display: flex; align-items: center; justify-content: space-between; margin-top: 10px; visibility: hidden; }
+        #frameSlider { flex-grow: 1; margin-left: 10px; margin-right: 10px; }
+        .icon-button { background: none; border: none; font-size: 24px; cursor: pointer; width: 30px; text-align: center; }
+        #timeIndicator, #frameIndicator { font-family: inherit; display: block; text-align: left; }
+    </style>
+</head>
+<body>
+    <div id="top-controls">
+        <input type="file" id="fileInput" accept=".txt">
+    </div>
+    <div id="plot"></div>
+    <div id="controls">
+        <button id="startStopButton" class="icon-button">▶</button>
+        <input type="range" id="frameSlider" min="0" max="0" step="1" value="0">
+        <div>
+            <span id="timeIndicator">t: 0 (ms)</span>
+            <span id="frameIndicator">Frame: 0 / 0</span>
+        </div>
+    </div>
+
+    <script>
+        let frames = [], times = [], isPlaying = false, animationInterval, globalMinZ = Infinity, globalMaxZ = -Infinity;
+        const slider = document.getElementById('frameSlider');
+        const startStopButton = document.getElementById('startStopButton');
+        const controls = document.getElementById('controls');
+        const timeIndicator = document.getElementById('timeIndicator');
+        const frameIndicator = document.getElementById('frameIndicator');
+        
+        function stopAnimation() {
+            clearInterval(animationInterval);
+            isPlaying = false;
+            startStopButton.innerHTML = "▶";
+        }
+        
+        function updateTimeAndFrameIndicators(index) {
+            timeIndicator.textContent = `t: ${times[index] || 0} (ms)`;
+            frameIndicator.textContent = `Frame: ${index + 1} / ${frames.length}`;
+        }
+        
+        function startAnimation() {
+            if (isPlaying) return;
+            isPlaying = true;
+            startStopButton.innerHTML = "⏸";
+            let index = parseInt(slider.value);
+            
+            animationInterval = setInterval(() => {
+                if (index >= frames.length - 1) {
+                    index = 0;
+                } else {
+                    index++;
+                }
+                slider.value = index;
+                updateFrame(index);
+            }, 100);
+        }
+        
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            controls.style.visibility = 'visible';
+            stopAnimation();
+            slider.value = 0;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const lines = e.target.result.trim().split('\n').slice(1);
+                let dataMap = new Map();
+                globalMinZ = Infinity;
+                globalMaxZ = -Infinity;
+                
+                lines.forEach(line => {
+                    let values = line.split('\t').map(Number);
+                    if (values.length === 4) {
+                        let [t, x, y, z] = values;
+                        if (!dataMap.has(t)) dataMap.set(t, []);
+                        dataMap.get(t).push({x, y, z});
+                        globalMinZ = Math.min(globalMinZ, z);
+                        globalMaxZ = Math.max(globalMaxZ, z);
+                    }
+                });
+                
+                frames = [], times = [...dataMap.keys()].sort((a, b) => a - b);
+                times.forEach(t => {
+                    let points = dataMap.get(t);
+                    let xVals = [...new Set(points.map(p => p.x))].sort((a, b) => a - b);
+                    let yVals = [...new Set(points.map(p => p.y))].sort((a, b) => a - b);
+                    let zVals = yVals.map(() => new Array(xVals.length).fill(null));
+                    
+                    points.forEach(p => {
+                        let xi = xVals.indexOf(p.x);
+                        let yi = yVals.indexOf(p.y);
+                        zVals[yi][xi] = p.z;
+                    });
+                    
+                    frames.push({
+                        name: `t=${t}`,
+                        data: [{
+                            type: 'surface',
+                            x: xVals,
+                            y: yVals,
+                            z: zVals,
+                            cmin: globalMinZ,
+                            cmax: globalMaxZ,
+                            colorbar: { title: { text: 'K<sup>+</sup> conc (mM)', side: 'top' } }
+                        }]
+                    });
+                });
+                
+                slider.max = frames.length - 1;
+                updateTimeAndFrameIndicators(0);
+                
+                Plotly.newPlot('plot', structuredClone(frames[0].data), {
+                    title: 'K<sup>+</sup>conc(t, dist, radius)',
+                    scene: {
+                        zaxis: {title: 'K<sup>+</sup> conc (mM)', range: [globalMinZ, globalMaxZ]},
+                        xaxis: {title: 'Distance (μm)'},
+                        yaxis: {title: 'Radius (μm)'}
+                    },
+                    updatemenus: []
+                }).then(() => {
+                    Plotly.addFrames('plot', frames);
+                });
+            };
+            reader.readAsText(file);
+        });
+        
+        function updateFrame(index) {
+            Plotly.animate('plot', {
+                data: frames[index].data,
+                layout: { scene: { zaxis: { range: [globalMinZ, globalMaxZ] } } }
+            }, { transition: { duration: 0 }, frame: { duration: 0, redraw: true } });
+            updateTimeAndFrameIndicators(index);
+        }
+        
+        slider.addEventListener('input', function() {
+            stopAnimation();
+            let index = parseInt(slider.value);
+            updateTimeAndFrameIndicators(index);
+        });
+        
+        slider.addEventListener('change', function() {
+            let index = parseInt(slider.value);
+            updateFrame(index);
+        });
+        
+        startStopButton.addEventListener('click', function() {
+            if (isPlaying) {
+                stopAnimation();
+            } else {
+                startAnimation();
+            }
+        });
+    </script>
+</body>
+</html>

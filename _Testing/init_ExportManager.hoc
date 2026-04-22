@@ -1,0 +1,23 @@
+
+// Load some test nanogeometry file
+isAstrocyteOrNeuron = 0
+{ load_file("_CommonPrologueForTests.hoc") }
+
+{ load_file("../_Code/Managers/CommonLoads.hoc") }
+{ load_file("../_Code/Managers/MechManager/MechManager.hoc") }
+{ load_file("../_Code/Managers/GapJuncManager/GapJuncManager.hoc") }
+if (!isAstrocyteOrNeuron) {
+    load_file("../_Code/Managers/SynManager/SynManager.hoc")
+}
+{ load_file("../_Code/Extracellular/OutsideInDiffusion/ExtracellularManager.hoc") }
+// !! { load_file("../_Code/Extracellular/InsideOutDiffusion/InsideOutDiffManager.hoc") }
+
+{ load_file("../_Code/Export/ExportCoreLoads.hoc") }
+{ load_file("../_Code/Export/Widgets/ExportWidgetsLoads.hoc") }
+
+{ chdir("..") }     // Without this, getcwd() will return different path compared to the start from "init.hoc"
+
+sourcePythonCodeForExport()
+
+exportManagerMainWidget = new ExportManagerMainWidget()
+{ exportManagerMainWidget.show() }

@@ -1,0 +1,278 @@
+
+begintemplate BiophysExportImportHelper
+
+    public export, import, importForSim
+    public exportStage2, importStage2, importStage3
+    public showMissingCompNamesWarning
+    
+    external mmAllComps
+	external sourcePythonCode, stringsEqual, stringCapitalize, getNotImplementedLines, getCellTypeName
+	external pyObj, fbh, mth, mwh
+	external mechManagerMainWidget, mmmowb
+	external pyEnumOutFileTypes, pyEnumInFileTypes
+	external eachItemInList
+	external NumberNanoBranches
+    
+    objref mmeibWidget
+    
+    objref biophysJsonFileHelper
+    strdef jsonFilePathName     // !! ?? use two different vars for export and import?
+    
+    
+    proc init() {
+        sourcePythonCode("\\PythonCode", "from BiophysJsonFileHelper import BiophysJsonFileHelper", "BiophysExportImportHelper ctor")
+        
+        biophysJsonFileHelper = pyObj.BiophysJsonFileHelper()
+    }
+    
+    proc export() { local status
+        mmeibWidget = $o1
+        
+        // !! check for pending changes in mech comps as well
+        
+        // !! this is just a half-measure because user can make some changes to biophysics just before the click on "Export" button in "Export of biophysics" widget
+        // !! maybe move this code to (or duplicate in) exportStage2
+        status = mmmowb.ifDirtyThenProposeUserToApplyChanges("export")
+        if (status == 1) {
+            return
+        }
+        
+        if (status == 2) {
+            mwh.endIntercepting()   // Started in MechOpWidgetBase.ifDirtyThenProposeUserToApplyChanges
+        }
+        
+        // !!?? mmmowb.dismissHandler()
+        
+        mmeibWidget.show(1)     // --> exportStage2
+    }
+    
+    proc exportStage2() { local isCancel, isError localobj options
+        
+        options = $o1
+        
+        // !! need to close it somehow once user closes any of parent widgets
+        isCancel = fbh.showSaveFileDialog(pyEnumOutFileTypes.biophysJson, jsonFilePathName)
+        if (isCancel) {
+            return
+        }
+        
+        // It may take a while to export all VerbatimDistFuncHelper inhom models
+        mwh.showPleaseWaitBox("Exporting biophysics file.")
+        {
+            isError = biophysJsonFileHelper.exportStage2(jsonFilePathName, options)
+            if (isError) {
+                return
+            }
+        }
+        mwh.hidePleaseWaitBox()
+        
+        showExportOrImportCompleteMsg(1, options)
+        
+        mmeibWidget.dismissHandler()
+    }
+    
+    proc import() { local isCancel, isError
+        mmeibWidget = $o1
+        
+        mmeibWidget.dismissHandler()
+        
+        // !! need to close it somehow once user closes any of parent widgets
+        isCancel = fbh.showLoadFileDialog(pyEnumInFileTypes.biophysJson, jsonFilePathName)
+        if (isCancel) {
+            return
+        }
+        
+        isError = biophysJsonFileHelper.importStage1(jsonFilePathName)  // --> importStage2
+        if (isError) {
+            return
+        }
+    }
+    
+    proc importStage2() { local numInhomVars, numStochVars localobj compNames, missingCompNames, isBlockThisCompNameVec, isUseThisCompNameVec
+        
+        compNames = $o1
+        numInhomVars = $2
+        numStochVars = $3
+        
+        // Populate missingCompNames, isBlockThisCompNameVec and isUseThisCompNameVec
+        populateThree(compNames, missingCompNames, isBlockThisCompNameVec, isUseThisCompNameVec)
+        
+        mmeibWidget.show(0, compNames, numInhomVars, numStochVars, isBlockThisCompNameVec, isUseThisCompNameVec)    // --> importStage3
+        
+        if (missingCompNames.count() == 0) {
+            return
+        }
+        
+        showMissingCompNamesWarning(missingCompNames, 0)
+    }
+    
+    proc importStage3() { local isError localobj options
+        options = $o1
+        
+        // It may take a while to apply all inhom models
+        mwh.showPleaseWaitBox("Importing biophysics file.")
+        {
+            isError = biophysJsonFileHelper.importStage3(options)
+            if (isError) {
+                return
+            }
+        }
+        mwh.hidePleaseWaitBox()
+        
+        // The widget could be closed if we imported the astrocyte-specific inhom model for "g_pas"
+        // that required the call of proc distrSelectedLeaves() which closes the widget
+        // mechManagerMainWidget.mechOpSelectHandler()
+        mechManagerMainWidget.updateVisibleMechOpChilds()
+        
+        showExportOrImportCompleteMsg(0, options)
+        
+        mmeibWidget.dismissHandler()
+    }
+    
+    func importForSim() { local isAskAboutMissingComps, isError, isCancel localobj compNames, missingCompNames, placeholder, isUseThisCompNameVec
+        strdef jsonFileName, cellTypeName, jsonFilePathName
+        
+        jsonFileName = $s1
+        isAskAboutMissingComps = $2
+        
+        getCellTypeName(cellTypeName)
+        sprint(jsonFilePathName, "%sBiophysics/%s/%s", getcwd(), cellTypeName, jsonFileName)
+        
+        // It may take a while to parse JSON file
+        mwh.showPleaseWaitBox("Analyzing cell compartments.")
+        {
+            compNames = new List()
+            isError = biophysJsonFileHelper.importForSimStageA(jsonFilePathName, compNames)
+            if (isError) {
+                return 1
+            }
+            
+            // Populate missingCompNames and isUseThisCompNameVec
+            populateThree(compNames, missingCompNames, placeholder, isUseThisCompNameVec)
+        }
+        mwh.hidePleaseWaitBox()
+        
+        if (isAskAboutMissingComps && missingCompNames.count() != 0) {
+			if (NumberNanoBranches != 0) {
+				showMissingCompNamesWarning(missingCompNames, 1)
+				isCancel = !boolean_dialog("Do you want to proceed despite the missing compartments?", "Yes", "No")
+				if (isCancel) {
+					return 1
+				}
+			}
+		}
+        
+        // It may take a while to apply all inhom models
+        mwh.showPleaseWaitBox("Initializing biophysics.")
+        {
+            isError = biophysJsonFileHelper.importForSimStageB(isUseThisCompNameVec)
+            if (isError) {
+                return 1
+            }
+        }
+        mwh.hidePleaseWaitBox()
+        
+        return 0
+    }
+    
+    // !! maybe move to some common utils
+    proc showMissingCompNamesWarning() { local isForSim localobj missingCompNames
+        strdef line2Templ, line1, line2
+        
+        missingCompNames = $o1
+        isForSim = $2
+        
+        line2Templ = "(You can %suse \"Rename\" or \"Split\" compartment operations and then repeat%s.)"
+        if (!isForSim) {
+            line1 = "The following compartments are declared in the imported file, but missing in the recipient cell, so cannot be imported:"
+            sprint(line2, line2Templ, "", " the import")
+        } else {
+            line1 = "This simulation requires for the cell to have certain compartments, but in fact the next ones are missing:"
+            sprint(line2, line2Templ, "open \"Manager of biophysics\" and ", "")
+        }
+        mwh.showWarningBox(line1, missingCompNames, "", line2, "")
+    }
+    
+    // All next staff is private
+    
+    
+    // Populate missingCompNames, isBlockThisCompNameVec and isUseThisCompNameVec
+    proc populateThree() { local numComps, compIdx, isFound localobj compNames, missingCompNames, isBlockThisCompNameVec, isUseThisCompNameVec, mechComp
+        strdef compName
+        
+        compNames = $o1
+        
+        numComps = compNames.count()
+        
+        missingCompNames = new List()
+        isBlockThisCompNameVec = new Vector(numComps)   // All zeros by default
+        isUseThisCompNameVec = new Vector(numComps)
+        
+        for compIdx = 0, numComps - 1 {
+            compName = compNames.o(compIdx).s
+            isFound = 0
+            for eachItemInList(mechComp, mmAllComps) {
+                if (stringsEqual(compName, mechComp.name)) {
+                    isFound = 1
+                    break
+                }
+            }
+            if (!isFound) {
+                missingCompNames.append(new String(compName))
+                isBlockThisCompNameVec.x[compIdx] = 1
+            }
+            isUseThisCompNameVec.x[compIdx] = isFound
+        }
+        
+        $o2 = missingCompNames
+        $o3 = isBlockThisCompNameVec
+        $o4 = isUseThisCompNameVec
+    }
+    
+    proc showExportOrImportCompleteMsg() { local isExportOrImport localobj options, bulletedList
+        strdef word, Word, line1, str1, str2, str3, msg
+        
+        isExportOrImport = $1
+        options = $o2
+        
+        if (isExportOrImport) {
+            word = "export"
+        } else {
+            word = "import"
+        }
+        stringCapitalize(word, Word)
+        
+        sprint(line1, "Here is what we don't %s at the moment (the list is incomplete):", word)
+        
+        bulletedList = new List()
+        bulletedList.append(new String("GLOBAL vars of biophys mechs"))
+        bulletedList.append(new String("Ion reversal potentials (\"ek\", \"ena\" etc.)"))
+        str1 = "\"Ra\" variable in the sections (for now it's %s)"
+        if (isExportOrImport) {
+            sprint(str1, str1, "exported only by \"Manager of export\"")
+        } else {
+            sprint(str1, str1, "imported only on the beginning in \"Start with BrainCell export\" mode")
+        }
+        bulletedList.append(new String(str1))
+        if (options.isAnyStochModels()) {   // !! false positive here when user disables export/import of a specific compartment or ASSIGNED and STATE vars
+            bulletedList.append(new String("states of RNGs"))
+        }
+        
+        getNotImplementedLines(str1, str2)
+        
+        sprint(str3, "Also, please notice that \"%s\" mech is not %sed as a part of biophysics.", mth.morphologyMechName, word)
+        
+        sprint(msg, "%s complete successfully", Word)
+        
+        mwh.startIntercepting()
+        {
+            mwh.showWarningBox(line1, bulletedList, "", str1, str2, "", str3)
+            mwh.showMessageBox(msg, "Complete")
+        }
+        mwh.endIntercepting()
+    }
+    
+endtemplate BiophysExportImportHelper
+
+objref beih
+beih = new BiophysExportImportHelper()

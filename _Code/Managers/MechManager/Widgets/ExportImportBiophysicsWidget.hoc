@@ -1,0 +1,192 @@
+
+// !! close this widget automatically in the next cases:
+//    * when user performs any comp or mech operation in the parent widget
+//    * once export or import complete (the same as for ExportManagerMainWidget)
+// !! also, once import complete, we need to close (or re-open) other sub-widgets of MechManagerMainWidget
+
+begintemplate ExportImportBiophysicsWidget
+
+    public show, dismissHandler
+    
+    external inhomAndStochLibrary
+    external stringCapitalize, unmapIfNotNil, codeContractViolation
+    external mwh, beih, compUtils
+    
+    objref mainBox
+    
+    objref options
+    
+    isExportOrImport = -1
+    
+    objref isBlockThisCompNameVec
+    
+    strdef word
+    
+    
+    proc init() {
+        options = new BiophysExportImportOptions()
+    }
+    
+    proc show() { local numArg, numInhomVars, numStochVars, numComps, compIdx localobj compNames, hBox, vBox, deckSpacerSlider
+        strdef Word, text, hocCommand, title
+        
+        numArg = numarg()
+        if (numArg != 1 && numArg != 6) {
+            codeContractViolation()
+        }
+        
+        isExportOrImport = $1
+        
+        if (isExportOrImport) {
+            if (numArg != 1) {
+                codeContractViolation()
+            }
+            compNames = compUtils.getAllDistMechCompNames()
+            numInhomVars = inhomAndStochLibrary.getNumInhomVarsForDistMechs()
+            numStochVars = inhomAndStochLibrary.getNumStochVarsForDistMechs()
+            numComps = compUtils.getNumDistMechComps()
+            isBlockThisCompNameVec = new Vector(numComps)   // All zeros by default
+            options.isUseThisCompNameVec = new Vector(numComps, 1)
+        } else {
+            if (numArg != 6) {
+                codeContractViolation()
+            }
+            compNames = $o2
+            numInhomVars = $3
+            numStochVars = $4
+            isBlockThisCompNameVec = $o5
+            options.isUseThisCompNameVec = $o6
+            
+            numComps = compNames.count()
+        }
+        
+        options.isGlobals = 0       // !! remove this line once implemented
+        
+        dismissHandler()
+        
+        if (isExportOrImport) {
+            word = "export"
+        } else {
+            word = "import"
+        }
+        stringCapitalize(word, Word)
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            sprint(text, "The minimum %sed data includes all PARAMETER vars for homogen biophysics in the selected compartments.", word)
+            xlabel(text)
+            sprint(text, "Please choose what other data must be %sed:", word)
+            xlabel(text)
+            xpanel()
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                vBox = new VBox()
+                vBox.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("Compatment names:")
+                    xpanel()
+                    deckSpacerSlider = new Deck()   // Just to fill the remaining space below in cyan and create a slider (for the case of too long compNames List)
+                    deckSpacerSlider.intercept(1)
+                    {
+                        xpanel("")
+                        // !! too long comp. names get truncated (until user makes the widget wider)
+                        for compIdx = 0, numComps - 1 {
+                            sprint(hocCommand, "compNameCheckBoxHandler(%d)", compIdx)
+                            xcheckbox(compNames.o(compIdx).s, &options.isUseThisCompNameVec.x[compIdx], hocCommand)
+                        }
+                        xpanel()
+                    }
+                    deckSpacerSlider.intercept(0)
+                    deckSpacerSlider.flip_to(0)
+                    deckSpacerSlider.map()
+                }
+                vBox.intercept(0)
+                vBox.map()
+                vBox = new VBox()
+                vBox.intercept(1)
+                {
+                    xpanel("")
+                    sprint(text, "%sed data:", Word)
+                    xlabel(text)
+                    xpanel()
+                    
+                    deckSpacerSlider = new Deck()     // Just to fill the remaining space below in cyan
+                    deckSpacerSlider.intercept(1)
+                    {
+                        // !! keep in sync with ExportManagerMainWidget.createInhomStochDeck
+                        xpanel("")
+                        xcheckbox("GLOBAL vars", &options.isGlobals, "globalVarsCheckBoxHandler()")
+                        sprint(text, "       (when imported, they can have an effect on the comps that you don't import)", word)
+                        xlabel(text)
+                        xcheckbox("ASSIGNED and STATE vars", &options.isAssignedAndState)
+                        sprint(text, "       (in most cases, you don't need to %s them explicitly, but some MOD files don't init a var", word)
+                        xlabel(text)
+                        xlabel("        automatically in the INITIAL block expecting that we set a nonzero value from HOC code)")
+                        sprint(text, "Inhom models (%d detected)", numInhomVars)    // !! maybe skip explicit inhom models for morphology\diam in the counter here
+                        xcheckbox(text, &options.isInhoms)
+                        sprint(text, "Stoch models (%d detected)", numStochVars)
+                        xcheckbox(text, &options.isStochs)
+                        xpanel()
+                    }
+                    deckSpacerSlider.intercept(0)
+                    deckSpacerSlider.flip_to(0)
+                    deckSpacerSlider.map()
+                }
+                vBox.intercept(0)
+                vBox.map()
+            }
+            hBox.intercept(0)
+            hBox.map()
+            xpanel("")
+            xlabel("")
+            xbutton(Word, "exportOrImportHandler()")
+            xpanel()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        sprint(title, "%s of biophysics", Word)
+        mainBox.map(title, 60, 450, -1, -1)
+    }
+    
+    proc dismissHandler() {
+        unmapIfNotNil(mainBox)
+    }
+    
+    // All next staff is private
+    
+    
+    proc compNameCheckBoxHandler() { local compIdx
+        compIdx = $1
+        if (isBlockThisCompNameVec.x[compIdx] && options.isUseThisCompNameVec.x[compIdx]) {
+            options.isUseThisCompNameVec.x[compIdx] = 0
+            mwh.showWarningBox("Cannot import this comp because it's missing in the recipient cell.")
+        }
+    }
+    
+    proc globalVarsCheckBoxHandler() {
+        if (options.isGlobals) {
+            mwh.showNotImplementedWarning()
+        }
+    }
+    
+    proc exportOrImportHandler() { local isCancel
+        
+        // !! check isDirty flags for mechs and comps and propose user to apply the changes
+        
+        isCancel = options.validate(word)
+        if (isCancel) {
+            return
+        }
+        
+        if (isExportOrImport) {
+            beih.exportStage2(options)
+        } else {
+            beih.importStage3(options)
+        }
+    }
+    
+endtemplate ExportImportBiophysicsWidget

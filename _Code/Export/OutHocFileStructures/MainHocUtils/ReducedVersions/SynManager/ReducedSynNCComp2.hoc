@@ -1,0 +1,71 @@
+
+begintemplate ReducedSynNCComp
+
+    public enumDmPpFk, enumPpRole, mechStds
+    public applyInhomogeneity
+    
+    external mth, mcu
+    external tapSet, utils4FakeMech4SynNetCon
+    external codeContractViolation
+    external enumSynPpRoles
+    
+    enumDmPpFk = -1
+    enumPpRole = -1
+    objref mechStds[1][1]
+    
+    
+    proc init() {
+        enumDmPpFk = 2
+        enumPpRole = enumSynPpRoles.netCon
+        objref mechStds[2][1]
+    }
+    
+    // Keep in sync with SynNCComp.applyInhomogeneity
+    proc applyInhomogeneity() { local varType, arraySize, arrayIndex, isMetaVar, isSefwEnabled, isWeightVar, y localobj distFuncHelper, synSet, seh, firstNetCon, mechStd, syn, thisPp
+        strdef mechName, varName, varNameWithIndex
+        
+        mechName = $s1  // Just placeholders
+        varType = $2    //
+        varName = $s3
+        arraySize = $4
+        arrayIndex = $5
+        distFuncHelper = $o6
+        synSet = $o7
+        
+        if (varType != 1) {     // 1: "PARAMETER"
+            codeContractViolation()
+        }
+        
+        isMetaVar = mcu.isMetaVar(varName)
+        seh = synSet.seh
+        isSefwEnabled = seh.isSefwEnabled()
+        
+        if (isMetaVar && !isSefwEnabled) {
+            return
+        }
+        
+        if (!isMetaVar) {
+            mth.getVarNameWithIndex(varName, arraySize, arrayIndex, varNameWithIndex)
+            isWeightVar = mth.isWeightNetConVar(varName)
+        } else {
+            mechStd = new MechanismStandard(utils4FakeMech4SynNetCon.realMechName, utils4FakeMech4SynNetCon.realVarType)
+        }
+        
+        for tapSet.applyInhomogeneityIter(syn, synSet.allSyns, distFuncHelper) {
+            y = distFuncHelper.calculateAt(syn.dist)
+            if (!isMetaVar) {
+                firstNetCon = syn.netCon
+                utils4FakeMech4SynNetCon.setNetConVar(firstNetCon, varNameWithIndex, y)
+                if (isSefwEnabled && isWeightVar) {
+                    syn.sefwNetCon.weight = firstNetCon.weight
+                }
+            } else {
+                thisPp = syn.sefwPp
+                mechStd.in(thisPp)
+                mechStd.set(utils4FakeMech4SynNetCon.realVarName, y, utils4FakeMech4SynNetCon.realArrayIndex)
+                mechStd.out(thisPp)
+            }
+        }
+    }
+    
+endtemplate ReducedSynNCComp

@@ -1,0 +1,160 @@
+
+proc getGlobalVarsHint() {
+    strdef verb
+    verb = $s1
+    sprint($s2, "The only exception is for GLOBAL variables. Any changes to them are %s immediately.", verb)
+}
+
+proc getIfYouModifyGeomHint() {
+    $s1 = "If you modify the cell geometry or move it in 3D space, change \"nseg\" somewhere or add new sections,"
+}
+
+proc oneZeroToYesNo() { local oneOrZero
+    oneOrZero = $1
+    if (oneOrZero) {
+        $s2 = "YES"
+    } else {
+        $s2 = "NO"
+    }
+}
+
+// !! not intermodular actually
+proc oneZeroToEnabledDisabled() { local oneOrZero
+    oneOrZero = $1
+    if (oneOrZero) {
+        $s2 = "ENABLED"
+    } else {
+        $s2 = "DISABLED"
+    }
+}
+
+proc getEmptyOrS() { local numItems
+    numItems = $1
+    if (numItems != 1) {
+        $s2 = "s"
+    } else {
+        $s2 = ""
+    }
+}
+
+proc addEmptyLabels() { local numLabels, labelIdx
+    numLabels = $1
+    for labelIdx = 1, numLabels {
+        xlabel("")
+    }
+}
+
+proc createEmptyPanel() { local numArg, numLabels
+    numArg = numarg()
+    if (numArg == 0) {
+        numLabels = 0
+    } else if (numArg == 1) {
+        numLabels = $1
+    } else {
+        codeContractViolation()
+    }
+    xpanel("")
+    addEmptyLabels(numLabels)
+    xpanel()
+}
+
+proc createElasticSpacer() { localobj deck
+    // It turns out that Deck with just 1 card is the best choice when we want to create a panel
+    // containing a few elements on the top so that (1) all remaining space below was filled in cyan
+    // and (2) the cyan area stretched when user made the widget higher
+    // Here are some alternatives and their cons:
+    //  Empty xpanel or VBox + empty xpanel: don't fill the remaining space below in cyan
+    //  xpanel + several empty xlabel-s: doesn't stretch when user makes widget higher
+    //  HBox + empty xpanel: gives thicker edges compared to Deck
+    deck = new Deck()
+    deck.intercept(1)
+    {
+        createEmptyPanel()
+    }
+    deck.intercept(0)
+    deck.flip_to(0)
+    deck.map()
+}
+
+obfunc openDeck() { localobj deck
+    deck = new Deck()
+    deck.intercept(1)
+    return deck
+}
+
+proc closeDeck() { local cardIdx, width, height localobj deck
+    deck = $o1
+    cardIdx = $2
+    width = $3
+    height = $4
+    deck.intercept(0)
+    deck.flip_to(cardIdx)
+    deck.map("", -1, -1, width, height)
+}
+
+proc createMetaVarHint() {
+    xlabel("* \"@\" means a meta variable; it's not a part of the standard \"NetCon\" class,")
+    xlabel("   but rather used by our program to filter events emitted by \"NetCon\"-s")
+}
+
+proc createRecordingPeriodHint() {
+    xlabel("set \"-1\" to make one record per one iteration;")
+    xlabel("when \"Dt\" is not a multiple of \"dt\", the performance drops;")
+    xlabel("when CVode is ACTIVE, this happens for any \"Dt\" except \"-1\"")
+    xlabel("")
+}
+
+proc createExtracellularGeneratorHintsPanel() {
+    xpanel("")
+    xlabel("Hints: Checking \"Make a series\" and setting \"noise\" > 0 for the initial source results in")
+    xlabel("           different behaviour for each copy.")
+    xlabel("           To review the generated sources, click \"Edit\" -> \"Show all srcs for this species\".")
+    xpanel()
+}
+
+proc showIntegratesWithAltRunControlMsg() {
+    strdef what, line1, line2
+    what = $s1
+    sprint(line1, "This %s integrates with \"AltRunControl\".", what)
+    line2 = "Please don't use the standard \"RunControl\" for it."  // !! the same for the standard "RunButton"
+    mwh.showMessageBox(line1, line2, "Use AltRunControl")
+}
+
+proc showWillBeSavedLaterMsg() {
+    mwh.showMessageBox("The file will be saved later once the data are ready.", "File path chosen")
+}
+
+proc showResultsWereSavedToMsg() {
+    strdef where, msg
+    where = $s1
+    sprint(msg, "The results were saved to \"%s\"", where)
+    mwh.showMessageBox(msg, "Complete")
+}
+
+proc dismissIfNotNil() { local numArg, isSkipReseeding localobj widget, nil
+    
+    numArg = numarg()
+    if (numArg < 1 || numArg > 2) {
+        codeContractViolation()
+    }
+    
+    widget = $o1
+    
+    if (widget == nil) {
+        return
+    }
+    
+    if (numArg == 1) {
+        widget.dismissHandler()
+    } else {
+        isSkipReseeding = $2
+        widget.dismissHandler(isSkipReseeding)
+    }
+}
+
+proc unmapIfNotNil() { localobj mainBox, nil
+    mainBox = $o1
+    if (mainBox != nil) {
+        mainBox.unmap()
+    }
+}

@@ -1,0 +1,146 @@
+{
+    "speciesCategories": {
+        "Basic ions": {
+            "Na": {
+                "comment": "Properties of Sodium ion",
+                "ionMechName": "na_ion",
+                "baseOuterConc (mM)": 140,
+                "Diff (um2/ms)": 1,
+                "t_alpha (ms)": 1000.0,
+                "uptakeReversalConc (mM)": 140,
+                "baseInnerConc (mM)": 10
+            },
+            "K": {
+                "comment": "Properties of Potassium ion",
+                "ionMechName": "k_ion",
+                "baseOuterConc (mM)": 2.5,
+                "Diff (um2/ms)": 1,
+                "t_alpha (ms)": 8000.0,
+                "uptakeReversalConc (mM)": 2.5,
+                "baseInnerConc (mM)": 120.0
+            },
+            "Ca": {
+                "comment": "Properties of Calcium ion",
+                "ionMechName": "ca_ion",
+                "baseOuterConc (mM)": 2.2,
+                "Diff (um2/ms)": 1.0,
+                "t_alpha (ms)": 5000.0,
+                "uptakeReversalConc (mM)": 2.2,
+                "baseInnerConc (mM)": 0.0001
+            },
+            "Cl": {
+                "comment": "Properties of Chloride ion",
+                "ionMechName": "cl_ion",
+                "baseOuterConc (mM)": 120,
+                "Diff (um2/ms)": 1,
+                "t_alpha (ms)": 2000.0,
+                "uptakeReversalConc (mM)": 120,
+                "baseInnerConc (mM)": 5
+            }
+        },
+        "Neurotransmitters": {
+            "ACh": {
+                "comment": "Properties of Acetylcholine",
+                "ionMechName": "ach_ion",
+                "baseOuterConc (mM)": 1e-05,
+                "Diff (um2/ms)": 0.3,
+                "t_alpha (ms)": 1000.0,
+                "uptakeReversalConc (mM)": 1e-05,
+                "baseInnerConc (mM)": 1
+            },
+            "GLU": {
+                "comment": "Properties of Glutamate",
+                "ionMechName": "glu_ion",
+                "baseOuterConc (mM)": 1e-05,
+                "Diff (um2/ms)": 0.3,
+                "t_alpha (ms)": 1000.5,
+                "uptakeReversalConc (mM)": 1e-05,
+                "baseInnerConc (mM)": 5.0
+            },
+            "GABA": {
+                "comment": "Properties of Gamma-Aminobutyric acid",
+                "ionMechName": "gaba_ion",
+                "baseOuterConc (mM)": 1e-05,
+                "Diff (um2/ms)": 0.3,
+                "t_alpha (ms)": 1000.5,
+                "uptakeReversalConc (mM)": 1e-05,
+                "baseInnerConc (mM)": 1
+            },
+            "ATP": {
+                "comment": "Properties of ATP (adenosine triphosphate) - purinergic signalling, P2X/P2Y receptor ligand",
+                "ionMechName": "atp_ion",
+                "baseOuterConc (mM)": 1e-05,
+                "Diff (um2/ms)": 0.25,
+                "t_alpha (ms)": 100.0,
+                "uptakeReversalConc (mM)": 1e-05,
+                "baseInnerConc (mM)": 1.0
+            }
+        },
+        "Specific": {
+            "FRAP": {
+                "comment": "Properties of FRAP ion",
+                "ionMechName": "frapion_ion",
+                "baseOuterConc (mM)": 1,
+                "Diff (um2/ms)": 1,
+                "t_alpha (ms)": 1000.5,
+                "uptakeReversalConc (mM)": 1,
+                "baseInnerConc (mM)": 0.01
+            },
+            "Ins3P": {
+                "comment": "Properties of Inositol Trisphosphate (IP3) - baseInnerConc set to 100 nM for physiological resting level",
+                "ionMechName": "ip3_ion",
+                "baseOuterConc (mM)": 0.001,
+                "Diff (um2/ms)": 1,
+                "t_alpha (ms)": 1000.5,
+                "uptakeReversalConc (mM)": 0.001,
+                "baseInnerConc (mM)": 0.0001
+            }
+        },
+        "User-defined": {
+            "Extra1Ion": {
+                "comment": "Properties of user-defined ion 1 (valence of +1)",
+                "ionMechName": "extra1_ion",
+                "baseOuterConc (mM)": 1e-05,
+                "Diff (um2/ms)": 1,
+                "t_alpha (ms)": 1234.5,
+                "uptakeReversalConc (mM)": 1e-05,
+                "baseInnerConc (mM)": 0
+            },
+            "Extra2Ion": {
+                "comment": "Properties of user-defined ion 2 (valence of -1)",
+                "ionMechName": "extra2_ion",
+                "baseOuterConc (mM)": 1e-05,
+                "Diff (um2/ms)": 1,
+                "t_alpha (ms)": 1234.5,
+                "uptakeReversalConc (mM)": 1e-05,
+                "baseInnerConc (mM)": 0
+            }
+        }
+    },
+    "commonParams": {
+        "veryMinOuterConc (mM)": 1e-05
+    },
+    "Legend": {
+        "speciesCategories": {
+            "Name of this species category shown in GUI": {
+                "Name of this species shown in GUI": {
+                    "comment": "Just a comment for this JSON, not shown in GUI.",
+                    "ionMechName": "The ion mechanism name for this species (ending with '_ion'). Only 'na_ion' and 'k_ion' are defined in NEURON by default. All others are custom MOD- or HOC-based mechanisms.",
+                    "baseOuterConc (mM)": "The base concentration outside the cell. It is used as a default value assigned to the GLOBAL var named '{species}o0_{species}_ion'.",
+                    "Diff (um2/ms)": "The diffusion coefficient in the extracellular space. For outside-in diffusion, it is used only in 'point + on-off' and 'point + spike' models.",
+                    "t_alpha (ms)": "The membrane uptake coefficient: the higher value, the slower uptake. For outside-in diffusion, it is used only in 'point + on-off' and 'point + spike' models.",
+                    "uptakeReversalConc (mM)": "Used only for inside-out diffusion with uptake and defines the relaxation outer conc value which is targeted with the rate of 't_alpha (ms)'.",
+                    "baseInnerConc (mM)": "Like the 'Outer' var, but inside the cell, and the GLOBAL var is named '{species}i0_{species}_ion' (currently not used in BrainCell)."
+                }
+            }
+        },
+        "commonParams": {
+            "veryMinOuterConc (mM)": "The very min outer concentration for all the species such that we cap a value when it drops below this threshold. It applies to both outside-in and inside-out diffusion (except RxD diffusion module)."
+        },
+        "Warnings": [
+            "1. Any changes to this JSON file must be done synchronously with the changes to two MOD files: '_{OutsideIn/InsideOut}DiffHelper.mod'. The lists of species in these files must be identical (including the total number of species, their order and 'ionMechName').",
+            "2. Keep each 'baseOuterConc (mM)' and 'uptakeReversalConc (mM)' greater than or equal to 'veryMinOuterConc (mM)'.",
+            "3. Be cautious assigning a negative or zero value to 'veryMinOuterConc (mM)' because user may want to take a logarithm of the outer concentration."
+        ]
+    }
+}

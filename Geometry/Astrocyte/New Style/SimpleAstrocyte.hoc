@@ -1,0 +1,53 @@
+// Create soma
+create soma
+access soma
+
+// Set the geometry of the soma
+soma {
+    L = 10    // Length in micrometers
+    diam = 10 // Diameter in micrometers
+}
+
+// Create processes
+create dendrite1, dendrite2, dendrite3, dendrite4, dendrite5
+
+
+// Set the geometry of the processes
+proc set_process_geometry() {
+    nseg = 5      // Number of segments
+    L = 100       // Length in micrometers
+    diam = 1      // Diameter in micrometers
+    insert pas    // Insert passive properties
+    g_pas = 0.001 // Passive conductance
+    e_pas = -70   // Reversal potential for passive current
+
+}
+
+// Apply geometry to processes
+dendrite1 set_process_geometry()
+dendrite2 set_process_geometry()
+dendrite3 set_process_geometry()
+dendrite4 set_process_geometry()
+dendrite5 set_process_geometry()
+
+// Connect processes to the soma
+soma connect dendrite1(0), 0.5
+soma connect dendrite2(0), 0.5
+soma connect dendrite3(0), 0.5
+soma connect dendrite4(0), 0.5
+soma connect dendrite5(0), 0.5
+
+// Define biophysical properties for the soma
+soma {
+    Ra = 100    // Axial resistance in Ohm*cm
+    cm = 1      // Membrane capacitance in uF/cm^2
+    insert pas  // Insert passive properties
+    g_pas = 0.001 // Passive conductance
+    e_pas = -70 // Reversal potential for passive current
+	glui = 2    // mM  cytoplasmic [Glu] in astrocyte
+    gluo = 0    // mM  resting extracellular [Glu] (set by your ECS)
+    nai = 15    // mM
+    nao = 150   // mM
+    ki  = 120   // mM
+    ko  = 3     // mM
+}

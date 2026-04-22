@@ -1,0 +1,42 @@
+
+//////////////////// Start of {gapJuncOrSyn} set #{tapSetIdx1Based}: Locations {slashes}
+
+py:createLocsGivenTapSet({isGapJuncOrSyn}, {tapSetIdx0Based})
+
+//////////////////// End of {gapJuncOrSyn} set #{tapSetIdx1Based}: Locations {slashes}
+
+//////////////////// Start of {gapJuncOrSyn} set #{tapSetIdx1Based}: Compartments {slashes}
+
+py:createReducedCompsGivenTapSet({isGapJuncOrSyn}, {tapSetIdx0Based})
+
+//////////////////// End of {gapJuncOrSyn} set #{tapSetIdx1Based}: Compartments {slashes}
+
+//////////////////// Start of {gapJuncOrSyn} set #{tapSetIdx1Based}: Homogen vars {slashes}
+
+py:initHomogenVarsGivenTapSet({isGapJuncOrSyn}, {tapSetIdx0Based})
+
+//////////////////// End of {gapJuncOrSyn} set #{tapSetIdx1Based}: Homogen vars {slashes}
+
+//////////////////// Start of {gapJuncOrSyn} set #{tapSetIdx1Based}: "Import & Edit" measures {slashes}
+
+py:createImportAndEditMeasuresGivenTapSet({isGapJuncOrSyn}, {tapSetIdx0Based})
+
+//////////////////// End of {gapJuncOrSyn} set #{tapSetIdx1Based}: "Import & Edit" measures {slashes}
+
+//////////////////// Start of {gapJuncOrSyn} set #{tapSetIdx1Based}: Main part {slashes}
+
+py:createMainPartGivenTapSet({isGapJuncOrSyn}, {tapSetIdx0Based})
+
+//////////////////// End of {gapJuncOrSyn} set #{tapSetIdx1Based}: Main part {slashes}
+
+//////////////////// Start of {gapJuncOrSyn} set #{tapSetIdx1Based}: Inhom vars {slashes}
+
+py:createInhomModelsGivenTapSet({isGapJuncOrSyn}, {tapSetIdx0Based})
+
+//////////////////// End of {gapJuncOrSyn} set #{tapSetIdx1Based}: Inhom vars {slashes}
+
+//////////////////// Start of {gapJuncOrSyn} set #{tapSetIdx1Based}: Stoch vars {slashes}
+
+py:createStochModelsGivenTapSet({isGapJuncOrSyn}, {tapSetIdx0Based})
+
+//////////////////// End of {gapJuncOrSyn} set #{tapSetIdx1Based}: Stoch vars {slashes}

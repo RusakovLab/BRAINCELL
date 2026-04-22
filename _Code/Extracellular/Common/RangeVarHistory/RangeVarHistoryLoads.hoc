@@ -1,0 +1,18 @@
+
+proc sourcePythonCodeForRangeVarHistory() {
+    strdef codeDirRelPath, callerName, dirRelPath
+    
+    codeDirRelPath = $s1
+    callerName = $s2
+    
+    sprint(dirRelPath, "%s\\Extracellular\\Common\\RangeVarHistory\\PythonCode", codeDirRelPath)
+    sourcePythonCode(dirRelPath, "from RangeVarAnimationPlayer import RangeVarAnimationPlayer", callerName)
+}
+
+{ load_file("Utils/RangeVarAnimationSectionUtils.hoc") }
+{ load_file("Widgets/GridToWatchWidget/GridToWatchWidget.hoc") }
+{ load_file("Widgets/NeuronPlayerWidget.hoc") }
+{ load_file("Widgets/GridSlicerWidget.hoc") }
+{ load_file("Widgets/AnimationSettingsWidget.hoc") }
+{ load_file("RangeVarAnimationRecord.hoc") }
+{ load_file("RangeVarAnimationRecorder.hoc") }

@@ -1,0 +1,532 @@
+
+// BUG (known): AltRunControl remains integrated with a sim even after the user closes the sim widget.
+
+// See also: MiniSimManagerForInsideOutDiffusion — a lightweight variant of this manager
+//           used specifically for the inside-out diffusion context.
+
+begintemplate SimulationManager
+    
+    // Public interface
+    public createSimulationsPanel, preRun, preContinue, postRun, exitLastSim
+    public simIdxToWidget
+    
+    // !! Exposed for testing only — do not rely on these in production code
+    public simCatIdx, programmaticClick
+    
+    // External globals: cell-type flag
+    external isAstrocyteOrNeuron
+
+    // External globals: mechanism insertion helpers
+    external InsertElectricMechanisms, InsertGlutamateMechanisms, InsertPotassiumMechanisms
+
+    // External globals: GUI and run-control utilities
+    external showIntegratesWithAltRunControlMsg, deployDefaultProcAdvance, deployCustomProcAdvance
+    external stringEmpty, dismissIfNotNil, codeContractViolation
+    external mainUiLocker, mmIcrHelper, beih, mwh, pyObj
+    external altRunControlWidget, iodManagerMainWidget, extraCellsManagerWidget
+    
+    // The Deck widget that holds one panel page per simulation category
+    objref deck
+    
+    // Maps simulation index → its widget object (size set in init)
+    objref simIdxToWidget[1]
+    
+    // Index of the currently selected simulation category (0–4); -1 = none
+    simCatIdx = -1
+
+    // Index of the last activated simulation; -1 = no simulation currently active
+    lastSimIdxOrMinus1 = -1
+
+    // 1 if the last simulation has been initialised via preRun; 0 otherwise
+    isLastSimInited = -1
+
+    // Guard flag: 1 once the user has been asked whether to exit the current sim
+    // when switching category, to avoid asking twice in the same interaction
+    isAskedAboutLastSimExit = -1
+    
+    // LED (toggle-button) state for each simulation: 1 = selected, 0 = deselected
+    double simIdxToLEDState[1]
+
+    // Tracks whether a simulation's show() has been called before (1 = first time)
+    objref simIdxToIsFirstShow
+    
+    objref this
+    
+    
+    // ── Initialisation ────────────────────────────────────────────────────────
+    // Creates all simulation widget objects and sets up bookkeeping arrays.
+    // Simulations that are cell-type-specific are created conditionally:
+    //   idx  0  SimVoltageCA1Neuron      — neuron only
+    //   idx  8  SimCalciumDynamics       — astrocyte / neuron only
+    //   idx 13  SimMyelinatedAxon        — neuron only
+    proc init() { local numSims
+        
+        numSims = 15
+        
+        objref simIdxToWidget[numSims]
+
+        // ── Category 0: Voltage / potential ───────────────────────────────────
+        if (!isAstrocyteOrNeuron) {
+            execute("simIdxToWidget[0] = new SimVoltageCA1Neuron()", this)  // Template not loaded for astrocytes
+        }
+        simIdxToWidget[1]  = new SimSpatialVoltageDistributions()
+        simIdxToWidget[2]  = pyObj.SimLocalFieldPotential()
+
+        // ── Category 1: Electric stimuli ──────────────────────────────────────
+        simIdxToWidget[3]  = new SimConstantElectricalSimulations()
+        simIdxToWidget[4]  = new SimFrequencyElectricalSimulation()
+
+        // ── Category 2: FRAP ──────────────────────────────────────────────────
+        simIdxToWidget[5]  = new SimFrapCylinder()
+        simIdxToWidget[6]  = new SimFrapPlane()
+        simIdxToWidget[7]  = new SimFrapSphere()
+
+        // ── Category 3: Calcium ───────────────────────────────────────────────
+        if (isAstrocyteOrNeuron) {
+            execute("simIdxToWidget[8] = new SimCalciumDynamics()", this)   // Template not loaded for pure neurons
+        }
+        simIdxToWidget[9]  = new SimCalciumWave()
+
+        // ── Category 4: Other species ─────────────────────────────────────────
+        simIdxToWidget[10] = new SimOutsideInDiffusion()
+        simIdxToWidget[11] = new SimGlutamate()
+        simIdxToWidget[12] = new SimPotassium()
+        if (!isAstrocyteOrNeuron) {
+            simIdxToWidget[13] = pyObj.SimMyelinatedAxon()                  // Neuron only
+        }
+		simIdxToWidget[14] = pyObj.SimUserTemplate()   // Common — both cell types
+        
+        simCatIdx = 0
+        
+        double simIdxToLEDState[numSims]
+        simIdxToIsFirstShow = new Vector(numSims, 1)
+        
+        lastSimIdxOrMinus1 = -1
+    }
+    
+    // ── Panel construction ────────────────────────────────────────────────────
+    // Builds the full simulations panel:
+    //   • Five category radio buttons at the top
+    //   • A Deck with one page per category (built inside deck.intercept)
+    //   • A note footer about mechanism insertion side-effects
+    // Called once during the main UI bootstrap.
+    proc createSimulationsPanel() {
+        strdef text1, text2
+        
+        // ── Category selector ─────────────────────────────────────────────────
+        xpanel("")
+        xlabel("==================== Choose a Simulation ====================")
+        xlabel("")
+        xlabel("Select a category, then activate a simulation below:")
+		createCatRadioButton("Membrane voltage",           0)
+		createCatRadioButton("Electrical stimulation",     1)
+		createCatRadioButton("FRAP",                       2)
+		createCatRadioButton("Calcium dynamics",           3)
+		createCatRadioButton("Ion & transmitter dynamics", 4)
+		createCatRadioButton("User simulations",           5)
+        xlabel("")
+        xpanel()
+
+        // ── Deck: one xpanel block per category (pages 0–5) ───────────────────
+        // deck.flip_to(catIdx) is called at the end of this proc via
+        // simCatChangedHandler, so the correct page is shown on first display.
+        deck = new Deck()
+        deck.intercept(1)
+        {
+            // ── Page 0 : Voltage / potential ──────────────────────────────────
+            // SimVoltageCA1Neuron (idx 0) is available for neurons only.
+            // The remaining two voltage simulations run for both cell types.
+            xpanel("")
+            if (!isAstrocyteOrNeuron) {
+                xlabel("Record somatic membrane voltage in a CA1 pyramidal neuron")
+                createSimStateButton("CA1-neuron voltage", 0)
+                insertSpacer()
+            }
+            xlabel("Map membrane voltage along the dendritic tree")
+            createSimStateButton("Membrane voltage distribution", 1)
+            insertSpacer()
+            xlabel("Compute the local field potential in the extracellular space")
+            createSimStateButton("Local field potential", 2)
+            insertSpacer()
+            xpanel()
+
+            // ── Page 1 : Electric stimuli ─────────────────────────────────────
+            // Idx 3 = constant (DC) current injection into soma.
+            // Idx 4 = sinusoidal (variable-frequency) current injection into soma.
+            xpanel("")
+            xlabel("Inject a steady (DC) current step into the soma and record the response")
+            createSimStateButton("Constant electric stimuli", 3)
+            insertSpacer()
+            xlabel("Inject a sinusoidal current into the soma and sweep across frequencies")
+            createSimStateButton("Variable electric stimuli", 4)
+            insertSpacer()
+            xpanel()
+
+            // ── Page 2 : FRAP ─────────────────────────────────────────────────
+            // Three bleaching geometries for Fluorescence Recovery After Photobleaching.
+            // Idx 5 = circular spot; idx 6 = line scan; idx 7 = sphere scan.
+            xpanel("")
+            xlabel("Simulate FRAP: bleach a circular spot and track fluorescence recovery")
+            createSimStateButton("FRAP with round-spot bleaching", 5)
+            insertSpacer()
+            xlabel("Simulate FRAP: bleach along a line and track recovery profile")
+            createSimStateButton("Line-scan FRAP", 6)
+            insertSpacer()
+            xlabel("Simulate FRAP: bleach a spherical volume and track 3-D recovery")
+            createSimStateButton("Sphere-scan FRAP", 7)
+            insertSpacer()
+            xpanel()
+
+            // ── Page 3 : Calcium ──────────────────────────────────────────────
+            // SimCalciumDynamics (idx 8) requires astrocyte-specific mechanisms
+            // and is therefore only available when isAstrocyteOrNeuron is true.
+            // SimCalciumWave (idx 9) is available for both cell types.
+            xpanel("")
+            if (isAstrocyteOrNeuron) {
+                xlabel("Model microscopic Ca2+ dynamics at the nanoscale (astrocyte / neuron)")
+                createSimStateButton("Microscopic calcium dynamics", 8)
+                insertSpacer()
+            }
+            xlabel("Simulate a propagating intracellular Ca2+ wave")
+            createSimStateButton("Calcium Wave", 9)
+            insertSpacer()
+            xpanel()
+
+            // ── Page 4 : Other species ────────────────────────────────────────
+            // Idx 10 label is cell-type-dependent:
+            //   isAstrocyteOrNeuron == true  → K+ outside-in diffusion (astrocyte)
+            //   isAstrocyteOrNeuron == false → GABA outside-in diffusion (basket cell)
+            // Idx 13 (myelinated axon with K+ radial diffusion) is neuron-only.
+            xpanel("")
+            if (isAstrocyteOrNeuron) {
+                text1 = "Simulate K+ diffusion from the extracellular space into the astrocyte"
+                text2 = "Astrocyte K+ diffusion"
+            } else {
+                text1 = "Simulate GABA diffusion from the extracellular space into the basket cell"
+                text2 = "Basket cell GABA diffusion"
+            }
+            xlabel(text1)
+            createSimStateButton(text2, 10)
+            insertSpacer()
+            xlabel("Model membrane biophysics including astrocytic glutamate transporter currents")
+            createSimStateButton("Membrane biophysics with glutamate transport", 11)
+            insertSpacer()
+            xlabel("Track coupled intra- and extracellular K+ dynamics during activity")
+            createSimStateButton("Dynamics of intra and extracellular K+", 12)
+            insertSpacer()
+            if (!isAstrocyteOrNeuron) {
+                xlabel("Simulate a myelinated axon with K+ accumulation under the myelin sheath")
+                createSimStateButton("Axon simulation", 13)
+                insertSpacer()
+            }
+            xpanel()
+		   // ── Page 5 : User simulations ─────────────────────────────────────
+            // Reserved for user-defined simulations.
+            // Add custom createSimStateButton() calls here as new sims are registered
+            // in init() via simIdxToWidget[14], simIdxToWidget[15], etc.
+            // ── Page 5 : User simulations ─────────────────────────────────────
+            // Reserved for user-defined simulations.
+            // To register a new simulation, follow the steps in the comment below.
+			// ── Page 5 : User simulations ─────────────────────────────────────────────
+			// Common to both cell types — no isAstrocyteOrNeuron condition here.
+// -- Page 5 : User simulations ------------------------------------
+            xpanel("")
+            xlabel("Current step -> somatic voltage (template -- rework for your own computation)")
+            createSimStateButton("User template simulation", 14)
+            insertSpacer()
+            xlabel("")
+            xlabel("============= How to add your own simulation =============")
+            xlabel("")
+            xlabel("  Step 1 -- Copy the template folder and rename it")
+            xlabel("    _Code/Simulations/Sims/Common/SimUserTemplate/")
+            xlabel("    -> _Code/Simulations/Sims/Common/SimYourName/")
+            xlabel("    Rename SimUserTemplate.py -> SimYourName.py")
+            xlabel("    Rename the class inside to SimYourName")
+            xlabel("")
+            xlabel("  Step 2 -- Register it in SimManager.init()")
+            xlabel("    sourcePythonCode(...Sims/Common/SimYourName,")
+            xlabel("      from SimYourName import SimYourName, context)")
+            xlabel("    simIdxToWidget[15] = pyObj.SimYourName()")
+            xlabel("    numSims = 16")
+            xlabel("")
+            xlabel("  Step 3 -- Add a button on this page")
+            xlabel("    xlabel('Description of your simulation')")
+            xlabel("    createSimStateButton('Your sim name', 15)")
+            xlabel("    insertSpacer()")
+            xlabel("")
+            xlabel("  Step 4 -- Restart BrainCell")
+            xlabel("    Your simulation will appear on this page.")
+            xlabel("")
+            xlabel("  See README_UserSim.txt in the template folder.")
+            xpanel()
+        }
+        deck.intercept(0)
+        // deck.flip_to(*) is handled below by simCatChangedHandler
+        deck.map()
+
+        // ── Note footer ───────────────────────────────────────────────────────
+        // Most simulations insert biophysics mechanisms into sections and deploy
+        // a custom "proc advance". Deselecting a simulation removes the custom
+        // proc advance but leaves the inserted mechanisms in place until the
+        // cell is rebuilt.
+        xpanel("")
+        xlabel("Note:  Activating a simulation inserts biophysics mechanisms")
+        xlabel("          into the cell sections and replaces \"proc advance\".")
+        xlabel("          Deactivating removes the custom advance, but the")
+        xlabel("          inserted mechanisms stay until the cell is rebuilt.")
+        xpanel()
+        
+        simCatChangedHandler(simCatIdx)
+    }
+    
+    // ── Run-control hooks ─────────────────────────────────────────────────────
+    
+    // Called by AltRunControl before each Init & Run.
+    // isInitOnly == 1 means the user pressed "Init" only (no run step).
+    // Returns 1 to cancel the run, 0 to proceed.
+    func preRun() { local isInitOnly
+        isInitOnly = $1
+        isLastSimInited = 1
+        return simIdxToWidget[lastSimIdxOrMinus1].preRun(isInitOnly)
+    }
+    
+    // Called by AltRunControl before each Continue.
+    // Rejects the continue if the simulation has not been initialised first.
+    // Returns 1 to cancel the continue, 0 to proceed.
+    func preContinue() {
+        if (!isLastSimInited) {
+            altRunControlWidget.showNotInitedWarning()
+            return 1
+        }
+        return simIdxToWidget[lastSimIdxOrMinus1].preContinue()
+    }
+    
+    // Called by AltRunControl after each run or continue completes.
+    proc postRun() {
+        simIdxToWidget[lastSimIdxOrMinus1].postRun()
+    }
+    
+    // ── Public: exit the active simulation ───────────────────────────────────
+    // Dismisses the current simulation widget, unplugs AltRunControl,
+    // and restores the default proc advance. Safe to call when no sim is active.
+    proc exitLastSim() { localobj nil
+        if (lastSimIdxOrMinus1 == -1) {
+            return
+        }
+        
+        simIdxToWidget[lastSimIdxOrMinus1].simDismissHandler()
+        if (altRunControlWidget != nil) {
+            altRunControlWidget.unplugSim()
+        }
+        deployDefaultProcAdvance()
+        simIdxToLEDState[lastSimIdxOrMinus1] = 0
+        doNotify()
+        lastSimIdxOrMinus1 = -1
+    }
+    
+    // !! For testing only — triggers simSelectedHandler programmatically
+    //    without requiring a GUI click event.
+    proc programmaticClick() { local simIdx
+        simIdx = $1
+        simIdxToLEDState[simIdx] = 1
+        simSelectedHandler(simIdx)
+    }
+    
+    // ── Private procedures ────────────────────────────────────────────────────
+    
+    // Called when the user clicks a category radio button.
+    // Prompts the user to exit any active simulation before switching pages,
+    // then flips the Deck to the selected category page.
+    proc simCatChangedHandler() { local isExit
+        simCatIdx = $1
+        
+        if (lastSimIdxOrMinus1 != -1 && !isAskedAboutLastSimExit) {
+            isExit = boolean_dialog("You are still in \"Simulation\" mode. Do you want to exit the last sim?", "Yes", "No")
+            if (isExit) {
+                simIdxToLEDState[lastSimIdxOrMinus1] = 0
+                simSelectedHandler(lastSimIdxOrMinus1)
+            }
+            isAskedAboutLastSimExit = 1
+        }
+        
+        deck.flip_to(simCatIdx)
+    }
+    
+    // Called when the user clicks a simulation state button (xstatebutton).
+    // Handles the full activation sequence:
+    //   1. Dismiss the inside-out diffusion manager if open
+    //   2. Dismiss and deselect the previously active simulation (if any)
+    //      — if the same sim is clicked again, treat it as a deselect and return
+    //   3. Lock nano-reseeding to prevent geometry changes mid-simulation
+    //   4. Ensure MechComps are created/imported and rescanned
+    //   5. Run widget.preShowCheck() — sim may cancel here (e.g. missing geometry)
+    //   6. Load the sim's JSON biophysics preset via beih.importForSim (if defined)
+    //   7. Insert legacy mechanisms (deprecated path; will be removed once
+    //      all sims migrate to JSON biophysics export/import)
+    //   8. Deploy custom or default proc advance
+    //   9. Plug AltRunControl if required
+    //  10. Show the simulation widget
+    proc simSelectedHandler() { local simIdx, isCancel, isUseBiophysJsonFile, isRescanRequired localobj widget, nil
+        strdef biophysJsonFileNameOrEmpty, hocCommand
+        
+        simIdx = $1
+        
+        // Step 1: close the inside-out diffusion manager panel if visible
+        dismissIfNotNil(iodManagerMainWidget)
+        
+        isLastSimInited = 0
+        
+        // Step 2: handle the previously active simulation
+        if (lastSimIdxOrMinus1 != -1) {
+            simIdxToWidget[lastSimIdxOrMinus1].simDismissHandler()
+            if (altRunControlWidget != nil) {
+                altRunControlWidget.unplugSim()
+            }
+            if (simIdx == lastSimIdxOrMinus1) {
+                // Same button clicked again → deselect and return to idle state
+                deployDefaultProcAdvance()
+                lastSimIdxOrMinus1 = -1
+                return
+            } else {
+                simIdxToLEDState[lastSimIdxOrMinus1] = 0
+                doNotify()
+            }
+        }
+        
+        // Step 3: lock nano-reseeding while a simulation is active
+        // (Preferred approach would be to close the reseeding widget, but that
+        //  currently causes errors because MechComps are not recreated dynamically.)
+        if (mainUiLocker != nil) {  // !! nil in unit tests
+            if (0) {
+                // !! preferred path (disabled): close reseeding widgets outright
+                mainUiLocker.makeSureNanoReseedingWidgetsClosed()
+            } else {
+                isCancel = mainUiLocker.makeSureNanoReseedingLocked()
+                if (isCancel) {
+                    simIdxToLEDState[simIdx] = 0
+                    return
+                }
+            }
+        }
+        
+        // Step 4: ensure MechComps are ready (no import/rescan needed here specifically)
+        // !! could be replaced with a more targeted call since full import is not required
+        mmIcrHelper.makeSureMechCompsCreatedOrImportedAndRescanned()
+        
+        widget = simIdxToWidget[simIdx]
+        
+        // Step 5: pre-show validation (e.g. check geometry exists)
+        isCancel = widget.preShowCheck()
+        if (isCancel) {
+            simIdxToLEDState[simIdx] = 0
+            return
+        }
+        
+        // Step 6: load the simulation's JSON biophysics preset if one is defined
+        biophysJsonFileNameOrEmpty = widget.biophysJsonFileNameOrEmpty
+        isUseBiophysJsonFile = !stringEmpty(biophysJsonFileNameOrEmpty)
+        if (isUseBiophysJsonFile) {
+            isCancel = beih.importForSim(biophysJsonFileNameOrEmpty, 1)
+            if (isCancel) {
+                simIdxToLEDState[simIdx] = 0
+                return
+            }
+        }
+        
+        // Step 7: legacy mechanism insertion (deprecated)
+        // !! Remove this block once:
+        //    (1) density_GluTrans inhom model is exported/imported via JSON;
+        //    (2) GLOBAL vars from MechanismSwitch_deprecated.hoc are moved to JSON.
+        isRescanRequired = 0
+        if (simIdx == 5 || simIdx == 6 || simIdx == 7) {
+            // FRAP simulations: electric mechanisms without calcium
+            InsertElectricMechanisms(0)
+            isRescanRequired = 1
+        } else if (simIdx == 8 || simIdx == 9) {
+            // Calcium simulations: electric mechanisms with calcium
+            InsertElectricMechanisms(1)
+            isRescanRequired = 1
+        } else if (simIdx == 11) {
+            // Glutamate simulation
+            InsertGlutamateMechanisms()
+            isRescanRequired = 1
+        } else if (simIdx == 12) {
+            // Potassium dynamics simulation
+            InsertPotassiumMechanisms()
+            isRescanRequired = 1
+        }
+        
+        if (isRescanRequired && mmIcrHelper != nil) {   // !! can be nil in unit tests
+            mmIcrHelper.scheduleRescan(2)
+        }
+        
+        // Step 8: deploy proc advance (custom per-sim or system default)
+        if (widget.isCustomProcAdvance) {
+            deployCustomProcAdvance("simManager.simIdxToWidget", simIdx)
+        } else {
+            deployDefaultProcAdvance()
+        }
+        
+        // Step 9: plug AltRunControl if this simulation requires it
+        if (widget.isAltRunControl) {
+            altRunControlWidget.show()
+            altRunControlWidget.plugSim(pyObj.getTemplOrClassName(widget))
+        }
+        
+        lastSimIdxOrMinus1 = simIdx
+        isAskedAboutLastSimExit = 0
+        
+        // Step 10: show the simulation widget; collect any warnings shown during show()
+        mwh.startIntercepting()
+        {
+            widget.show(simIdxToIsFirstShow.x[simIdx])
+            simIdxToIsFirstShow.x[simIdx] = 0
+            
+            if (widget.isAltRunControl) {
+                showIntegratesWithAltRunControlMsg("simulation")
+            }
+            
+            // Warn if extra cells are present — their biophysics is NOT loaded from JSON
+            if (extraCellsManagerWidget != nil) {   // !! can be nil in unit tests
+                if (isUseBiophysJsonFile && extraCellsManagerWidget.isAnyExtraCells()) {
+                    mwh.showWarningBox("For the extra cell(s), we don't import biophysics from JSON in contrast to the base cell,", "so they may behave incorrectly in this simulation.")
+                }
+            }
+        }
+        mwh.endIntercepting()
+    }
+    
+    // Creates a radio button for the category selector.
+    // text    = label shown on the button
+    // catIdx  = category index (0–4); also the Deck page index
+    proc createCatRadioButton() { local catIdx
+        strdef text, handlerHocCommand
+        text = $s1
+        catIdx = $2
+        sprint(handlerHocCommand, "simCatChangedHandler(%d)", catIdx)
+        xradiobutton(text, handlerHocCommand, simCatIdx == catIdx)
+    }
+    
+    // Creates a toggle state button (LED button) for a single simulation entry.
+    // text   = label shown on the button
+    // simIdx = index into simIdxToWidget[]
+    proc createSimStateButton() { local simIdx
+        strdef text, handlerHocCommand
+        text = $s1
+        simIdx = $2
+        sprint(handlerHocCommand, "simSelectedHandler(%d)", simIdx)
+        xstatebutton(text, &simIdxToLEDState[simIdx], handlerHocCommand)
+    }
+    
+    // Inserts a visual separator line between simulation entries within a page.
+    proc insertSpacer() {
+        xlabel("---------------------------------------------------------------------------------------------------------")
+    }
+    
+endtemplate SimulationManager
+
+// ── Module-level instantiation ────────────────────────────────────────────────
+// SimulationManager is a singleton; simManager is the global handle used by
+// the main UI and by run-control hooks (preRun, preContinue, postRun).
+objref simManager
+simManager = new SimulationManager()

@@ -1,0 +1,470 @@
+
+// !! TODO: get rid of "enumLockLevel" in favour of "altRunControlWidget.isRunning"
+
+{ load_file("Utils/FrapUtils.hoc") }
+
+obfunc setInitialCircleConcentration() { codeContractViolation() }
+
+begintemplate SimFrapCylinder
+    
+    public preShowCheck, show, preRun, preContinue, postRun, simDismissHandler
+    public biophysJsonFileNameOrEmpty, isCustomProcAdvance, isAltRunControl
+    
+    // Just a workaround to avoid the error in GraphUtils.parseVarsFromTheGraph
+    public frapRadius, rangeRadius, initialFrapConcentration, numberOfTrials
+    
+    external setInitialCircleConcentration, closeFileAndShowCompleteMsg
+    external altRunControlWidget
+    external tstop
+    external createEmptyPanel, removeItemFromList, unmapIfNotNil, codeContractViolation
+    external frapUtils, cbbUtils, geomMath, plotShapeUtils, math, mwh
+    external eachSecInList
+    external fast_flush_list
+    external enumColours
+    
+    strdef biophysJsonFileNameOrEmpty
+    isCustomProcAdvance = -1
+    isAltRunControl = -1
+    
+    strdef menuToolName
+    
+    strdef outTxtFileName
+    strdef outTxtFileRelPathName
+    
+    // UI
+    objref mainBox, plotShapeFrapioniCircle
+    objref deck
+    
+    isIndOrCumCycles = -1
+    
+    // Concentration file
+    objref fileFrapCircle
+    
+    viewDirIdx = -1
+    enumLockLevel = -1
+    
+    
+    proc init() {
+        biophysJsonFileNameOrEmpty = "SimFrap.json"
+        isCustomProcAdvance = 0
+        isAltRunControl = 1
+        
+        menuToolName = "Edit FRAP Cylinder"
+        
+        outTxtFileName = "CylinderTimeFRAP.txt"
+        sprint(outTxtFileRelPathName, "Text results/%s", outTxtFileName)
+        
+        isIndOrCumCycles = 1
+        
+        viewDirIdx = 0      // XY plane
+        enumLockLevel = 0
+        
+        fileFrapCircle = new File()
+    }
+    
+    func preShowCheck() {
+        return 0
+    }
+    
+    // Opens FRAP Circle simulation window.
+    proc show() {
+        initParamsFrapCircle()
+        showFrapCircleUi()
+    }
+    
+    func preRun() { local isInitOnly
+        if (isIndOrCumCycles) {
+            isInitOnly = $1
+            if (isInitOnly) {
+                return 0
+            }
+            runFrapCircle(numberOfTrials)
+            return 1
+        } else {
+            mwh.showNotImplementedWarning("Cumulative cycles for FRAP in Cylinder.")
+            return 1
+        }
+    }
+    
+    // AltRunControl -> "Continue til", "Continue for" or "Single Step" will run one more full trial of the simulation
+    func preContinue() {
+        if (isIndOrCumCycles) {
+            runFrapCircle(1)
+            return 1
+        } else {
+            mwh.showNotImplementedWarning("Cumulative cycles for FRAP in Cylinder.")
+            return 1
+        }
+    }
+    
+    proc postRun() {
+        if (isIndOrCumCycles) {
+            codeContractViolation()
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    proc simDismissHandler() {
+        
+        removeItemFromList(fast_flush_list, plotShapeFrapioniCircle)
+        unmapIfNotNil(mainBox)
+        
+        /* !!
+        closeFileAndShowCompleteMsg(fileFrapCircle)
+        */
+    }
+    
+    // All next staff is private
+    
+    
+    // Calculates FRAP concentration data after sumulation and writes it to the file.
+    // $o1 - Sections affected by FRAP
+    // $o2 - File to print data to
+    proc calculateAndWriteResults() { local FrapIonSum, BasicFrapIonSum, secCylinderVolume localobj frapCircleSectionsList
+        
+        frapCircleSectionsList = $o1
+        
+        FrapIonSum = 0
+        BasicFrapIonSum = 0
+        
+        for eachSecInList(frapCircleSectionsList) {
+            // TODO: for FrapIonSum, it would be better to step down from the section level to the segment level using "for (x, 0)"
+            secCylinderVolume = L*PI*diam^2/4
+            FrapIonSum += frapioni(0.5)*secCylinderVolume
+            BasicFrapIonSum += secCylinderVolume
+        }
+        
+        // "division by zero" would happen below if frapCircleSectionsList was empty, but we have prevented this case in "proc runFrapCircle"
+        
+        // The condition implies that after bleaching, the concentration is always less than that after recovery
+        if (FrapIonSum/BasicFrapIonSum < 0.999)  {
+            $o2.printf("%-8.5g\t%-9.5g\t%-9.5g\t%-9.5g\n", sqrt(frapCenterX*frapCenterX+frapCenterY*frapCenterY), FrapIonSum/BasicFrapIonSum, FrapIonSum, BasicFrapIonSum)
+        }
+    }
+    
+    // Runs FRAP simulation _numberOfTrials times.
+    // Each new run position of circle is generated stochastically.
+    proc runFrapCircle() { local _numberOfTrials, isEmpty, x0, y0 localobj frapCircleSectionsList
+        
+        _numberOfTrials = $1
+        
+        frapCircleSectionsList = setInitialCircleConcentration(frapCenterX, frapCenterY, frapRadius, initialFrapConcentration, viewDirIdx)
+        isEmpty = (frapCircleSectionsList.count() == 0)
+        if (isEmpty) {
+            mwh.showWarningBox("Cannot start the simulation because the initial bleaching cylinder doesn't intersect any sections with FRAP mechanism.")
+            return
+        }
+        
+        enumLockLevel = 1
+        deck.flip_to(0)
+        // Without this, the PlotShape won't be animated even though it was added to "fast_flush_list";
+        // but the simulation performance is WORSE when the PlotShape is animated
+        // plotShapeFrapioniCircle.exec_menu("Shape Plot")
+        {
+            fileFrapCircle.aopen(outTxtFileRelPathName)
+            fileFrapCircle.printf("Distance\tFrapRatio\tFrapCon\t\tFrapBasic\n")
+            
+            x0 = frapCenterX
+            y0 = frapCenterY
+            
+            runFrapCircleCore(_numberOfTrials, x0, y0, frapCircleSectionsList)
+            
+            frapUtils.printDoneOrStopped()
+            
+            closeFileAndShowCompleteMsg(fileFrapCircle)
+            
+            // Restoring the old FRAP spot (scatter centre)
+            frapCenterX = x0
+            frapCenterY = y0
+            updateCircleMarkers()
+        }
+        enumLockLevel = 0
+        deck.flip_to(1)
+        // plotShapeFrapioniCircle.exec_menu(menuToolName)
+        
+        plotResults()
+    }
+    
+    proc runFrapCircleCore() { local _numberOfTrials, x0, y0, trialIdx, isEmpty localobj frapCircleSectionsList
+        _numberOfTrials = $1
+        x0 = $2
+        y0 = $3
+        frapCircleSectionsList = $o4
+        
+        for trialIdx = 1, _numberOfTrials {
+            
+            printf("Trial %d of %d ...\n", trialIdx, _numberOfTrials)
+            
+            // Simulate
+            altRunControlWidget.initAndRunHandler(1)
+            
+            // Calculate concentration after simulation
+            calculateAndWriteResults(frapCircleSectionsList, fileFrapCircle)
+            
+            if (stoprun) {
+                break
+            }
+            
+            if (trialIdx != _numberOfTrials) {
+                while (1) {
+                    // Set new random coords for the spot centre
+                    geomMath.rndPt2D_unifByAreaInCircle(frapUtils.rng, x0, y0, rangeRadius - frapRadius, &frapCenterX, &frapCenterY)
+                    
+                    updateCircleMarkers(x0, y0)
+                    
+                    // Set initial concentration
+                    frapCircleSectionsList = setInitialCircleConcentration(frapCenterX, frapCenterY, frapRadius, initialFrapConcentration, viewDirIdx)
+                    
+                    if (stoprun) {
+                        return  // Breaking 2 cycles
+                    }
+                    
+                    doNotify()
+                    
+                    isEmpty = (frapCircleSectionsList.count() == 0)
+                    if (!isEmpty) {
+                        break   // Breaking 1 cycle
+                    }
+                }
+            }
+        }
+    }
+    
+    // Sets initial UI and simulation params.
+    proc initParamsFrapCircle() { local xMin, yMin, _, xMax, yMax, D
+        
+        D = cbbUtils.analyzeCellBoundingBox(&xMin, &yMin, &_, &xMax, &yMax, &_)
+        
+        frapCenterX = 0.3 * xMin + 0.7 * xMax   // !! was: 20 um
+        frapCenterY = 0.3 * yMin + 0.7 * yMax   // !! was: 20 um
+        frapRadius = math.round(D / 4)          // !! was: 1 um
+        rangeRadius = 2 * frapRadius            // !! was: square
+        
+        initialFrapConcentration = 0    // mM
+        numberOfTrials = 10                     // !! was: 1
+        
+        tstop = 10      // ms
+    }
+    
+    // Shows FRAP Circle simulation window.
+    proc showFrapCircleUi() { localobj vBox, hBox, spacerDeck
+        strdef text
+        
+        mainBox = new HBox()
+        mainBox.intercept(1)
+        {
+            vBox = new VBox()
+            vBox.intercept(1)
+            {
+                xpanel("")
+                xlabel("====================== Initial parameters ======================")
+                xlabel("Coordinates of the first bleaching area are chosen by user.")
+                xlabel("Next ones will be generated randomly.")
+                xlabel("-------------------------------------------------------------------------------------------------------------------------")
+                xlabel("Radius of bleaching area (cylinder)")
+                xpvalue("Spot radius (um)", &frapRadius, 1, "updateCircleMarkers()")
+                xlabel("-------------------------------------------------------------------------------------------------------------------------")
+                xlabel("Photobleaching of area is instantaneous with initial concentration")
+                xpvalue("Initial concentration (mM)", &initialFrapConcentration, 1)
+                xlabel("========================================================== = ")
+                xpanel()
+                
+                spacerDeck = new Deck()
+                spacerDeck.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("========================== Running ==========================")
+                    xlabel("Number of FRAP cycles for the cylinder activation.")
+                    xlabel("Each cycle generates new random location of bleaching spot within scattering area.")
+                    xpvalue("Number of FRAP cycles", &numberOfTrials, 1)
+                    xcheckbox("CHECKED - independent cycles, UNCHECKED - cumulative cycles (not impl.)", &isIndOrCumCycles)
+                    xlabel("-------------------------------------------------------------------------------------------------------------------------")
+                    xlabel("Time of recovery after photobleaching")
+                    xpvalue("Time of recovery (ms)", &tstop, 1)
+                    xlabel("-------------------------------------------------------------------------------------------------------------------------")
+                    xlabel("Radius of random scattering area (cylinder)")
+                    xpvalue("Scatter radius (um)", &rangeRadius, 1, "updateCircleMarkers()")
+                    xlabel("-------------------------------------------------------------------------------------------------------------------------")
+                    sprint(text, "Run simulation. The results are saved to %s", outTxtFileName)
+                    xlabel(text)
+                    xbutton("Run FRAP", "altRunControlWidget.initAndRunHandler()")
+                    xlabel("===========================================================")
+                    xbutton("Plot FRAP", "plotResults()")
+                    xlabel("===========================================================")
+                    xpanel()
+                }
+                spacerDeck.intercept(0)
+                spacerDeck.flip_to(0)
+                spacerDeck.map()
+            }
+            vBox.intercept(0)
+            vBox.map()
+            
+            vBox = new VBox()
+            vBox.intercept(1)
+            {
+                hBox = new HBox()
+                hBox.intercept(1)
+                {
+                    deck = new Deck()
+                    deck.intercept(1)
+                    {
+                        createEmptyPanel()
+                        xpanel("")
+                        xlabel("")
+                        xradiobutton("XY projection", "viewDirectionChangedHandler(0)", viewDirIdx == 0)
+                        xradiobutton("ZY projection", "viewDirectionChangedHandler(1)", viewDirIdx == 1)
+                        xradiobutton("XZ projection", "viewDirectionChangedHandler(2)", viewDirIdx == 2)
+                        xpanel()
+                    }
+                    deck.intercept(0)
+                    deck.flip_to(1)
+                    deck.map()
+                    xpanel("")
+                    xlabel("Hints: Click on the PlotShape to move the FRAP area (cylinder),")
+                    xlabel("           hold \"Shift\" to adjust the spot and the scatter radii.")
+                    xlabel("Warning: Don't use \"3D Rotate\" when editing the circles")
+                    xlabel("                (toggle \"XY/ZY/XZ projection\" instead).")
+                    xpanel()
+                }
+                hBox.intercept(0)
+                hBox.map()
+                
+                plotShapeFrapioniCircle = new PlotShape(0)
+                fast_flush_list.append(plotShapeFrapioniCircle)
+                plotShapeFrapioniCircle.size(-50,50,-50,50)
+                plotShapeFrapioniCircle.view(-50, -50, 100, 100, 165, 169, 400.64, 400.32)
+                plotShapeFrapioniCircle.exec_menu("Shape Plot")
+                plotShapeFrapioniCircle.exec_menu("View = plot")
+                plotShapeFrapioniCircle.menu_tool(menuToolName, "mouseEventsHandler")
+                plotShapeFrapioniCircle.variable("frapioni")
+                plotShapeFrapioniCircle.show(0)
+                plotShapeFrapioniCircle.scale(0,1)
+                
+                viewDirectionChangedHandler(viewDirIdx, 1)
+            }
+            vBox.intercept(0)
+            vBox.map()
+        }
+        mainBox.intercept(0)
+        mainBox.map("FRAP in Cylinder")
+        
+        plotShapeFrapioniCircle.exec_menu(menuToolName)
+    }
+    
+    // !! code dup. with SimFrapPlane
+    proc viewDirectionChangedHandler() { local numArg, isCalledFromShow
+        numArg = numarg()
+        if (numArg < 1 || numArg > 2) {
+            codeContractViolation()
+        }
+        
+        // !! maybe before changing viewDirIdx below, analyze the old and the new view direction and assign
+        //    frapCenterX to frapCenterY or vice versa to preserve one coordinate;
+        //    however, as a side effect, changing viewDirIdx back and forth won't lead to the same coords anymore
+        viewDirIdx = $1
+        
+        if (numArg == 2) {
+            isCalledFromShow = $2
+            if (isCalledFromShow != 1) {
+                codeContractViolation()
+            }
+        } else {
+            isCalledFromShow = 0
+        }
+        
+        plotShapeUtils.setViewDir(plotShapeFrapioniCircle, viewDirIdx)
+        
+        updateCircleMarkers()
+        
+        if (!isCalledFromShow) {
+            plotShapeFrapioniCircle.exec_menu("View = plot")
+        }
+    }
+    
+    proc mouseEventsHandler() { local eventType, x_screen, y_screen, keystate, isCancel
+        eventType = $1
+        x_screen = $2
+        y_screen = $3
+        keystate = $4
+        
+        isCancel = frapUtils.mouseEventsHandlerForCylinderAndSphereFrapSims(eventType, x_screen, y_screen, keystate, &enumLockLevel, &frapCenterX, &frapCenterY, &frapRadius, &rangeRadius)
+        if (isCancel) {
+            return
+        }
+        
+        updateCircleMarkers()
+    }
+    
+    proc updateCircleMarkers() { local numArg, x0, y0
+        numArg = numarg()
+        if (numArg == 0) {
+            x0 = frapCenterX
+            y0 = frapCenterY
+        } else if (numArg == 2) {
+            x0 = $1
+            y0 = $2
+        } else {
+            codeContractViolation()
+        }
+        
+        plotShapeFrapioniCircle.erase()
+        
+        // The FRAP spot circle
+        plotShapeUtils.addCircleMarker(plotShapeFrapioniCircle, frapCenterX, frapCenterY, frapRadius)
+        
+        // The scatter range circle
+        plotShapeUtils.addCircleMarker(plotShapeFrapioniCircle, x0, y0, rangeRadius, enumColours.grey)
+        
+        // The scatter range centre
+        plotShapeFrapioniCircle.mark(x0, y0, "S", 4, enumColours.red, 1)
+    }
+    
+    proc plotResults() {
+        load_file(1, "Text results/PlotFRAPRoundSpot.hoc")
+    }
+    
+endtemplate SimFrapCylinder
+
+
+// Finds sections within a circle and sets initial FRAP concentration on them.
+// $1 - X coordinate of circle center on the screen
+// $2 - Y coordinate of circle center on the screen
+// $3 - Radius of the circle
+// $4 - Inital concentration of FRAP ion in bleaching area
+// $5 - The view direction (0 to 2)
+// Returns: Sections affected by FRAP
+obfunc setInitialCircleConcentration() { local frapCenterX, frapCenterY, frapRadius, initialFrapConcentration, viewDirIdx, radiusSq, u1, u2, distSq localobj frapCircleSectionsList
+    
+    frapCenterX = $1
+    frapCenterY = $2
+    frapRadius = $3
+    initialFrapConcentration = $4
+    viewDirIdx = $5
+    
+    frapCircleSectionsList = new List()
+    
+    radiusSq = frapRadius ^ 2
+    
+    forall {
+        if (!ismembrane("FRAP")) {
+            continue
+        }
+        
+        frapUtils.viewDirIdxToTwoCoords(viewDirIdx, &u1, &u2)
+        
+        distSq = geomMath.dist2D_PtToPt_squared(frapCenterX, frapCenterY, u1, u2)
+        
+        // Find all sections within the cylinder
+        // TODO: it would be better to step down from the section level to the segment level (use interpEachSegmCentreCoordsFromSec3DPointCoords)
+        if (distSq < radiusSq) {
+            frapCircleSectionsList.append(new SectionRef())
+            frapion0_FRAP = initialFrapConcentration
+        } else  {
+            frapion0_FRAP = 1   // mM
+        }
+    }
+    
+    return frapCircleSectionsList
+}

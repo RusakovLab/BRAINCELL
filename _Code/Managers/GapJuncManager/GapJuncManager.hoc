@@ -1,0 +1,52 @@
+
+{ load_file("GapJuncManagerLoads.hoc") }
+
+// !! code dup. with syns
+
+proc makeSureGapJuncSetsCreatedOrImported() { localobj nil
+    
+    if (gjmAllGapJuncSets == nil) {
+        _createOrImportGapJuncSets(1)
+    } else if (gjmAllGapJuncSets.count() == 0) {
+        return
+    } else if (!isBaseOrNanoStart && mcu4t.isReducedTapSets(gjmAllGapJuncSets)) {
+        _createOrImportGapJuncSets(0)
+    }
+}
+
+proc makeSureGapJuncSetsCreatedOrImportedThenShowGapJuncManagerBaseWidget() {
+    
+    makeSureGapJuncSetsCreatedOrImported()
+    
+    dismissIfNotNil(manageAndRunWidget)
+    manageAndRunWidget = new ManageAndRunWidget(1)
+    manageAndRunWidget.show()
+    manageAndRunWidget.showGapJuncManagerHandler()
+    manageAndRunWidget.showAltRunControlHandler()
+}
+
+obfunc createDefaultGapJuncSets() { localobj outGapJuncSets
+    outGapJuncSets = new List()
+    cacheTotalSecLen()
+    // By default, both astrocyte and neuron have 1 set of external gap juncs (but PP and seeding density depend on the cell type)
+    outGapJuncSets.append(new GapJuncSet(1))
+    return outGapJuncSets
+}
+
+
+// in: gjmAllGapJuncSets (import mode)
+// out: gjmAllGapJuncSets
+proc _createOrImportGapJuncSets() { local isCreateOrImport localobj outGapJuncSets, inGapJuncSet
+    isCreateOrImport = $1
+    
+    if (isCreateOrImport) {
+        outGapJuncSets = createDefaultGapJuncSets()
+    } else {
+        outGapJuncSets = new List()
+        for eachItemInList(inGapJuncSet, gjmAllGapJuncSets) {
+            outGapJuncSets.append(new GapJuncSet(inGapJuncSet))
+        }
+    }
+    
+    gjmAllGapJuncSets = outGapJuncSets
+}

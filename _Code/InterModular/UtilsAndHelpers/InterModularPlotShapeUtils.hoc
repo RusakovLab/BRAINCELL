@@ -1,0 +1,105 @@
+
+begintemplate InterModularPlotShapeUtils
+    
+    public setViewDir, convertCoordsWorldToScreen, convertCoordsScreenToWorld, addCircleMarker
+    
+    external enumColours
+    external codeContractViolation
+    
+    
+    // !! try to encapsulate the next 3 procs into a new helper template and embed its instances into the caller templates (e.g. ECSsShowHelper and OPsShowHelper)
+    //    also, try to use it in InsideOutDiffManagerMainWidget ctor instead of OPsShowHelper 
+    
+    proc setViewDir() { local viewDirIdx localobj shape
+        
+        shape = $o1
+        viewDirIdx = $2
+        
+        shape.rotate()                              // XY
+        
+        if (viewDirIdx == 0) {
+            // Empty by design
+        } else if (viewDirIdx == 1) {
+            shape.rotate(0, 0, 0, 0, PI / 2, 0)     // ZY
+        } else if (viewDirIdx == 2) {
+            shape.rotate(0, 0, 0, PI / 2, 0, 0)     // XZ
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    proc convertCoordsWorldToScreen() { local x_world, y_world, z_world, viewDirIdx
+        x_world = $1
+        y_world = $2
+        z_world = $3
+        viewDirIdx = $4
+        
+        if (viewDirIdx == 0) {
+            $&5 = x_world
+            $&6 = y_world
+        } else if (viewDirIdx == 1) {
+            $&5 = z_world
+            $&6 = y_world
+        } else if (viewDirIdx == 2) {
+            $&5 = x_world
+            $&6 = z_world
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    proc convertCoordsScreenToWorld() { local x_screen, y_screen, viewDirIdx
+        x_screen = $1
+        y_screen = $2
+        viewDirIdx = $3
+        
+        if (viewDirIdx == 0) {
+            $&4 = x_screen
+            $&5 = y_screen
+        } else if (viewDirIdx == 1) {
+            $&5 = y_screen
+            $&6 = x_screen
+        } else if (viewDirIdx == 2) {
+            $&4 = x_screen
+            $&6 = y_screen
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    proc addCircleMarker() { local numArg, x_screen, y_screen, radius_screen, colourIdx, numPts, delta_angle, ptIdx, angle localobj plotShape
+        
+        numArg = numarg()
+        if (numArg < 4 || numArg > 5) {
+            codeContractViolation()
+        }
+        
+        plotShape = $o1
+        x_screen = $2
+        y_screen = $3
+        radius_screen = $4
+        if (numArg == 5) {
+            colourIdx = $5
+        } else {
+            colourIdx = enumColours.black
+        }
+        
+        numPts = 200    // !! hardcode, maybe make it linear to radius_screen
+        
+        delta_angle = 2 * PI / numPts
+        plotShape.beginline(colourIdx, 0)
+        for ptIdx = 0, numPts {
+            angle = delta_angle * ptIdx
+            plotShape.line(x_screen + radius_screen * cos(angle), y_screen + radius_screen * sin(angle))
+        }
+        
+        // An alternative approach
+        //     plotShape.mark(x_screen, y_screen, "o", marker_size)
+        // looks simpler, but in fact has a restriction ("Arg out of range in user function" if marker_size < 0.1 or > 100)
+        // and requires calculation of marker_size which is linear to radius_screen, but also has an unclear dependency on PlotShape zoom, widget size etc.
+    }
+    
+endtemplate InterModularPlotShapeUtils
+
+objref plotShapeUtils
+plotShapeUtils = new InterModularPlotShapeUtils()

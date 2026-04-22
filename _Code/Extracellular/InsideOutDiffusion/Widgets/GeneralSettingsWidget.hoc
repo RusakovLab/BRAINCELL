@@ -1,0 +1,295 @@
+
+// !! maybe expose rxdAtolScale in UI; NEURON docs read: "You probably want to adjust atolscale for species present at low concentrations (e.g. calcium)."
+
+// !! in the future, we can support inhom models for bcLayer, bcN, rxdVolumeFraction, rxdTortuosityOrMinus1 and rxdPermeabilityOrMinus1
+
+// !! BUG: the "bc*" and "rxd*" params don't reset if user closes the widget without "Apply" and opens again (in contrast to "is*" params)
+
+// !! RxD:
+//  * see: NEURON Main Menu -> Build -> RxD Builder
+//  * RxD supports scalars, arrays and func(x,y,z) for the initial conditions, "volume_fraction" and "tortuosity" (and maybe "permeability")
+//  * RxD supports anisotropic diffusion when the diffusion coefficient is a 3-tuple
+//  * RxD supports reactions
+//  * RxD supports radial diffusion
+//  * double check that RxD doesn't support GPU
+//  * do we need to set num threads = num cores?
+
+// !! would it make sense to add 3rd mode "CPU, but not parallel"?
+//    all we need is to add 3rd *Backend.py file (like CpuBackend.py, but without "@njit" and "prange" replaced with "range")
+
+begintemplate GeneralSettingsWidget
+    
+    public show, getIsSkipNanoSects, getEffectiveDiff, dismissHandler
+    public volumeFraction, tortuosityOrMinus1, permeabilityOrMinus1
+    public bcLayer, bcN, rxdIsDirichletOrNeumannBndConds
+    
+    external mwh, math
+    external unmapIfNotNil, codeContractViolation
+    external altRunControlWidget
+    external pyObj
+    
+    objref mainBox, deck
+    
+    objref parentWidget
+    objref calculator
+    
+    isUseRxD = -1
+    
+    // Common params
+    volumeFraction = -1
+    tortuosityOrMinus1 = -1
+    permeabilityOrMinus1 = -1       // Specify either permeability or tortuosity, not both; permeability=1/tortuosity**2
+    
+    // BrainCell only
+    isGpuOrCpu = -1
+    bcLayer = -1    // um
+    bcN = -1
+    isSkipNanoSects = -1
+    isFloat32or64 = -1
+    
+    // RxD only
+    rxdIsDirichletOrNeumannBndConds = -1
+    // !! rxdAtolScale = -1         // Scale factor for absolute tolerance in variable step integrations
+    
+    
+    proc init() { local inf
+        parentWidget = $o1
+        calculator = $o2
+        
+        // Defaults (part 1)
+        
+        // Common params
+        // !! do we need to specify the next 3 params per species?
+        volumeFraction = 0.2        // Nicholson and Syková, 1998
+        tortuosityOrMinus1 = 1.6    //
+        permeabilityOrMinus1 = -1
+        
+        // BrainCell only
+        bcLayer = 1     // um
+        bcN = 1
+        isSkipNanoSects = 1
+        
+        // RxD only
+        rxdIsDirichletOrNeumannBndConds = 0
+        // !! rxdAtolScale = 1
+        
+        units(&bcLayer, units("L"))
+        
+        inf = math.inf
+        variable_domain(&bcLayer, float_epsilon, inf)   // !! BUG: significant numerical instability and then exception if we set Layer <= 0.1
+        variable_domain(&bcN, 1, inf)
+        variable_domain(&volumeFraction, 0, 1)          // !! not sure
+        variable_domain(&tortuosityOrMinus1, 1, inf)    // !! not sure
+        variable_domain(&permeabilityOrMinus1, 0, 1)    // !! not sure
+    }
+    
+    proc show() { localobj hBox, vBox, spacerDeck
+        strdef templ, text
+        
+        // Defaults (part 2)
+        
+        isUseRxD = calculator.isUseRxD
+        
+        // BrainCell only
+        isGpuOrCpu = calculator.isGpuOrCpu
+        // !! maybe add a Deck to show this option only for !isGpuOrCpu
+        // !! not all GPUs support float64
+        isFloat32or64 = calculator.isFloat32or64
+        
+        templ = "%sUse %s (%d cores detected)"
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                xpanel("")
+                xlabel("Diffusion module:")
+                xradiobutton("Use BrainCell", "diffModuleChangedHandler(0)", !isUseRxD)
+                xradiobutton("Use NEURON RxD", "diffModuleChangedHandler(1)", isUseRxD)
+                xpanel()
+                xpanel("")
+                xlabel("")
+                xbutton("Read me", "readMeHandler()")
+                xpanel()
+            }
+            hBox.intercept(0)
+            hBox.map()
+            deck = new Deck()
+            deck.intercept(1)
+            {
+                vBox = new VBox()
+                vBox.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("Device:")
+                    sprint(text, templ, "", "CPU", pyObj.xpuUtils.numCpuCores)
+                    xradiobutton(text, "isGpuOrCpu = 0", !isGpuOrCpu)
+                    sprint(text, templ, "", "GPU", pyObj.xpuUtils.numGpuCoresOrMinus1)
+                    xradiobutton(text, "isGpuOrCpu = 1", isGpuOrCpu)
+                    xpanel()
+                    xpanel("")
+                    xpvalue("Layer1", &bcLayer, 1)
+                    xpvalue("Layer2 / Layer1", &bcN, 1)
+                    addDiffBlock()
+                    xpanel()
+                    xpanel("")
+                    xcheckbox("Skip all nanogeom sections (faster)", &isSkipNanoSects)
+                    xpanel()
+                    spacerDeck = new Deck()
+                    spacerDeck.intercept(1)
+                    {
+                        xpanel("")
+                        xlabel("Precision:")
+                        xradiobutton("Use float32 (faster)", "precisionChangedHandler(1)", isFloat32or64)
+                        xradiobutton("Use float64 (slower)", "precisionChangedHandler(0)", !isFloat32or64)
+                        xpanel()
+                    }
+                    spacerDeck.intercept(0)
+                    spacerDeck.flip_to(0)
+                    spacerDeck.map()
+                }
+                vBox.intercept(0)
+                vBox.map()
+                vBox = new VBox()
+                vBox.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("Device:")
+                    sprint(text, templ, "     ", "CPU", pyObj.xpuUtils.numCpuCores)
+                    xlabel(text)
+                    xpanel()
+                    xpanel("")
+                    addDiffBlock()
+                    xpanel()
+                    xpanel("")
+                    xlabel("     Don't skip nanogeom sections (slower)")
+                    xpanel()
+                    spacerDeck = new Deck()
+                    spacerDeck.intercept(1)
+                    {
+                        xpanel("")
+                        xlabel("Boundary conditions type:")
+                        xradiobutton("Dirichlet (fixed conc)", "rxdIsDirichletOrNeumannBndConds = 1", rxdIsDirichletOrNeumannBndConds)
+                        xradiobutton("Neumann (zero flux)", "rxdIsDirichletOrNeumannBndConds = 0", !rxdIsDirichletOrNeumannBndConds)
+                        xpanel()
+                    }
+                    spacerDeck.intercept(0)
+                    spacerDeck.flip_to(0)
+                    spacerDeck.map()
+                }
+                vBox.intercept(0)
+                vBox.map()
+            }
+            deck.intercept(0)
+            // deck.flip_to(*)     // Will be done below in diffModuleChangedHandler
+            deck.map()
+            xpanel("")
+            xlabel("")
+            xbutton("Apply", "applyHandler()")
+            xpanel()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("General settings", 265, 44, -1, -1)    // !!
+        
+        diffModuleChangedHandler(isUseRxD)
+    }
+    
+    func getIsSkipNanoSects() {
+        return !isUseRxD && isSkipNanoSects
+    }
+    
+    func getEffectiveDiff() { local diff
+        diff = $1
+        diff *= volumeFraction
+        if (tortuosityOrMinus1 != -1) {
+            diff /= tortuosityOrMinus1 ^ 2
+        } else if (permeabilityOrMinus1 != -1) {
+            diff *= permeabilityOrMinus1
+        } else {
+            codeContractViolation()
+        }
+        return diff
+    }
+    
+    proc dismissHandler() {
+        unmapIfNotNil(mainBox)
+    }
+    
+    // All next staff is private
+    
+    
+    proc diffModuleChangedHandler() { local cardIdx
+        isUseRxD = $1
+        
+        cardIdx = isUseRxD
+        deck.flip_to(cardIdx)
+    }
+    
+    proc readMeHandler() { localobj bltList
+        strdef line1, line2, line3, line4, line5, line6, line9, line10, line11, line12, line13, line14, line15, line16, line17, line18, line19
+        line1 = "Two diffusion modules:"
+        line2 = "    * Both modules support multithreading on CPU, but the BrainCell module supports GPU as well."
+        line3 = "    * Each of the two modules has some specifics and unique features:"
+        line4 = "      the BrainCell module supports the \"Deferred\" mode and a single observation point;"
+        line5 = "      the NEURON RxD module requires choosing the boundary conditions type."
+        line6 = "BrainCell diffusion module:"
+        bltList = new List()
+        bltList.append(new String("Before the first use or GPU, you may need to execute \"conda install cudatoolkit\" in Anaconda Prompt and restart BrainCell."))
+        bltList.append(new String("When using GPU, be ready for slightly different results from run to run due to the parallel summation effects."))
+        line9 = "NEURON RxD diffusion module:"
+        line10 = "    * If the previous module takes the spatial grid just as a set of observation points, then this one heavily relies on it,"
+        line11 = "      so it's important to use padding in the grid for NEURON RxD module to have some space between the cell and the grid boundary,"
+        line12 = "      especially when the Dirichlet boundary conditions are used."
+        line13 = "    * NEURON RxD module ignores all regions of the cell out of the grid box, so be careful using 2D grids for non-planar cells."
+        line14 = "    * Currently we support only a subset of RxD capabilities. Here is what we don't support:"
+        line15 = "      reactions (except uptake), space inhomogeneity or anisotropy, diffusion by radius rather than xyz etc."
+        line16 = "Other notes:"
+        line17 = "    * NEURON GUI freezes when we create a massive grid of sensor sections."
+        line18 = "      To improve its performance, close PlotShape-s and don't click \"Deploy grid\" immediately (letting us deploy it later)."
+        line19 = "      In the future, we may do without the sensor sections unless user chooses \"NEURON\" animation module."
+        mwh.showMessageBox(line1, line2, line3, line4, line5, "", line6, bltList, "", line9, line10, line11, line12, line13, line14, line15, "", line16, line17, line18, line19, "", "Read me")
+    }
+    
+    proc precisionChangedHandler() {
+        isFloat32or64 = $1
+        if (isFloat32or64) {
+            mwh.showNotImplementedWarning()
+        }
+    }
+    
+    proc applyHandler() { local isCancel
+        strdef module, msg
+        
+        isCancel = calculator.consumeHpcSettings(isUseRxD, isGpuOrCpu, isFloat32or64)
+        if (isCancel) {
+            return
+        }
+        
+        altRunControlWidget.isInited = 0
+        
+        parentWidget.show(1)
+        
+        if (isUseRxD) {
+            module = "CPU + RxD"
+        } else {
+            if (isGpuOrCpu) {
+                module = "GPU"
+            } else {
+                module = "CPU"
+            }
+        }
+        sprint(msg, "%s chosen", module)
+        mwh.showMessageBox(msg, "Applied")
+    }
+    
+    proc addDiffBlock() {
+        xpvalue("Volume fraction", &volumeFraction, 1)
+        xpvalue("* Tortuosity", &tortuosityOrMinus1, 1, "permeabilityOrMinus1 = -1")
+        xpvalue("* Permeability", &permeabilityOrMinus1, 1, "tortuosityOrMinus1 = -1")
+        xlabel("* Two alt params: \"-1\" means \"not used\"")
+    }
+    
+endtemplate GeneralSettingsWidget

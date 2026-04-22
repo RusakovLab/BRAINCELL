@@ -1,0 +1,45 @@
+
+func applyExtracellularSourcesWithWaitBoxAndUpdateMainUiDiffStatusIndication() { local isEnabled localobj nil
+    
+    mwh.showPleaseWaitBox("Applying extracellular sources.")    // For the case of hundreds of ECSs
+    {
+        isEnabled = applyExtracellularSources(pyObj.ms_veryMinOuterConc)
+    }
+    mwh.hidePleaseWaitBox()
+    
+    if (mainUiDiffIndicHelper != nil) {     // !! nil in tests
+        mainUiDiffIndicHelper.setOutsideInDiffStatus(isEnabled)
+    }
+    
+    if (ecsManagerMainWidget != nil) {
+        ecsManagerMainWidget.updateEcdStatusVarLabel()      // For the case of keeping ExtracellularManagerMainWidget open
+    }
+    
+    if (!isEnabled) {
+        return 0
+    }
+    
+    if (mmIcrHelper != nil) {   // !! can be nil in tests
+        mmIcrHelper.scheduleRescan(6)
+    }
+    
+    return 1
+}
+
+func disableExtracellularSourcesAndUpdateMainUiDiffStatusIndication() { local wasEnabled localobj nil
+    wasEnabled = disableExtracellularSources()
+    
+    if (!wasEnabled) {
+        return 0
+    }
+    
+    if (mmIcrHelper != nil) {               // !! can be nil in tests
+        mmIcrHelper.scheduleRescan(6)
+    }
+    
+    if (mainUiDiffIndicHelper != nil) {     // !! nil in tests
+        mainUiDiffIndicHelper.setOutsideInDiffStatus(0)
+    }
+    
+    return 1
+}

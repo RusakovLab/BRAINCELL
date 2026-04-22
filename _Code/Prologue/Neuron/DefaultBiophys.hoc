@@ -1,0 +1,77 @@
+
+if (isBaseOrNanoStart && !isExternalSimStart) {
+    celsius = 34.0
+}
+
+// !! need to export/import "secondorder" var
+// !! can it be the root cause of the Graph/PlotShape-related errors when NetStim.start=0?
+// !! commented out as a workaround to avoid this error:
+//      at line 236 in file cadifus.mod:
+//          SOLVE state METHOD sparse
+//      Error at section location dendA2_01011(0.45)
+//      Convergence not achieved in maximum number of iterations
+//      C:\nrn\bin\nrniv.exe: scopmath library error
+// secondorder=2
+
+Rm = 28000
+RmDend = Rm/2
+RmSoma = Rm
+// !! RmAx = Rm   // !! this was not used anywhere, but maybe we need to use it for axon in this file
+
+/* !! CmSoma and CmDend are used in this file below, but the code was commented
+Cm    = 1
+CmSoma= Cm
+// !! CmAx  = Cm   // !! this was not used anywhere, but maybe we need to use it for axon in this file
+CmDend = Cm*2
+*/
+
+RaAll= 150
+RaSoma=150
+// !! RaAx = 50    // !! this was not used anywhere, but maybe we need to use it for axon in this file
+
+Vrest = -65
+
+// !! ghd=0.0      // !! ASSIGNED in h.mod (but all ASSIGNED-s are initialized to 0 by NEURON by default), never used in HOC
+
+// !! ^^^ review and delete unused vars
+
+
+// !! this proc is also called for neuron nanogeometry after reseeding
+proc Neuron_Biophysics_init() {
+    cm = 1
+    // !! pas is inserted and g_pas is assigned twice: here and in NanoCore/Neuron/NeuronNanoBranch.hoc -> proc initBiophysics for neuron nanogeometry
+    insert pas
+    e_pas=Vrest
+    g_pas = 1/RmDend
+    Ra=RaAll
+    //cm=CmDend
+}
+
+if (!isExternalSimStart) {
+    forall {
+        Neuron_Biophysics_init()
+    }
+    
+    for eachSecInList(soma_ref) {
+        cm = 1
+        Ra=RaSoma
+        g_pas = 1/10000
+        e_pas = -65
+        v = -65         // !! maybe remove because now it's done in NanoBranchesManager.hoc (but that file uses v_init = -64.65)
+        
+        e_pas=Vrest
+        g_pas = 1/RmSoma
+        
+        //cm=CmSoma
+        
+        // !! maybe remove because now it's done in NanoBranchesManager.hoc
+        //     (or at least move below the cycle)
+        finitialize(v)
+    }
+} else {
+    // !! if we created soma_ref or axon_ref rather than imported, then need to add it to this cycle as well
+    for eachSecInList(nanoProximal_ref, nanoDistal_ref) {
+        Neuron_Biophysics_init()
+    }
+    // !! if we created soma_ref rather than imported, then need to init it like in the first branch of this IF operator
+}

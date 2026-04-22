@@ -1,0 +1,488 @@
+
+// !! some code dupl. with MechComp.hoc and major code dupl. with GapJuncSet.hoc
+
+objref smRandomSynLocRNG
+smRandomSynLocRNG = rngUtils.getFor_synLoc()
+
+
+// A set of synapses
+begintemplate SynSet
+
+    public is3Or1PartInSynStruc, getPpNameOrEmpty, getMechIdxAndOptionalName, getDistRange, getSecList, reCalcAndCacheDistInSyns, applyChangesToLoc, applyChangesToStrucIfNeeded, applyChangesToDirtyHomogenVars, updateMarks, prepareShownString, onJustBeforeDestruction
+    public allComps, allSyns
+    public enumSynLoc, randomSynLocP
+    public spineNecks_ref, spineHeads_ref
+    public witheredSpineNeckDiam, spineNeckDiamCache
+    public seh
+    public s
+    
+    external synManagerMainWidget
+    external mwh, math, mth, mcu, tapSet, utils4FakeMech4SynNetCon, rngUtils, mmIcrHelper
+    external reseedDefaultSynsForNeuron, capDiam, stringEmpty, stringsEqual, getEmptyOrS, codeContractViolation
+    external eachItemInList
+    external enumSynCompIdxs, enumSynPpRoles
+    external smRandomSynLocRNG, inhomAndStochLibrary
+    external smDefEnumSynLoc
+    
+    enumSynLoc = -1
+    randomSynLocP = -1
+    objref spineNecks_ref, spineHeads_ref
+    objref spineNeckDiamCache
+    idxForSynSet = -1   // Used only to show in the list and !! on the Shape
+    objref allComps, allSyns
+    
+    objref seh
+    witheredSpineNeckDiam = -1
+    
+    strdef s
+    
+    objref this
+    
+    
+    proc init() { local isImport localobj spineSet, impRedObj, inComps
+        isImport = $1
+        
+        allComps = new List()
+        
+        seh = new SynEventsHelper(allComps)     // Will be copied by Syn*Comp ctors just below
+        
+        if (!isImport) {
+            spineSet = $o2
+            
+            // Defaults
+            enumSynLoc = smDefEnumSynLoc
+            randomSynLocP = 0.5     // Probability for "Random" synapse location: 0: "All on Spine Head", 1: "All on Dendrite (just under Spine Neck)"
+            
+            spineNecks_ref = spineSet.spineNecks_ref
+            spineHeads_ref = spineSet.spineHeads_ref
+            
+            spineNeckDiamCache = new SpineNeckDiamCache(spineNecks_ref)
+            
+            idxForSynSet = spineSet.idxForSpineSet
+            
+            allSyns = reseedDefaultSynsForNeuron(spineSet)
+            
+            // Keep in sync with hoc:EnumSynCompIdxs.init, py:GeneratorsForMainHocFile._analyzeUsedMechsInSynComps, py:GensForTaps.createReducedSynComps and py:GensForTaps.initHomogenSynVars
+            allComps.append(new SynPPComp("Source PP", enumSynPpRoles.srcPp, this))
+            allComps.append(new SynNCComp(this))
+            allComps.append(new SynPPComp("Target PP", enumSynPpRoles.trgPp, this))
+            allComps.append(new SynPPComp("Single PP", enumSynPpRoles.sngPp, this))
+            
+        } else {
+            impRedObj = $o2
+            
+            enumSynLoc = impRedObj.enumSynLoc
+            randomSynLocP = impRedObj.randomSynLocP
+            
+            spineNecks_ref = impRedObj.spineNecks_ref
+            spineHeads_ref = impRedObj.spineHeads_ref
+            
+            spineNeckDiamCache = impRedObj.spineNeckDiamCache
+            
+            idxForSynSet = impRedObj.idxForSynSet
+            
+            allSyns = impRedObj.allSyns
+            
+            // Keep in sync with hoc:EnumSynCompIdxs.init, py:GensForTaps.createReducedSynComps and py:GensForTaps.initHomogenSynVars
+            inComps = impRedObj.allComps
+            if (inComps.count() != 4) {
+                codeContractViolation()
+            }
+            allComps.append(new SynPPComp(inComps.o(0), this))
+            allComps.append(new SynNCComp(inComps.o(1), this))
+            allComps.append(new SynPPComp(inComps.o(2), this))
+            allComps.append(new SynPPComp(inComps.o(3), this))
+        }
+        
+        prepareShownString()
+        
+        witheredSpineNeckDiam = capDiam(0)
+    }
+    
+    func is3Or1PartInSynStruc() {
+        if (allSyns.count() > 0) {
+            // It's a code contract that all the syns have the same structure given set
+            return (allSyns.o(0).is3Or1Part())
+        } else {
+            return 1
+        }
+    }
+    
+    proc getPpNameOrEmpty() { local enumPpRole
+        strdef ppName
+        enumPpRole = $1
+        if (allSyns.count() > 0) {
+            tapSet.getPpNameOrEmpty(allSyns.o(0), enumPpRole, ppName)
+        } else {
+            ppName = ""
+        }
+        $s2 = ppName
+    }
+    
+    // !! some code dup. with GapJuncSet.getMechIdxAndOptionalName
+    // Returns -1 and "" if the syn set is empty or there is no PP given role
+    func getMechIdxAndOptionalName() { local numArg, enumPpRole
+        strdef mechName
+        numArg = numarg()
+        if (numArg == 0 || numArg > 2) {
+            codeContractViolation()
+        }
+        enumPpRole = $1
+        getPpNameOrEmpty(enumPpRole, mechName)
+        if (numArg == 2) {
+            $s2 = mechName
+        }
+        if (stringEmpty(mechName)) {
+            return -1
+        } else {
+            return mth.getMechIdx(1, mechName)  // 1: "Point Processes"
+        }
+    }
+    
+    func getDistRange() {
+        return tapSet.getDistRange(allSyns, &$&1, &$&2)
+    }
+    
+    obfunc getSecList() {
+        return tapSet.getSecList(allSyns)
+    }
+    
+    proc reCalcAndCacheDistInSyns() { localobj syn
+        for eachItemInList(syn, allSyns) {
+            syn.calcAndCacheDist()
+        }
+    }
+    
+    // See also: GapJuncSet.applyChangesToLoc
+    proc applyChangesToLoc() { local isReviewAfterApply, distMin, distMax, synIdx, connectionPoint, spineNeckDiam localobj sec_ref, syn, nil
+        isReviewAfterApply = $1
+        
+        if (enumSynLoc == 2) {
+            smRandomSynLocRNG.binomial(1, randomSynLocP)    // Bernoulli distribution
+        }
+        
+        distMin = math.inf
+        distMax = -1
+        for synIdx = 0, allSyns.count() - 1 {
+            getNewSecRefConnectionPointAndSpineNeckDiam(synIdx, sec_ref, &connectionPoint, &spineNeckDiam)
+            syn = allSyns.o(synIdx)
+            
+            syn.changeLocation(sec_ref, connectionPoint)
+            spineNecks_ref.o(synIdx).sec {
+                diam = spineNeckDiam
+            }
+            
+            math.updateMinMax(&distMin, &distMax, syn.dist)
+        }
+        
+        synManagerMainWidget.onSynLocChangedHandler(distMin, distMax, isReviewAfterApply)
+        
+        if (mmIcrHelper != nil) {   // !! can be nil in tests
+            mmIcrHelper.scheduleRescan(5)
+        }
+    }
+    
+    // Keep in sync with ReducedSynSet.createSynStruc
+    func applyChangesToStrucIfNeeded() { local synSetIdx, is3Or1PartInSynStruc_new, srcMechIdx, trgMechIdx, sngMechIdx, isForceNewTrgOrSng, is3Or1PartInSynStruc_old, enumTrgOrSngPpRole_old, isSefwEnabled, isSrcMechNameUnchanged, isSefwPresenceUnchanged, isTrgMechNameUnchanged, seed localobj syn, srcPp, trgPp, netCon, sefwPp, sefwNetCon, sngPp
+        strdef srcMechName, trgMechName, sngMechName, trgOrSngMechName_old, srcMechName_old, trgMechName_old, sngMechName_old
+        
+        synSetIdx = $1
+        is3Or1PartInSynStruc_new = $2
+        srcMechIdx = $3
+        trgMechIdx = $4
+        sngMechIdx = $5
+        srcMechName = $s6
+        trgMechName = $s7
+        sngMechName = $s8
+        isForceNewTrgOrSng = $9
+        
+        is3Or1PartInSynStruc_old = is3Or1PartInSynStruc()
+        
+        if (is3Or1PartInSynStruc_old) {
+            enumTrgOrSngPpRole_old = enumSynPpRoles.trgPp
+        } else {
+            enumTrgOrSngPpRole_old = enumSynPpRoles.sngPp
+        }
+        getPpNameOrEmpty(enumSynPpRoles.srcPp, srcMechName_old)
+        getPpNameOrEmpty(enumSynPpRoles.trgPp, trgMechName_old)
+        getPpNameOrEmpty(enumSynPpRoles.sngPp, sngMechName_old)
+        getPpNameOrEmpty(enumTrgOrSngPpRole_old, trgOrSngMechName_old)
+        
+        if (is3Or1PartInSynStruc_new) {
+            isSefwEnabled = seh.isSefwEnabled()
+            isSrcMechNameUnchanged = stringsEqual(srcMechName, srcMechName_old)
+            isSefwPresenceUnchanged = (isSefwEnabled == isSefwPresentInSynStruc())
+            isTrgMechNameUnchanged = stringsEqual(trgMechName, trgMechName_old)
+            if (!isForceNewTrgOrSng && isSrcMechNameUnchanged && isSefwPresenceUnchanged && isTrgMechNameUnchanged) {
+                return 0
+            }
+            
+            for eachItemInList(syn, allSyns) {
+                srcPp = createNewSrcPpButTryToInherit(syn, srcMechIdx, srcMechName, isSrcMechNameUnchanged)
+                trgPp = createNewTrgOrSngPpButTryToInherit(syn, trgMechIdx, trgMechName, isForceNewTrgOrSng, enumSynCompIdxs.trgPp, enumTrgOrSngPpRole_old, trgOrSngMechName_old)
+                if (!isSefwEnabled) {
+                    netCon = createNewNetConButTryToInherit(syn, srcPp, trgPp, is3Or1PartInSynStruc_old)
+                    syn.changeStructure(srcPp, netCon, trgPp)
+                } else {
+                    seh.createNewSynEventsFilterWatcherButTryToInherit(syn, isSefwPresenceUnchanged, is3Or1PartInSynStruc_old, trgPp, sefwPp, sefwNetCon)
+                    netCon = createNewNetConButTryToInherit(syn, srcPp, sefwPp, is3Or1PartInSynStruc_old)
+                    syn.changeStructure(srcPp, netCon, sefwPp, sefwNetCon, trgPp)
+                }
+            }
+            if (isSefwEnabled) {
+                // It's enough to set the seed only once per rank (for the last sefwPp in our case)
+                seed = rngUtils.getSeedFor_SEFW()
+                sefwPp.setSeed(seed)
+            }
+        } else {
+            if (!isForceNewTrgOrSng && stringsEqual(sngMechName, sngMechName_old)) {
+                return 0
+            }
+            for eachItemInList(syn, allSyns) {
+                sngPp = createNewTrgOrSngPpButTryToInherit(syn, sngMechIdx, sngMechName, isForceNewTrgOrSng, enumSynCompIdxs.sngPp, enumTrgOrSngPpRole_old, trgOrSngMechName_old)
+                syn.changeStructure(sngPp)
+            }
+        }
+        
+        if (is3Or1PartInSynStruc_new) {
+            sngMechName = ""
+        } else {
+            srcMechName = ""
+            trgMechName = ""
+        }
+        inhomAndStochLibrary.onSynStrucChange(synSetIdx, srcMechName_old, trgMechName_old, sngMechName_old, srcMechName, trgMechName, sngMechName)
+        
+        if (is3Or1PartInSynStruc_old && !is3Or1PartInSynStruc_new) {
+            seh.isMinRPlt1 = 0
+        }
+        
+        return 1
+    }
+    
+    // Keep in sync with ReducedSynSet.initAllHomogenVars
+    func applyChangesToDirtyHomogenVars() { local srcMechIdx, trgMechIdx, sngMechIdx, isSmthChanged
+        srcMechIdx = $1
+        trgMechIdx = $2
+        sngMechIdx = $3
+        if (is3Or1PartInSynStruc()) {
+            isSmthChanged = ifMechDirtyThenApplyHomogenChanges(enumSynCompIdxs.srcPp, srcMechIdx, enumSynPpRoles.srcPp)
+            isSmthChanged = ifMechDirtyThenApplyHomogenChanges(enumSynCompIdxs.netCon, utils4FakeMech4SynNetCon.mechIdx, enumSynPpRoles.netCon) || isSmthChanged
+            isSmthChanged = ifMechDirtyThenApplyHomogenChanges(enumSynCompIdxs.trgPp, trgMechIdx, enumSynPpRoles.trgPp) || isSmthChanged
+        } else {
+            isSmthChanged = ifMechDirtyThenApplyHomogenChanges(enumSynCompIdxs.sngPp, sngMechIdx, enumSynPpRoles.sngPp)
+        }
+        return isSmthChanged
+    }
+    
+    proc updateMarks() { localobj shape
+        shape = $o1
+        tapSet.updateMarks(allSyns, enumSynPpRoles.trgPpOrSngPp, shape)
+    }
+    
+    proc prepareShownString() { local numSyns
+        strdef emptyOrS, srcMechName, trgMechName, sngMechName
+        
+        numSyns = allSyns.count()
+        
+        if (numSyns == 0) {
+            // !! BUG: we've lost the info about the last selected mechIdx-s because they're defined only by allSyns.o(0)
+            sprint(s, "Set #%d: Empty set (0 syns)", idxForSynSet)
+        } else {
+            getEmptyOrS(numSyns, emptyOrS)
+            if (is3Or1PartInSynStruc()) {
+                getPpNameOrEmpty(enumSynPpRoles.srcPp, srcMechName)
+                getPpNameOrEmpty(enumSynPpRoles.trgPp, trgMechName)
+                // !! think about replacing "-> Section" with "-> spine_head / dendrite / random"
+                sprint(s, "Set #%d: %s -> NetCon -> %s -> Section (%d syn%s)", idxForSynSet, srcMechName, trgMechName, numSyns, emptyOrS)
+            } else {
+                getPpNameOrEmpty(enumSynPpRoles.sngPp, sngMechName)
+                sprint(s, "Set #%d: %s -> Section (%d syn%s)", idxForSynSet, sngMechName, numSyns, emptyOrS)
+            }
+        }
+    }
+    
+    // Must be called just before destruction of this SynSet object to avoid two problems: "zombie" PPs and deferred Segmentation Violation
+    // (looks like a bug in NEURON garbage collector)
+    proc onJustBeforeDestruction() { localobj nil
+        allSyns = nil
+    }
+    
+    // All next staff is private
+    
+    
+    // Keep in sync with ReducedSynSet.createNewSrcPp
+    obfunc createNewSrcPpButTryToInherit() { local mechIdx, isSrcMechNameUnchanged, doesSrcPpRequireSection, synCompIdx localobj syn, mechType, outPp
+        strdef mechName
+        
+        syn = $o1
+        mechIdx = $2
+        mechName = $s3
+        isSrcMechNameUnchanged = $4
+        
+        if (isSrcMechNameUnchanged) {
+            return syn.srcPp
+        }
+        
+        doesSrcPpRequireSection = mth.doesPointProcessRequireSection(mechIdx)
+        synCompIdx = enumSynCompIdxs.srcPp
+        
+        if (!doesSrcPpRequireSection) {
+            mechType = mth.getMechType(1)
+            mechType.select(mechName)
+            mechType.make(outPp)    // Not located in any section
+            tapSet.setDefaultVars(this, synCompIdx, mechIdx, outPp)
+            return outPp
+        } else {
+            return tapSet.createNewPpAttachedToSectionButTryToInherit(syn.srcPp, this, synCompIdx, mechIdx, mechName, syn.sec_ref, syn.connectionPoint, 0)
+        }
+    }
+    
+    obfunc createNewTrgOrSngPpButTryToInherit() { local mechIdx, isForceNew, synCompIdx, enumPpRole_old, isMechNameUnchanged localobj syn, pp_old
+        strdef mechName, mechName_old
+        
+        syn = $o1
+        mechIdx = $2
+        mechName = $s3
+        isForceNew = $4
+        synCompIdx = $5
+        enumPpRole_old = $6
+        mechName_old = $s7
+        
+        pp_old = syn.getPointProcess(enumPpRole_old)
+        isMechNameUnchanged = stringsEqual(mechName, mechName_old)
+        if (!isForceNew && isMechNameUnchanged) {
+            return pp_old
+        } else {
+            return tapSet.createNewPpAttachedToSectionButTryToInherit(pp_old, this, synCompIdx, mechIdx, mechName, syn.sec_ref, syn.connectionPoint, isMechNameUnchanged)
+        }
+    }
+    
+    obfunc createNewNetConButTryToInherit() { local is3Or1PartInSynStruc_old localobj syn, srcPp, nextPp, netCon, mechStd
+        syn = $o1
+        srcPp = $o2
+        nextPp = $o3
+        is3Or1PartInSynStruc_old = $4
+        
+        netCon = new NetCon(srcPp, nextPp)
+        if (is3Or1PartInSynStruc_old) {
+            mechStd = new FakeMechanismStandardForNetCon()
+            mechStd.in(syn.netCon)
+            mechStd.out(netCon)
+        } else {
+            tapSet.setDefaultVars(this, enumSynCompIdxs.netCon, utils4FakeMech4SynNetCon.mechIdx, netCon)
+        }
+        
+        return netCon
+    }
+    
+    // Keep in sync with ReducedSynSet.initHomogenVars
+    func ifMechDirtyThenApplyHomogenChanges() { local compIdx, mechIdx, enumPpRole, isPPorNC, maxVarType, varType, varTypeIdx, release_probability localobj comp, syn, sefwPpOrNil, sefwNetConOrNil, ppOrNetCon, compMechStd, tempMechStdExt, nil
+        strdef mechName
+        
+        compIdx = $1
+        mechIdx = $2
+        enumPpRole = $3
+        
+        comp = allComps.o(compIdx)
+        
+        if (!comp.isMechDirty[mechIdx]) {
+            return 0
+        }
+        
+        isPPorNC = (compIdx != enumSynCompIdxs.netCon)
+        
+        if (isPPorNC) {
+            mth.getMechName(1, mechIdx, mechName)
+            maxVarType = 3
+        } else {
+            maxVarType = 1
+        }
+        
+        for eachItemInList(syn, allSyns) {
+            sefwPpOrNil = nil
+            sefwNetConOrNil = nil
+            ppOrNetCon = syn.getPointProcess(enumPpRole)
+            if (!isPPorNC && seh.isSefwEnabled()) {
+                sefwPpOrNil = syn.sefwPp
+                sefwNetConOrNil = syn.sefwNetCon
+            }
+            for varType = 1, maxVarType {   // 1: "PARAMETER", 2: "ASSIGNED", 3: "STATE"
+                varTypeIdx = mth.convertVarTypeToVarTypeIdx(varType)
+                compMechStd = comp.mechStds[mechIdx][varTypeIdx]
+                if (!comp.isMechVarTypeInhom[mechIdx][varTypeIdx]) {
+                    compMechStd.out(ppOrNetCon)
+                    tempMechStdExt = compMechStd
+                } else {
+                    if (isPPorNC) {
+                        tempMechStdExt = new MechanismStandard(mechName, varType)
+                    } else {
+                        tempMechStdExt = new FakeMechanismStandardForNetCon()
+                    }
+                    tempMechStdExt.in(ppOrNetCon)
+                    mcu.copyAllVarsValuesExceptInhom(compMechStd, tempMechStdExt)
+                    tempMechStdExt.out(ppOrNetCon)
+                }
+            }
+            if (sefwPpOrNil != nil) {
+                release_probability = compMechStd.get(utils4FakeMech4SynNetCon.metaVarName)
+                if (!math.isNaN(release_probability)) {
+                    sefwPpOrNil.release_probability = release_probability
+                }
+            }
+            if (sefwNetConOrNil != nil) {
+                tempMechStdExt.out(sefwNetConOrNil)
+                sefwNetConOrNil.delay = 0
+            }
+        }
+        
+        comp.isMechDirty[mechIdx] = 0
+        
+        return 1
+    }
+    
+    // !! major code dupl. with proc reseedDefaultSynsForNeuron
+    proc getNewSecRefConnectionPointAndSpineNeckDiam() { local synIdx, synLocIdx, connectionPoint, spineNeckDiam localobj sec_ref, sn_ref
+        synIdx = $1
+        
+        if (enumSynLoc == 2) {
+            synLocIdx = smRandomSynLocRNG.repick()
+        } else {
+            synLocIdx = enumSynLoc
+        }
+        
+        if (synLocIdx == 0) {
+            // Synapse is connected to the centre of spine_head
+            connectionPoint = 0.5
+            spineHeads_ref.o(synIdx).sec {
+                sec_ref = new SectionRef()
+            }
+            spineNeckDiam = spineNeckDiamCache.getCachedDiam(synIdx)
+        } else if (synLocIdx == 1) {
+            // Synapse is connected to the point on dendrite where spine_neck emerges
+            sn_ref = spineNecks_ref.o(synIdx)
+            sn_ref.sec {
+                connectionPoint = parent_connection()
+            }
+            sn_ref.parent {
+                sec_ref = new SectionRef()
+            }
+            spineNeckDiam = witheredSpineNeckDiam
+        } else {
+            codeContractViolation()
+        }
+        
+        $o2 = sec_ref
+        $&3 = connectionPoint
+        $&4 = spineNeckDiam
+    }
+    
+    func isSefwPresentInSynStruc() { localobj nil
+        if (allSyns.count() > 0) {
+            // It's a code contract that all the syns have the same structure given set
+            return (allSyns.o(0).sefwPp != nil)
+        } else {
+            return 0
+        }
+    }
+    
+endtemplate SynSet

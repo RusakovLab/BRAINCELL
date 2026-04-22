@@ -1,0 +1,132 @@
+
+veryMinSeedingDistance = 0.1    // um
+
+
+begintemplate SeedingDensityWidget
+    
+    public show, dismissHandler
+    
+    external veryMinSeedingDistance
+    external unmapIfNotNil
+    external mwh
+    
+    objref mainBox, deck, textEditor
+    
+    objref seedingDensityHelper
+    
+    
+    proc show() { local isUniformOnly, x, y, cardIdx localobj vBox
+        strdef str1, str2, str3, text, hint
+        
+        seedingDensityHelper = $o1
+        isUniformOnly = $2
+        x = $3
+        y = $4
+        
+        if (isUniformOnly) {
+            seedingDensityHelper.isUniform = 1
+        }
+        
+        seedingDensityHelper.onShowInSeedingDensityWidget(str1, str2, str3)
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            sprint(text, "How to seed the %s along %s:", str1, str2)
+            xlabel(text)
+            xradiobutton("Uniform", "isUniformChangedHandler(1)", seedingDensityHelper.isUniform)
+            if (!isUniformOnly) {
+                xradiobutton("Non-uniform, using func(dist)", "isUniformChangedHandler(0)", !seedingDensityHelper.isUniform)
+            } else {
+                xlabel("n/a: Non-uniform, using func(dist)")
+            }
+            xlabel("")
+            xpanel()
+            deck = new Deck()
+            deck.intercept(1)
+            {
+                xpanel("")
+                // xlabel("Initial min. distance between stalks/spines is limit value that cannot be reduced using panel.")
+                // xlabel("To decrease this value, increase value - MaxNumberStalksPerDendrite/MaxNumberSpinesPerDendrite")
+                xpvalue("Min distribution over branches", &seedingDensityHelper.minSeedingDistance, 1)
+                xpanel()
+                vBox = new VBox()
+                vBox.intercept(1)
+                {
+                    xpanel("")
+                    // !! keep in sync with CustomCodeDistFuncHelper.selectedHandler
+                    sprint(text, "Enter Python expression (one-liner) for \"Min distribution over branches (%s)\" > 0.", units("L"))
+                    xlabel(text)
+                    xlabel("The expression must depend on \"x\". We've done \"from math import *\" for you.")
+                    xpanel()
+                    textEditor = new TextEditor(seedingDensityHelper.oneLinerPyDistFuncBody)
+                    textEditor.map()
+                }
+                vBox.intercept(0)
+                vBox.map()
+            }
+            deck.intercept(0)
+            // deck.flip_to(*)  // Will be done below in isUniformChangedHandler
+            deck.map()
+            xpanel("")
+            sprint(hint, "Hints: The lower value, the higher density of %s;", str1)
+            xlabel(hint)
+            sprint(hint, "           the value is capped from below at %g (%s).", veryMinSeedingDistance, units("L"))
+            xlabel(hint)
+            xbutton(str3, "doneHandler()")
+            xpanel()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("Min distribution over branches", x, y, 380, 210)
+        
+        isUniformChangedHandler(seedingDensityHelper.isUniform)
+        
+        if (isUniformOnly) {
+            // !! BUG: user still can use the non-uniform seeding for disconnected sections:
+            //         to reproduce, toggle "Some sections", select a subset of sections avoiding the disconnected ones, then toggle "All sections"
+            mwh.showWarningBox("Cannot use func(dist) because at least one seeded section doesn't have a topological connection with the distance centre.")
+        }
+    }
+    
+    proc dismissHandler() { localobj nil
+        unmapIfNotNil(mainBox)
+        seedingDensityHelper = nil
+    }
+    
+    // All next staff is private
+    
+    
+    proc isUniformChangedHandler() { local cardIdx
+        seedingDensityHelper.isUniform = $1
+        cardIdx = !seedingDensityHelper.isUniform
+        deck.flip_to(cardIdx)
+    }
+    
+    proc doneHandler() { local isClose
+        isClose = seedingDensityHelper.onDoneInSeedingDensityWidget(textEditor.text())
+        
+        if (isClose) {
+            dismissHandler()
+        }
+    }
+    
+endtemplate SeedingDensityWidget
+
+
+proc showSeedingDensityWidget() { local isUniformOnly, x, y localobj seedingDensityHelper, nil
+    
+    seedingDensityHelper = $o1
+    isUniformOnly = $2
+    x = $3
+    y = $4
+    
+    if (seedingDensityWidget == nil) {
+        seedingDensityWidget = new SeedingDensityWidget()
+    } else {
+        seedingDensityWidget.dismissHandler()
+    }
+    
+    seedingDensityWidget.show(seedingDensityHelper, isUniformOnly, x, y)
+}

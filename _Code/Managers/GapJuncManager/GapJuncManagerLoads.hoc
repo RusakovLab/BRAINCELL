@@ -1,0 +1,13 @@
+
+{ load_file("GapJuncManagerBaseLoads.hoc") }
+
+{ load_file("GapJuncComps/GapJuncPPComp.hoc") }
+{ load_file("GapJuncComps/GapJuncExtValueComp.hoc") }
+loadIfNotDeclared("SeedingDensityHelper", "../SeedingDensityHelper.hoc", 1)
+sourcePythonCode("\\\\Utils\\PythonCode", "from IntGapJuncPtrSeedingHelper import *", "GapJuncManagerLoads")
+{ load_file("Utils/GapJuncSetSectionUtils.hoc") }
+{ load_file("../../Prologue/CreateDefaultGapJuncs.hoc") }
+{ load_file("GapJuncSet.hoc") }
+
+{ load_file("Widgets/GapJuncManagerMainWidget.hoc") }
+{ load_file("Widgets/GapJuncSetsWidget.hoc") }

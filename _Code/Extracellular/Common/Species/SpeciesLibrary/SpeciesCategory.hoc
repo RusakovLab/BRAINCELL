@@ -1,0 +1,41 @@
+
+begintemplate SpeciesCategory
+
+    public spcCatName, spcNamesList, spcInfoList
+    public isUnrecSpcCat, checkForUnrecSpcCatAndWarnUser
+    
+    external stringsEqual
+    external mwh, mechSettings
+    
+    strdef spcCatName
+    
+    // !! try to merge these two into one
+    objref spcNamesList, spcInfoList
+    
+    isUnrecSpcCat = -1
+    
+    
+    proc init() {
+        spcCatName = $s1
+        spcNamesList = $o2
+        spcInfoList = $o3
+        
+        isUnrecSpcCat = stringsEqual(spcCatName, mechSettings.unrecSpcCatName)
+    }
+    
+    func checkForUnrecSpcCatAndWarnUser() {
+        strdef diffusionType, line1, line2
+        
+        diffusionType = $s1
+        
+        if (isUnrecSpcCat) {
+            // !! keep the text in sync with SpeciesLibrary.validateAndWarnUser
+            sprint(line1, "This ion cannot be used for the %s diffusion until \"installed\" properly.", diffusionType)
+            line2 = "Click \"How do I add new species?\" button for the instructions."
+            mwh.showWarningBox(line1, line2)
+        }
+        
+        return isUnrecSpcCat
+    }
+    
+endtemplate SpeciesCategory

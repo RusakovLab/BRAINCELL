@@ -1,0 +1,7 @@
+
+proc forallCallApplyChangesToLocCore() { localobj gapJuncSet
+    gapJuncSet = $o1
+    forall {
+        gapJuncSet.applyChangesToLocCore()
+    }
+}

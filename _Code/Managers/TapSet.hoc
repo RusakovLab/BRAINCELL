@@ -1,0 +1,200 @@
+
+begintemplate TapSet
+    
+    public getPpNameOrEmpty, getDistRange, getSecList, updateStatsCurveIter, applyInhomogeneityIter, updateMarks, updateMarksCore, createNewPpAttachedToSectionButTryToInherit, setDefaultVars
+    
+    external mth, math, mwh
+    external isDisconnectedDistance, codeContractViolation
+    external eachItemInList
+    external enumColours
+    
+    
+    proc getPpNameOrEmpty() { local enumPpRole, idx localobj firstTap, pp, strFunc, nil
+        strdef ppNameWithBrackets, ppName
+        
+        firstTap = $o1
+        enumPpRole = $2
+        
+        // It's a code contract that all the taps have the same structure given set
+        pp = firstTap.getPointProcess(enumPpRole)
+        if (pp == nil) {
+            $s3 = ""
+            return
+        }
+        
+        // !! maybe this can be optimized significantly (e.g. with Python) or at least we can extract and call a shared util
+        sprint(ppNameWithBrackets, "%s", pp)
+        strFunc = new StringFunctions()
+        idx = strFunc.head(ppNameWithBrackets, "\\[", ppName)
+        if (idx == -1) {
+            codeContractViolation()
+        }
+        
+        $s3 = ppName
+    }
+    
+    // !! optimize this for performance: in most cases, we should return immediately encountering a disconnected section;
+    //    the only exception is when called from SynSetsWidget.editSetHandler
+    // !! see also: getDistRangeGivenSections, getMaxDistForCell
+    func getDistRange() { local distMin, distMax, isDisconnected, dist localobj xmAllTaps, tap
+        
+        xmAllTaps = $o1
+        
+        distMin = math.inf
+        distMax = -1
+        
+        isDisconnected = 0
+        for eachItemInList(tap, xmAllTaps) {
+            dist = tap.dist
+            if (isDisconnectedDistance(dist)) {
+                isDisconnected = 1
+                continue
+            }
+            math.updateMinMax(&distMin, &distMax, dist)
+        }
+        
+        $&2 = distMin
+        $&3 = distMax
+        
+        return isDisconnected
+    }
+    
+    obfunc getSecList() { localobj xmAllTaps, secList, tap
+        xmAllTaps = $o1
+        
+        secList = new SectionList()
+        for eachItemInList(tap, xmAllTaps) {
+            tap.sec_ref.sec secList.append()
+        }
+        
+        // When synapse location is "Dendrite (just under Spine Neck)",
+        // this is required to avoid glitchy look of the colormap "Show synapse locations only";
+        // !! check for gap junctions
+        secList.unique()
+        
+        return secList
+    }
+    
+    iterator updateStatsCurveIter() { local yMin, yMax, ySum, numTaps, tapIdx, y localobj xmAllTaps, graph, tap
+        xmAllTaps = $o2
+        graph = $o3
+        yMin = $&5
+        yMax = $&6
+        
+        ySum = 0
+        numTaps = xmAllTaps.count()
+        
+        for tapIdx = 0, numTaps - 1 {
+            tap = xmAllTaps.o(tapIdx)
+            $o1 = tap
+            iterator_statement
+            y = $&4
+            graph.mark(tap.dist, y, "O", 2, enumColours.red, 0)
+            math.updateMinMaxSum(&yMin, &yMax, &ySum, y)
+        }
+        
+        $&5 = yMin
+        $&6 = yMax
+        $&7 = ySum / numTaps
+    }
+    
+    // Keep in sync with ReducedTapSet.applyInhomogeneityIter
+    iterator applyInhomogeneityIter() { local tapIdx localobj xmAllTaps, distFuncHelper, prevSec_ref, tap, nil
+        xmAllTaps = $o2
+        distFuncHelper = $o3
+        
+        mwh.showPleaseWaitBox("Applying inhomogeneity.")
+        distFuncHelper.onJustBeforeFirstSection()
+        {
+            prevSec_ref = nil
+            for tapIdx = 0, xmAllTaps.count() - 1 {
+                tap = xmAllTaps.o(tapIdx)
+                if (tap.sec_ref != prevSec_ref) {
+                    distFuncHelper.onJustBeforeNewSection()
+                }
+                $o1 = tap
+                iterator_statement
+                prevSec_ref = tap.sec_ref
+            }
+        }
+        distFuncHelper.onJustAfterLastSection()
+        mwh.hidePleaseWaitBox()
+    }
+    
+    proc updateMarks() { local enumPpRoleExt localobj xmAllTaps, shape
+        xmAllTaps = $o1
+        enumPpRoleExt = $2
+        shape = $o3
+        
+        shape.point_mark_remove()
+        
+        updateMarksCore(xmAllTaps, enumPpRoleExt, shape, enumColours.red, "o")
+    }
+    
+    proc updateMarksCore() { local enumPpRoleExt, enumColour localobj xmAllTaps, shape, tap, pp
+        strdef style
+        
+        xmAllTaps = $o1
+        enumPpRoleExt = $2
+        shape = $o3
+        enumColour = $4
+        style = $s5
+        
+        for eachItemInList(tap, xmAllTaps) {
+            pp = tap.getPointProcess(enumPpRoleExt)
+            // !! need to choose the "colorindex" arg according to the watched var value and the colorbar
+            shape.point_mark(pp, enumColour, style, 5)
+        }
+    }
+    
+    obfunc createNewPpAttachedToSectionButTryToInherit() { local tapCompIdx, mechIdx, x, isInherit localobj pp_old, tapSet, sec_ref, pp_new, mechStd
+        strdef mechName
+        
+        pp_old = $o1
+        tapSet = $o2
+        tapCompIdx = $3
+        mechIdx = $4
+        mechName = $s5
+        sec_ref = $o6
+        x = $7
+        isInherit = $8
+        
+        pp_new = mth.createNewPpAttachedToSection(mechName, sec_ref, x)
+        
+        if (isInherit) {
+            mechStd = new MechanismStandard(mechName)
+            mechStd.in(pp_old)
+            mechStd.out(pp_new)
+        } else {
+            setDefaultVars(tapSet, tapCompIdx, mechIdx, pp_new)
+            // !! BUG: need to schedule "Rescan" in biophys manager if PP uses any ions (e.g. GapCa) because they will be inserted into section (if not inserted aleady)
+            //         do I need to do the same in ReducedTapSet.createNewPpAttachedToSection? maybe not
+            //    UPD: "Rescan" will work fine only when Synapse Location is "All on Spine Head";
+            //         "Rescan" will fail when Synapse Location is "All on Dendrite" or "Random" because we cannot create the compartments where an ion is inserted in some sections and uninserted in others
+            //         to make it work, we'll have to collect all synapse attachement sections into a separate compartment
+        }
+        
+        return pp_new
+    }
+    
+    // Keep in sync with ReducedTapSet.setDefaultVars
+    proc setDefaultVars() { local tapCompIdx, mechIdx, numVarTypes, varTypeIdx localobj tapSet, pp, comp
+        tapSet = $o1
+        tapCompIdx = $2
+        mechIdx = $3
+        pp = $o4
+        
+        comp = tapSet.allComps.o(tapCompIdx)
+        numVarTypes = mth.getNumVarTypes(comp.enumDmPpFk)
+        
+        for varTypeIdx = 0, numVarTypes - 1 {   // 0: "PARAMETER", 1: "ASSIGNED", 2: "STATE"
+            // This inserts NaN-s for inhomogen vars,
+            // but we'll restore all inhomogeneities shortly downstream calling inhomAndStochLibrary.on*StrucChange
+            comp.mechStds[mechIdx][varTypeIdx].out(pp)
+        }
+    }
+    
+endtemplate TapSet
+
+objref tapSet
+tapSet = new TapSet()

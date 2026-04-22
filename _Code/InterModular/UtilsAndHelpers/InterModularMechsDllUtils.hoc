@@ -1,0 +1,102 @@
+
+isNanoCallbackReceived = 0
+
+begintemplate MechsDllUtils
+
+    public ifMissingInThisFolderThenLoadDefaultMechsDllDependingOnCellType, loadDefaultMechsDllDependingOnCellType, loadMechsDllFromThisFolder, isThisMechForIntUseOnly
+    public firstCustomDmMechIdx, firstCustomPpMechIdx
+    public loadedNanoHocFilePathName, loadedDllDirPath
+    
+    external isBaseOrNanoStart, isNanoCallbackReceived
+    external mechSettings, pyObj, mwh
+    external checkIfFileMissing, getCellTypeName, createListOfStrs, findItemInListByString, printMsgAndRaiseError
+    
+    // These two may depend on NEURON version, but that's fine
+    firstCustomDmMechIdx = -1
+    firstCustomPpMechIdx = -1
+    
+    strdef startDir, loadedNanoHocFilePathName, loadedDllDirPath
+    objref mechsForIntUseOnly
+    
+    
+    proc init() { localobj mechType
+        startDir = $s1
+        
+        // Doing this before loading the DLL file
+        mechType = new MechanismType(0)     // 0: "Distributed Membrane Mechanisms"
+        firstCustomDmMechIdx = mechType.count
+        mechType = new MechanismType(1)     // 1: "Point Processes"
+        firstCustomPpMechIdx = mechType.count
+        
+        //                                     AC                        DM                     AC                           DM                     DM      DM
+        mechsForIntUseOnly = createListOfStrs("SynEventsFilterWatcher", "OutsideInDiffHelper", "OutsideInDiffSeriesHelper", "InsideOutDiffHelper", "i2fc", "iksine")
+    }
+    
+    // This proc is called from the nanogeometry file when user loads it back into the main program
+    proc ifMissingInThisFolderThenLoadDefaultMechsDllDependingOnCellType() { local isMissing
+        strdef dllFilePathName, cellTypeName, line1, line2, line, dllDirPath
+        
+        isNanoCallbackReceived = 1
+        
+        if (isBaseOrNanoStart) {
+            line1 = "Invalid Base geometry file."
+            line2 = "Please restart and make sure you don't load a Nano geometry file this way."
+            mwh.showWarningBox(line1, line2)
+            sprint(line, "%s\n    %s", line1, line2)
+            printMsgAndRaiseError(line)
+        }
+        
+        dllFilePathName = pyObj.getDllFilePathName(loadedNanoHocFilePathName)
+        isMissing = checkIfFileMissing(dllFilePathName)
+        if (isMissing) {
+            print "\n\n    Warning: There is no \"nrnmech.dll\" in the same folder with the loaded nanogeometry HOC file."
+            getCellTypeName(cellTypeName)
+            sprint(line2, "             We will load our default DLL for %s cell type with no guarantee that it matches this HOC file.\n", cellTypeName)
+            print line2
+            loadDefaultMechsDllDependingOnCellType()
+        } else {
+            dllDirPath = pyObj.getDirPath(loadedNanoHocFilePathName)
+            loadMechsDllFromThisFolder(dllDirPath)
+        }
+    }
+    
+    proc loadDefaultMechsDllDependingOnCellType() {
+        strdef subFolderName, dllDirPath
+        getCellTypeName(subFolderName)
+        sprint(dllDirPath, "%sMechanisms/%s", startDir, subFolderName)
+        loadMechsDllFromThisFolder(dllDirPath)
+    }
+    
+    proc loadMechsDllFromThisFolder() { local status
+        strdef dllDirPath, pyCommand, dllFilePathName
+        
+        dllDirPath = $s1
+        
+        // Just to make the path printed by "nrn_load_dll" consistent with the one
+        // printed when NEURON loads the DLL automatically from the current folder
+        sprint(pyCommand, "'%s'.replace('/', '\\\\')", dllDirPath)
+        dllDirPath = pyObj.ev(pyCommand)
+        
+        sprint(dllFilePathName, "%s\\nrnmech.dll", dllDirPath)
+        // !! BUG: after execution of the next command, the console prompt "oc>" disappears
+        //         for unknown reason until user presses "Enter"
+        status = nrn_load_dll(dllFilePathName)
+        if (!status) {
+            printMsgAndRaiseError("Failed to load \"nrnmech.dll\"")
+        }
+        
+        loadedDllDirPath = dllDirPath
+        
+        // !! maybe not the best place for this
+        mechSettings.onDllLoad()
+    }
+    
+    // !! TODO: create two different func-s for DMs and PPs; use Python's set
+    func isThisMechForIntUseOnly() { local idxOrMinus1
+        strdef mechName
+        mechName = $s1
+        idxOrMinus1 = findItemInListByString(mechsForIntUseOnly, mechName)
+        return (idxOrMinus1 != -1)
+    }
+    
+endtemplate MechsDllUtils

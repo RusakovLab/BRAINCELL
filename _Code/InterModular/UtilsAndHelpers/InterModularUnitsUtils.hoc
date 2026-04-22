@@ -1,0 +1,55 @@
+
+_inf = -1
+
+proc setUpExposedLengthVar() { local numArg, minValue
+    strdef varName, unitsStr, hocCommand, minValueStr
+    
+    numArg = numarg()
+    if (numArg < 1 || numArg > 2) {
+        codeContractViolation()
+    }
+    
+    varName = $s1
+    
+    unitsStr = units("L")
+    sprint(hocCommand, "units(&%s, unitsStr)", varName)     // !! here we read the local var "unitsStr" like a top-level one
+    execute(hocCommand)
+    
+    _inf = math.inf
+    if (numArg == 1) {
+        minValueStr = "float_epsilon"
+    } else {
+        minValue = $2
+        minValueStr = pyObj.str(minValue)
+    }
+    sprint(hocCommand, "variable_domain(&%s, %s, _inf)", varName, minValueStr)
+    execute(hocCommand)
+}
+
+// Keeping this proc on the top level rather than in a template because otherwise
+// "units" would fail due to missing access to the section
+proc getWatchedVarUnits() {
+    strdef watchedVarName, unitsStr, hocCommand
+    watchedVarName = $s1
+    
+    // !! is that needed?
+    unitsStr = ""
+    
+    sprint(hocCommand, "unitsStr = units(&%s)", watchedVarName)
+    execute(hocCommand)
+    
+    $s2 = unitsStr
+}
+
+proc getGraphedOrPointedVarUnits() {
+    strdef varNameWithIndex, pyCommand, varName
+    varNameWithIndex = $s1
+    
+    sprint(pyCommand, "'%s'.split('[', 1)[0]", varNameWithIndex)
+    varName = pyObj.ev(pyCommand)
+    
+    $s2 = units(varName)
+}
+
+
+// See also: MechTypeHelper.getVarUnits and py:UnitsUtils (in Export module)

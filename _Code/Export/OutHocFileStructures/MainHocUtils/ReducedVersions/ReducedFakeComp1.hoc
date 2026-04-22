@@ -1,0 +1,18 @@
+
+begintemplate ReducedFakeComp
+
+    public enumDmPpFk, enumPpRole, mechStds
+    
+    enumDmPpFk = -1
+    enumPpRole = -1
+    objref mechStds[1][1]
+    
+    proc init() { local fixedMechIdx, numMechs
+        enumPpRole = $1
+        fixedMechIdx = $2
+        enumDmPpFk = 2
+        numMechs = fixedMechIdx + 1
+        objref mechStds[numMechs][1]
+    }
+    
+endtemplate ReducedFakeComp

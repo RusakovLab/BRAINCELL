@@ -1,0 +1,17 @@
+
+proc sourcePythonCodeForExport() {
+    sourcePythonCode("\\_Code\\Export\\PythonCode", "from Framework import *\nfrom UtilsCalledFromHoc.GraphUtils import GraphUtils\nfrom UtilsCalledFromHoc.NsgZipUtils import NsgZipUtils\nfrom UtilsCalledFromHoc.OtherUtils import *", "sourcePythonCodeForExport")
+}
+
+proc callPythonExportCore() { local status
+    strdef outHocFilePathName, pyCommand
+    
+    outHocFilePathName = $s1
+    
+    sprint(pyCommand, "exportCore('%s')", outHocFilePathName)
+    
+    status = nrnpython(pyCommand)
+    if (!status) {
+        printPythonErrMsgAndStop("callPythonExportCore")
+    }
+}

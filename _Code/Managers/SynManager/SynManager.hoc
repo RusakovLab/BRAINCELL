@@ -1,0 +1,82 @@
+
+{ load_file("SynManagerLoads.hoc") }
+{ load_file("../../NanoSeeding/Neuron/ProtoSpine.hoc") }    // !!
+{ load_file("../../NanoSeeding/Neuron/SpineSet.hoc") }      // !!
+
+// !! code dup. with gap juncs
+
+proc makeSureSynSetsCreatedOrImported() { localobj nil
+    
+    if (isAstrocyteOrNeuron) {
+        codeContractViolation()
+    }
+    
+    if (smAllSynSets == nil) {
+        _createOrImportSynSets(1)
+    } else if (smAllSynSets.count() == 0) {
+        return
+    } else if (!isBaseOrNanoStart && mcu4t.isReducedTapSets(smAllSynSets)) {
+        _createOrImportSynSets(0)
+    }
+}
+
+proc makeSureSynSetsCreatedOrImportedThenShowSynManagerBaseWidget() {
+    
+    makeSureSynSetsCreatedOrImported()
+    
+    dismissIfNotNil(manageAndRunWidget)
+    manageAndRunWidget = new ManageAndRunWidget(2)
+    manageAndRunWidget.show()
+    manageAndRunWidget.showSynManagerHandler()
+    manageAndRunWidget.showAltRunControlHandler()
+}
+
+// out: spmAllSpineSets
+proc createDefaultSpineSet() {
+    spmAllSpineSets = new List()
+    spmAllSpineSets.append(new SpineSet(nanoGeomSeedingDensityHelper))
+}
+
+// in: spmAllSpineSets
+obfunc createDefaultSynSets() { localobj spineSet, outSynSets, nil
+    
+    if (spmAllSpineSets == nil) {
+        if (isBaseOrNanoStart) {
+            codeContractViolation()
+        }
+        
+        createDefaultSpineSet()
+        
+        if (spmAllSpineSets.count() != 1) {
+            codeContractViolation()
+        }
+        spineSet = spmAllSpineSets.o(0)
+        spineSet.spineNecks_ref = createListOfSectionRefs("spine_neck", 1)
+        spineSet.spineHeads_ref = createListOfSectionRefs("spine_head", 1)
+    }
+    
+    outSynSets = new List()
+    for eachItemInList(spineSet, spmAllSpineSets) {
+        outSynSets.append(new SynSet(0, spineSet))      // The default synapse set given spine set
+    }
+    
+    return outSynSets
+}
+
+
+// in: spmAllSpineSets (create mode) or smAllSynSets (import mode)
+// out: smAllSynSets
+proc _createOrImportSynSets() { local isCreateOrImport localobj outSynSets, inSynSet
+    isCreateOrImport = $1
+    
+    if (isCreateOrImport) {
+        outSynSets = createDefaultSynSets()
+    } else {
+        outSynSets = new List()
+        for eachItemInList(inSynSet, smAllSynSets) {
+            outSynSets.append(new SynSet(1, inSynSet))
+        }
+    }
+    
+    smAllSynSets = outSynSets
+}

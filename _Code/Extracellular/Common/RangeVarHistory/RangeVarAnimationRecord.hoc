@@ -1,0 +1,346 @@
+
+// !! minor BUG: load a BIN file, then check the checkbox for BIN file => the same BIN file copy is saved immediately
+
+begintemplate RangeVarAnimationRecord
+    
+    public createTwoCheckBoxes, setStaticData, onJustAfterRun, loadFromBinFile, setTestData
+    // !! think about Matrix for rangeVarVec
+    public varNameWithIndexAndUnits, timeVec, xVec, yVec, zVec, rangeVarVec, segmSphDiamVecOrNil
+    public binFileType
+    public isSmthRecordedOrLoaded
+    
+    external interpEachSegmCentreCoordsFromSec3DPointCoords
+    external getRecSectsListAndNumSegms, showWillBeSavedLaterMsg, closeFileAndShowCompleteMsg, codeContractViolation
+    external mwh, fbh
+    external eachSecInList
+    external enumBinFileTypes, pyEnumOutFileTypes, pyEnumInFileTypes
+    external pyObj
+    
+    strdef varNameWithIndexAndUnits
+    objref timeVec, xVec, yVec, zVec, rangeVarVec
+    
+    // Used only if binFileType == enumBinFileTypes.iod_a 
+    objref segmSphDiamVecOrNil
+    
+    binFileType = -1
+    objref pyEnumOutFileTypeBin, pyEnumOutFileTypeTxt, pyEnumInFileTypeBin
+    isIODA = -1
+    
+    isSaveToBinFile = -1
+    isSaveToTxtFile = -1
+    strdef binFilePathName, txtFilePathName
+    
+    isSmthRecordedOrLoaded = -1
+    
+    
+    proc init() {
+        binFileType = $1
+        
+        if (binFileType == enumBinFileTypes.oid) {
+            pyEnumOutFileTypeBin = pyEnumOutFileTypes.binaryResultsBin
+            pyEnumOutFileTypeTxt = pyEnumOutFileTypes.textResultsTxt
+            pyEnumInFileTypeBin = pyEnumInFileTypes.binaryResultsBin
+        } else if (binFileType == enumBinFileTypes.iod_a) {
+            pyEnumOutFileTypeBin = pyEnumOutFileTypes.binaryResultsBinA
+            pyEnumOutFileTypeTxt = pyEnumOutFileTypes.textResultsTxtA
+            pyEnumInFileTypeBin = pyEnumInFileTypes.binaryResultsBinA
+        } else if (binFileType == enumBinFileTypes.iod_b) {
+            pyEnumOutFileTypeBin = pyEnumOutFileTypes.binaryResultsBinB
+            pyEnumOutFileTypeTxt = pyEnumOutFileTypes.textResultsTxtB
+            pyEnumInFileTypeBin = pyEnumInFileTypes.binaryResultsBinB
+        } else {
+            codeContractViolation()
+        }
+        
+        isIODA = (binFileType == enumBinFileTypes.iod_a)
+        
+        isSaveToBinFile = 0
+        isSaveToTxtFile = 0
+        
+        isSmthRecordedOrLoaded = 0
+    }
+    
+    
+    proc createTwoCheckBoxes() {
+        strdef text1, text2
+        text1 = $s1
+        text2 = $s2
+        xcheckbox(text1, &isSaveToBinFile, "saveBinFileCheckBoxHandler()")
+        xcheckbox(text2, &isSaveToTxtFile, "saveTxtFileCheckBoxHandler()")
+    }
+    
+    proc setStaticData() { local numSegms, dstStartIdx, idx, segmLen, x localobj list_ref, xSegmVec, ySegmVec, zSegmVec
+        
+        // Prepare 3D coordinates of segment centres and (optionally) segment diams
+        list_ref = getRecSectsListAndNumSegms(binFileType, &numSegms)
+        xSegmVec = new Vector()
+        ySegmVec = new Vector()
+        zSegmVec = new Vector()
+        xVec = new Vector(numSegms)
+        yVec = new Vector(numSegms)
+        zVec = new Vector(numSegms)
+        if (isIODA) {
+            segmSphDiamVecOrNil = new Vector(numSegms)
+        }
+        dstStartIdx = 0
+        for eachSecInList(list_ref) {
+            interpEachSegmCentreCoordsFromSec3DPointCoords(xSegmVec, ySegmVec, zSegmVec)
+            xVec.copy(xSegmVec, dstStartIdx)
+            yVec.copy(ySegmVec, dstStartIdx)
+            zVec.copy(zSegmVec, dstStartIdx)
+            if (isIODA) {
+                idx = dstStartIdx
+                segmLen = L / nseg
+                
+                for (x, 0) {
+                    
+                    // The segment area calculated as a cyclinder lateral surface:
+                    // area_cyl_lat = 2 * pi * r_cyl * segmLen = pi * diam_cyl * segmLen
+                    
+                    // The segment area calculated as a sphere surface:
+                    // area_sph = 4 * pi * r_sph ^ 2 = pi * diam_sph ^ 2
+                    
+                    // area_cyl_lat = area_sph
+                    // => pi * diam_cyl * segmLen = pi * diam_sph ^ 2
+                    // => diam_sph = sqrt(diam_cyl * segmLen)
+                    segmSphDiamVecOrNil.x[idx] = sqrt(diam(x) * segmLen)
+                    
+                    // !! think about replacing area_cyl_lat above with a more accurate approximation by a truncated cone lateral surface
+                    //    (but the edge segments for each section are a bit tricky to account for)
+                    
+                    idx += 1
+                }
+            }
+            dstStartIdx += nseg
+        }
+        if (dstStartIdx != numSegms) {
+            codeContractViolation()
+        }
+    }
+    
+    proc onJustAfterRun() {
+        
+        checkDataConsistency()
+        
+        isSmthRecordedOrLoaded = 1
+        
+        mwh.startIntercepting()
+        {
+            if (isSaveToBinFile) {
+                saveToBinFile()
+            }
+            if (isSaveToTxtFile) {
+                saveToTxtFile()
+            }
+        }
+        mwh.endIntercepting()
+    }
+    
+    func loadFromBinFile() { local isCancel, numFrames, numSegms localobj inFile
+        
+        isCancel = fbh.showLoadFileDialog(pyEnumInFileTypeBin, binFilePathName)
+        if (isCancel) {
+            return 1
+        }
+        
+        inFile = new File()
+        inFile.ropen(binFilePathName)
+        inFile.seek(0)      // Required because the first read operation is for a string even though the file is binary
+        readStrFromBinFile(inFile, varNameWithIndexAndUnits)
+        inFile.vread(&numFrames)
+        inFile.vread(&numSegms)
+        timeVec = readVectorFromFile(inFile, numFrames)
+        xVec = readVectorFromFile(inFile, numSegms)
+        yVec = readVectorFromFile(inFile, numSegms)
+        zVec = readVectorFromFile(inFile, numSegms)
+        if (isIODA) {
+            segmSphDiamVecOrNil = readVectorFromFile(inFile, numSegms)
+        }
+        rangeVarVec = readVectorFromFile(inFile, numFrames * numSegms)
+        if (!inFile.eof()) {
+            // !! replace with a user-friendly error message
+            codeContractViolation()
+        }
+        inFile.close()
+        
+        isSmthRecordedOrLoaded = 1
+        
+        return 0
+    }
+    
+    // !! just some test data here
+    // !! retest this
+    proc setTestData() { local enumNeuronPyplotPlotly, numFrames, timeStep
+        
+        enumNeuronPyplotPlotly = $1
+        
+        if (enumNeuronPyplotPlotly == 0) {
+            varNameWithIndexAndUnits = "v (mV)"
+        } else if (enumNeuronPyplotPlotly <= 2) {
+            varNameWithIndexAndUnits = "varName[idx] (units)"
+        } else {
+            codeContractViolation()
+        }
+        
+        setStaticData()
+        
+        // Prepare time grid
+        numFrames = 101
+        timeStep = 0.1      // ms
+        timeVec = new Vector(numFrames)
+        timeVec.indgen(timeStep)
+    }
+    
+    // All next staff is private
+    
+    
+    proc saveBinFileCheckBoxHandler() { local isSaveNow
+        isSaveNow = saveFileCheckBoxCommonHandler(&isSaveToBinFile, pyEnumOutFileTypeBin, binFilePathName)
+        if (isSaveNow) {
+            saveToBinFile()
+        }
+    }
+    
+    proc saveTxtFileCheckBoxHandler() { local isSaveNow
+        isSaveNow = saveFileCheckBoxCommonHandler(&isSaveToTxtFile, pyEnumOutFileTypeTxt, txtFilePathName)
+        if (isSaveNow) {
+            saveToTxtFile()
+        }
+    }
+    
+    func saveFileCheckBoxCommonHandler() { local isSaveToFile, isCancel localobj pyEnumOutFileType
+        strdef filePathName
+        
+        isSaveToFile = $&1
+        pyEnumOutFileType = $o2
+        filePathName = $s3
+        
+        if (!isSaveToFile) {
+            return 0
+        }
+        
+        isCancel = fbh.showSaveFileDialog(pyEnumOutFileType, filePathName)
+        if (isCancel) {
+            $&1 = 0
+            return 0
+        }
+        
+        $s3 = filePathName
+        
+        if (isSmthRecordedOrLoaded) {
+            checkDataConsistency()
+        } else {
+            showWillBeSavedLaterMsg()
+        }
+        
+        return isSmthRecordedOrLoaded
+    }
+    
+    proc saveToBinFile() { local numFrames, numSegms localobj outFile
+        
+        numFrames = timeVec.size()
+        numSegms = xVec.size()
+        
+        outFile = new File()
+        outFile.wopen(binFilePathName)
+        outFile.seek(0)     // Required because the first write operation is for a string even though the file is binary
+        writeStrToBinFile(outFile, varNameWithIndexAndUnits)
+        outFile.vwrite(&numFrames)
+        outFile.vwrite(&numSegms)
+        timeVec.fwrite(outFile)
+        xVec.fwrite(outFile)
+        yVec.fwrite(outFile)
+        zVec.fwrite(outFile)
+        if (isIODA) {
+            segmSphDiamVecOrNil.fwrite(outFile)
+        }
+        rangeVarVec.fwrite(outFile)
+        closeFileAndShowCompleteMsg(outFile, 1)
+    }
+    
+    // !! maybe make it possible to specify colSep (now "\t") and oneValueFormat (now "%g") like we do in "runner.hoc";
+    // !! maybe optimize for Origin: write "Long Name" to 1st row and "Units" to 2nd row
+    // !! see also: py:PyplotAndSaveHelper.saveToTxtFile
+    proc saveToTxtFile() { local numFrames, numSegms, frameIdx, segmIdx localobj outFile
+        strdef headerTempl, recordTempl
+        
+        mwh.showPleaseWaitBox("Saving TXT file.")
+        {
+            numFrames = timeVec.size()
+            numSegms = xVec.size()
+            
+            if (!isIODA) {
+                headerTempl = "t (ms)\tx (um)\ty (um)\tz (um)\t%s\n"
+                recordTempl = "%g\t%g\t%g\t%g\t%g\n"
+            } else {
+                headerTempl = "t (ms)\tx (um)\ty (um)\tz (um)\tsegmSphDiam (um)\t%s\n"
+                recordTempl = "%g\t%g\t%g\t%g\t%g\t%g\n"
+            }
+            
+            outFile = new File()
+            outFile.wopen(txtFilePathName)
+            outFile.printf(headerTempl, varNameWithIndexAndUnits)
+            for frameIdx = 0, numFrames - 1 {
+                for segmIdx = 0, numSegms - 1 {
+                    if (!isIODA) {
+                        outFile.printf( \
+                            recordTempl, \
+                            timeVec.x[frameIdx], \
+                            xVec.x[segmIdx], \
+                            yVec.x[segmIdx], \
+                            zVec.x[segmIdx], \
+                            rangeVarVec.x[frameIdx * numSegms + segmIdx])
+                    } else {
+                        outFile.printf( \
+                            recordTempl, \
+                            timeVec.x[frameIdx], \
+                            xVec.x[segmIdx], \
+                            yVec.x[segmIdx], \
+                            zVec.x[segmIdx], \
+                            segmSphDiamVecOrNil.x[segmIdx], \
+                            rangeVarVec.x[frameIdx * numSegms + segmIdx])
+                    }
+                }
+            }
+        }
+        mwh.hidePleaseWaitBox()
+        
+        closeFileAndShowCompleteMsg(outFile, 1)
+    }
+    
+    proc writeStrToBinFile() { localobj outBinFile
+        strdef str
+        
+        outBinFile = $o1
+        str = $s2
+        
+        // We have to use "\n" here as a workaround because NEURON doesn't recognize "\0" (and just writes "0")
+        outBinFile.printf("%s\n", str)
+    }
+    
+    proc readStrFromBinFile() { localobj inBinFile
+        strdef str
+        
+        inBinFile = $o1
+        
+        inBinFile.gets(str)
+        
+        // Doing this just to remove "\n" added in writeStrToBinFile
+        $s2 = pyObj.str.rstrip(str)
+    }
+    
+    obfunc readVectorFromFile() { local vecSize localobj inFile, vec
+        inFile = $o1
+        vecSize = $2
+        vec = new Vector(vecSize)
+        vec.fread(inFile)
+        return vec
+    }
+    
+    proc checkDataConsistency() {
+        if (rangeVarVec.size() != timeVec.size() * xVec.size()) {
+            codeContractViolation()
+        }
+    }
+    
+endtemplate RangeVarAnimationRecord

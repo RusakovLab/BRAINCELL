@@ -1,0 +1,96 @@
+
+func getBaseConcValue() {
+    strdef suffix, varName
+    suffix = $s1
+    sprint(varName, "h.%so0_%s_ion", suffix, suffix)
+    return pyObj.ev(varName)
+}
+
+proc insertThisIonIntoTheseSectsAndOptionallySetBaseConc() { local binFileType, isSetBaseConc
+    strdef ionSuffix, mechName
+    
+    binFileType = $1
+    ionSuffix = $s2
+    isSetBaseConc = $3
+    
+    sprint(mechName, "%s_ion", ionSuffix)
+    
+    insertThisMechOrIonIntoTheseSectsAndOptionallySetBaseConc(binFileType, mechName, ionSuffix, isSetBaseConc)
+}
+
+_baseConc = -1
+
+proc insertThisMechOrIonIntoTheseSectsAndOptionallySetBaseConc() { local binFileType, isSetBaseConc, _ localobj list_ref
+    strdef mechName, ionSuffix, hocCommands
+    
+    binFileType = $1
+    mechName = $s2
+    ionSuffix = $s3
+    isSetBaseConc = $4
+    
+    list_ref = getRecSectsListAndNumSegms(binFileType, &_)
+    
+    if (isSetBaseConc) {
+        _baseConc = getBaseConcValue(ionSuffix)
+        sprint(hocCommands, "insert %s\n%so = _baseConc", mechName, ionSuffix)
+    } else {
+        sprint(hocCommands, "insert %s", mechName)
+    }
+    
+    for eachSecInList(list_ref) {
+        execute(hocCommands)
+    }
+}
+
+proc setLayerParamsForInsideOutDiffHelperMech() { local layer, n, _ localobj list_ref
+    layer = $1
+    n = $2
+    list_ref = getRecSectsListAndNumSegms(enumBinFileTypes.iod_a, &_)
+    for eachSecInList(list_ref) {
+        Layer_InsideOutDiffHelper = layer
+        N_InsideOutDiffHelper = n
+    }
+}
+
+proc uninsertInsideOutDiffHelperMechEverywhere() {
+    // !! there is no need to loop through nanogeometry (when GeneralSettingsWidget.isSkipNanoSects) and the grid sections
+    forall {
+        uninsert InsideOutDiffHelper
+    }
+}
+
+// !! see also: SimLocalFieldPotential.onDoneInPtsToWatchWidget
+proc createGraphsForAllOPs() { local baseConc, yMin, yMax, ptIdx localobj listOfPts, listOfGraphs, ptr
+    strdef species, suffix, yLabel, var
+    
+    listOfPts = $o1
+    listOfGraphs = $o2
+    species = $s3
+    suffix = $s4
+    
+    // !! use the same logic in OneExtracellularSourceWidget -> Extracellular Concentration Dynamics Graph
+    baseConc = getBaseConcValue(suffix)
+    yMin = 0.9999 * baseConc
+    yMax = 1.0001 * baseConc
+    
+    sprint(yLabel, "[%s]o conc (mM)", species)
+    
+    ptIdx = 0
+    
+    forsec gridSecStartMarker {
+        
+        if (nseg != 1) {
+            codeContractViolation()
+        }
+        
+        sprint(var, "%so(0.5)", suffix)
+        ptr = new Pointer(var)
+        listOfPts.o(ptIdx).createGraphAndAddToTwoLists(&ptr.val, yLabel, yMin, yMax, listOfGraphs)
+        
+        ptIdx += 1
+    }
+    
+    if (ptIdx != listOfPts.count()) {
+        codeContractViolation()
+    }
+}

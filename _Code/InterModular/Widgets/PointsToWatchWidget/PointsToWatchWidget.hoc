@@ -1,0 +1,370 @@
+
+// !! BUG:
+//  * any changes to the points (add/move/delete) are committed to "listOfPts" immediately, even without clicking "Done"
+
+// !! Ideas:
+//  * think about a single Graph with multiple views
+//  * update "dismissHandler" to check for duplicate points; if found, then show a modal warning and remove the dups automatically
+//  * maybe restore the selected point when closing this widget and opening again; also, scroll down the list (see "mcu4t.scroll")
+
+// !! see also: ExtraCellsManagerWidget
+begintemplate PointsToWatchWidget
+    
+    public show, doneHandler, dismissHandler
+    public isDoneClicked
+    
+    external createEmptyPanel, replaceItemInList, deleteSelectedItemFromBrowsedList, removeItemFromList, unmapIfNotNil, codeContractViolation
+    external mwh, plotShapeUtils, cbbUtils
+    external enumColours
+    external eachItemInList
+    external graphList
+    
+    strdef whatToWatch
+    objref parentWidget
+    
+    objref mainBox, deck1, deck2, shape
+    objref opsShowHelper
+    
+    objref listOfPts, listOfGraphs
+    
+    objref vfe_x, vfe_y, vfe_z
+    x = -1
+    y = -1
+    z = -1
+    
+    whatToShowIdx = -1
+    isUnmapOnDone = -1
+    
+    isDoneClicked = -1
+    
+    lastSelPtIdx = -1
+    
+    
+    proc init() {
+        strdef unitsStr
+        
+        whatToWatch = $s1
+        isUnmapOnDone = $2
+        parentWidget = $o3
+        
+        listOfGraphs = new List()
+        
+        opsShowHelper = new OPsShowHelper()
+        
+        whatToShowIdx = 1
+        
+        isDoneClicked = 0
+        
+        unitsStr = units("L")
+        units(&x, unitsStr)
+        units(&y, unitsStr)
+        units(&z, unitsStr)
+    }
+    
+    // !! maybe pass x and y to place on the screen
+    proc show() { local defSelPtIdx localobj vBox, hBox
+        strdef title, text, popMenuToolName
+        
+        sprint(title, "Where to watch the %s", whatToWatch)
+        
+        makeSureListOfPtsCreated()
+        
+        if (listOfPts.count() != 0) {
+            defSelPtIdx = 0
+        } else {
+            defSelPtIdx = -1
+        }
+        
+        mainBox = new HBox()
+        mainBox.intercept(1)
+        {
+            vBox = new VBox()
+            vBox.intercept(1)
+            {
+                xpanel("")
+                sprint(text, "%s:", title)
+                xlabel(text)
+                xpanel()
+                xpanel("")
+                xlabel("Some custom points in space")
+                xpanel()
+                listOfPts.browser("", "s")
+                listOfPts.select_action("listOfPtsSelectHandler(hoc_ac_)")
+                listOfPts.select(defSelPtIdx)
+                hBox = new HBox()
+                hBox.intercept(1)
+                {
+                    xpanel("")
+                    xbutton("Add", "addHandler()")
+                    xpanel()
+                    deck1 = new Deck()
+                    deck1.intercept(1)
+                    {
+                        createEmptyPanel()
+                        xpanel("")
+                        xbutton("Delete", "deleteHandler()")
+                        xpanel()
+                    }
+                    deck1.intercept(0)
+                    // deck1.flip_to(*)    // Will be done below in listOfPtsSelectHandler
+                    deck1.map()
+                }
+                hBox.intercept(0)
+                hBox.map("", 0, 0, 230, 33)
+                deck2 = new Deck()
+                deck2.intercept(1)
+                {
+                    createEmptyPanel()
+                    xpanel("")
+                    vfe_x = new ValueFieldEditor("x", &x, 1, "coordChangedHandler()")
+                    vfe_y = new ValueFieldEditor("y", &y, 1, "coordChangedHandler()")
+                    vfe_z = new ValueFieldEditor("z", &z, 1, "coordChangedHandler()")
+                    xpanel()
+                }
+                deck2.intercept(0)
+                // deck2.flip_to(*)    // Will be done below in listOfPtsSelectHandler
+                deck2.map()
+                xpanel("")
+                xbutton("Done", "doneHandler()")
+                xpanel()
+            }
+            vBox.intercept(0)
+            vBox.map()
+            vBox = new VBox()
+            vBox.intercept(1)
+            {
+                hBox = new HBox()
+                hBox.intercept(1)
+                {
+                    xpanel("")
+                    xradiobutton("XY projection", "viewDirectionChangedHandler(0)", opsShowHelper.viewDirIdx == 0)
+                    xradiobutton("ZY projection", "viewDirectionChangedHandler(1)", opsShowHelper.viewDirIdx == 1)
+                    xradiobutton("XZ projection", "viewDirectionChangedHandler(2)", opsShowHelper.viewDirIdx == 2)
+                    xpanel()
+                    xpanel("")
+                    xradiobutton("Show this point only", "whatToShowChangedHandler(0)", whatToShowIdx == 0)
+                    xradiobutton("Show all points", "whatToShowChangedHandler(1)", whatToShowIdx == 1)
+                    xpanel()
+                }
+                hBox.intercept(0)
+                hBox.map()
+                
+                shape = new Shape()
+                opsShowHelper.setShape(shape)
+                popMenuToolName = "Position Observation Point"
+                shape.menu_tool(popMenuToolName, "mouseEventsHandler")
+                
+                xpanel("")
+                xlabel("Hint: Click on the Shape to move the point.")
+                xlabel("Warning: Don't use \"3D Rotate\" when placing the points")
+                xlabel("                (toggle \"XY/ZY/XZ projection\" instead).")
+                xpanel()
+            }
+            vBox.intercept(0)
+            vBox.map()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler(0)")
+        mainBox.map(title, 700, 475, -1, -1)
+        
+        listOfPtsSelectHandler(defSelPtIdx)
+        
+        shape.exec_menu(popMenuToolName)    // !!
+        
+        viewDirectionChangedHandler(opsShowHelper.viewDirIdx)
+    }
+    
+    proc doneHandler() {
+        
+        makeSureListOfPtsCreated()
+        
+        if (isUnmapOnDone) {
+            unmapIfNotNil(mainBox)
+        }
+        dismissAllGraphs()
+        
+        parentWidget.onDoneInPtsToWatchWidget(listOfPts, listOfGraphs)
+        
+        isDoneClicked = 1
+        execute("altRunControlWidget.isInited = 0")
+    }
+    
+    proc dismissHandler() { local isDismissAllGraphs
+        isDismissAllGraphs = $1
+        
+        unmapIfNotNil(mainBox)
+        
+        if (isDismissAllGraphs) {
+            dismissAllGraphs()
+        }
+    }
+    
+    // All next staff is private
+    
+    
+    proc makeSureListOfPtsCreated() { localobj nil
+        
+        if (listOfPts != nil) {
+            return
+        }
+        
+        cbbUtils.analyzeCellBoundingBox()
+        
+        listOfPts = new List()
+        listOfPts.append(new ObservationPoint(cbbUtils.getX(-0.45), cbbUtils.getY( 0.37), cbbUtils.getZ( 0.73)))
+        listOfPts.append(new ObservationPoint(cbbUtils.getX( 0.13), cbbUtils.getY( 0.52), cbbUtils.getZ(-0.82)))
+        listOfPts.append(new ObservationPoint(cbbUtils.getX( 0.26), cbbUtils.getY(-0.29), cbbUtils.getZ( 0.13)))
+    }
+    
+    proc listOfPtsSelectHandler() { local numArg, selPtIdx, isSmthSelected, cardIdx localobj selPt
+        numArg = numarg()
+        
+        if (numArg == 0) {
+            selPtIdx = listOfPts.selected()
+        } else if (numArg == 1) {
+            selPtIdx = $1
+        } else {
+            codeContractViolation()
+        }
+        
+        isSmthSelected = (selPtIdx != -1)
+        
+        if (isSmthSelected) {
+            selPt = listOfPts.o(selPtIdx)
+            x = selPt.x
+            y = selPt.y
+            z = selPt.z
+            vfe_x.default()
+            vfe_y.default()
+            vfe_z.default()
+        }
+        
+        cardIdx = isSmthSelected
+        deck1.flip_to(cardIdx)
+        deck2.flip_to(cardIdx)
+        
+        updateShape()
+        
+        lastSelPtIdx = selPtIdx
+    }
+    
+    proc coordChangedHandler() { local selPtIdx, newSelPtIdx localobj selPt
+        
+        // !! problem here: change a coord in any ValueFieldEditor, but don't press "Enter" and click on other point in the List =>
+        //    all 3 coords are assigned to the new selected point
+        // selPtIdx = listOfPts.selected()
+        
+        // Works fine along with ** below
+        selPtIdx = lastSelPtIdx
+        
+        if (selPtIdx == -1) {
+            codeContractViolation()
+        }
+        
+        selPt = listOfPts.o(selPtIdx)
+        selPt.setCoords(x, y, z)
+        
+        listOfPts.select_action("")
+        {
+            newSelPtIdx = listOfPts.selected()  // *
+            replaceItemInList(listOfPts, selPt, selPtIdx)
+            listOfPts.select(newSelPtIdx)       // *
+        }
+        listOfPts.select_action("listOfPtsSelectHandler(hoc_ac_)")
+        
+        updateShapeAndMarkDirty()
+    }
+    
+    proc addHandler() {
+        
+        listOfPts.append(new ObservationPoint(cbbUtils.getX(0), cbbUtils.getY(0), cbbUtils.getZ(0)))
+        listOfPtsSelectHandler()
+        
+        updateShapeAndMarkDirty()
+    }
+    
+    proc deleteHandler() {
+        if (listOfPts.count() == 1) {
+            mwh.showWarningBox("Cannot delete because at least one observation point is required.")
+            return
+        }
+        
+        deleteSelectedItemFromBrowsedList(listOfPts)
+        listOfPtsSelectHandler()
+        
+        updateShapeAndMarkDirty()
+    }
+    
+    proc viewDirectionChangedHandler() {
+        opsShowHelper.viewDirIdx = $1
+        
+        plotShapeUtils.setViewDir(shape, opsShowHelper.viewDirIdx)
+        shape.exec_menu("View = plot")
+        
+        updateShape()
+    }
+    
+    proc whatToShowChangedHandler() {
+        whatToShowIdx = $1
+        
+        updateShape()
+    }
+    
+    proc mouseEventsHandler() { local eventType, x_screen, y_screen, keystate, selPtIdx
+        eventType = $1  // Just a placeholder
+        x_screen = $2
+        y_screen = $3
+        keystate = $4   // Just a placeholder
+        
+        selPtIdx = listOfPts.selected()
+        if (selPtIdx == -1) {
+            return
+        }
+        
+        opsShowHelper.convertCoordsScreenToWorld(x_screen, y_screen, &x, &y, &z)
+        
+        coordChangedHandler()   // --> updateShapeAndMarkDirty()
+    }
+    
+    proc updateShape() { local selPtIdx, ptIdx
+        
+        shape.erase()
+        
+        selPtIdx = listOfPts.selected()
+        
+        if (whatToShowIdx == 0) {
+            // Empty by design
+        } else if (whatToShowIdx == 1) {
+            for ptIdx = 0, listOfPts.count() - 1 {
+                if (ptIdx == selPtIdx) {
+                    continue
+                }
+                opsShowHelper.showThisPt(listOfPts.o(ptIdx), enumColours.blue)
+            }
+        } else {
+            codeContractViolation()
+        }
+        
+        if (selPtIdx == -1) {
+            return
+        }
+        
+        opsShowHelper.showThisPt(listOfPts.o(selPtIdx), enumColours.red)
+    }
+    
+    proc updateShapeAndMarkDirty() {
+        updateShape()
+        
+        isDoneClicked = 0
+        execute("altRunControlWidget.isInited = 0")
+    }
+    
+    proc dismissAllGraphs() { localobj graph
+        for eachItemInList(graph, listOfGraphs) {
+            removeItemFromList(graphList[0], graph)
+            graph.unmap()
+        }
+        listOfGraphs.remove_all()
+    }
+    
+endtemplate PointsToWatchWidget

@@ -1,0 +1,124 @@
+
+{ load_file("../Exported/InterModularOtherUtils_Exported.hoc") }
+
+// An iterator to help with looping over a linear grid when we need to cancel the standard to NEURON "float_epsilon" comparison
+// applied to all comparison operators by default.
+// Basically, we replace this naive (and buggy in most cases) code:
+//     step = (maxValue - minValue) / (numPts - 1)
+//     for (value = minValue; value <= maxValue; value += step) { ... }
+// with this robust one:
+//     for eachPointInGrid(&value, minValue, maxValue, numPts) { ... }
+// The bug in the first code manifests itself clearly when maxValue is of the same or less order than "float_epsilon" which is 1e-11 by default.
+// For more info:
+//     https://www.neuron.yale.edu/neuron/static/new_doc/programming/math/misc.html#float_epsilon
+//     https://www.neuron.yale.edu/neuron/static/new_doc/programming/hocsyntax.html#expressions
+// There are some limitations:
+//  1. iterator_statement cannot contain "return" (otherwise we'll catch Segmentation violation)
+//  2. We cannot create another iterator which calls eachPointInGrid inside (otherwise the outer iterator "forgets" its input arguments on 2nd iteration)
+iterator eachPointInGrid() { local minValue, maxValue, numPts, step, idx
+    minValue = $2
+    maxValue = $3
+    numPts = $4
+    
+    $&1 = minValue
+    step = (maxValue - minValue) / (numPts - 1)
+    for idx = 1, numPts {
+        iterator_statement
+        $&1 += step     // !! "$&1 = minValue + zero_based_idx * step" would be more accurate, but slower
+    }
+}
+
+proc closeFileAndShowCompleteMsg() { local numArg, isAbsOrRelPath localobj outFile
+    strdef where
+    
+    numArg = numarg()
+    if (numArg < 1 || numArg > 2) {
+        codeContractViolation()
+    }
+    
+    outFile = $o1
+    if (numArg == 2) {
+        isAbsOrRelPath = $2
+        if (isAbsOrRelPath == 0) {
+            codeContractViolation()
+        }
+    } else {
+        isAbsOrRelPath = 0
+    }
+    
+    if (isAbsOrRelPath) {
+        where = outFile.getname()
+    } else {
+        sprint(where, "%s%s", getcwd(), outFile.getname())
+    }
+    
+    outFile.close()
+    
+    showResultsWereSavedToMsg(where)
+}
+
+proc loadIfNotDeclared() { local numArg, isSkipCodeContractCheck
+    strdef templName, hocFileRelPathName
+    
+    numArg = numarg()
+    if (numArg < 2 || numArg > 3) {
+        codeContractViolation()
+    }
+    
+    templName = $s1
+    hocFileRelPathName = $s2
+    
+    if (numArg == 3) {
+        isSkipCodeContractCheck = $3
+    } else {
+        isSkipCodeContractCheck = 0
+    }
+    
+    if (!name_declared(templName)) {
+        load_file(hocFileRelPathName)
+    } else if (isBaseOrNanoStart && !isSkipCodeContractCheck) {
+        codeContractViolation()
+    }
+}
+
+proc makeSureDeclaredButCheck() {
+    strdef name
+    name = $s1
+    if (makeSureDeclared(name) && isBaseOrNanoStart) {
+        codeContractViolation()
+    }
+}
+
+proc deployDefaultProcAdvance() {
+    execute("~proc advance() { fadvance() }")
+}
+
+proc deployCustomProcAdvance() { local simIdx
+    strdef publicSimArrayPathName, hocCommand
+    publicSimArrayPathName = $s1
+    simIdx = $2
+    // !! for simplicity, we can call proc fadvance() in this generated HOC command rather than on the beginning of each proc sim.advance()
+    sprint(hocCommand, "~proc advance() { %s[%d].advance() }", publicSimArrayPathName, simIdx)
+    execute(hocCommand)
+}
+
+// !! maybe create a mini template singleton with setPanelScrollIvocStyle and restoreDefaultPanelScrollIvocStyle
+proc setPanelScrollIvocStyle() { local value
+    strdef str
+    value = $1
+    sprint(str, "%d", value)
+    ivoc_style("*panel_scroll", str)
+}
+
+// A workaround for the following situation:
+//  "celbild.hoc" calls ivoc_style("*panel_scroll", "20") overwriting the default value of "12"
+//  which breaks our fragile logic in "MechOpWidgetBase.hoc" resulting in missing sliders for astrocyte cell type
+//  and probably affecting the look of other our widgets
+proc restoreDefaultPanelScrollIvocStyle() {
+    // Defined here: %NEURONHOME%\lib\nrn.defaults
+    setPanelScrollIvocStyle(12)
+}
+
+proc getBrainCellVersionStr() {
+    $s1 = "2.0"
+}

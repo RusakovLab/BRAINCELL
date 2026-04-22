@@ -1,0 +1,57 @@
+
+// !! see also: ECSsShowHelper
+begintemplate OPsShowHelper
+
+    public setShape, convertCoordsScreenToWorld, showThisPt, dismissShape
+    public viewDirIdx
+    
+    external plotShapeUtils
+    
+    objref shape
+    viewDirIdx = -1
+    
+    
+    proc init() {
+        viewDirIdx = 0
+    }
+    
+    proc setShape() {
+        shape = $o1
+    }
+    
+    // !! code dup. with ECSsShowHelper
+    proc convertCoordsScreenToWorld() { local x_screen, y_screen
+        x_screen = $1
+        y_screen = $2
+        plotShapeUtils.convertCoordsScreenToWorld(x_screen, y_screen, viewDirIdx, &$&3, &$&4, &$&5)
+    }
+    
+    proc showThisPt() { local colour, x_screen, y_screen, marker_size localobj pt
+        pt = $o1
+        colour = $2
+        
+        // bad stack access: expecting (double); really (double *)
+        // !! plotShapeUtils.convertCoordsWorldToScreen(pt.x, pt.y, pt.z, &x_screen, &y_screen)
+        convertCoordsWorldToScreen(pt.x, pt.y, pt.z, &x_screen, &y_screen)
+        
+        // !! code dup. with OneExtracellularSourceWidget
+        marker_size = 8     // !! hardcode
+        shape.mark(x_screen, y_screen, "O", marker_size, colour, 0)
+    }
+    
+    proc dismissShape() { localobj nil
+        shape = nil
+    }
+    
+    // All next staff is private
+    
+    
+    // !! code dup. with ECSsShowHelper
+    proc convertCoordsWorldToScreen() { local x_world, y_world, z_world
+        x_world = $1
+        y_world = $2
+        z_world = $3
+        plotShapeUtils.convertCoordsWorldToScreen(x_world, y_world, z_world, viewDirIdx, &$&4, &$&5)
+    }
+    
+endtemplate OPsShowHelper

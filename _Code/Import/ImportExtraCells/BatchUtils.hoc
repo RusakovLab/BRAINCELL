@@ -1,0 +1,36 @@
+
+// Convert the selected file to SWC with NLMorphologyConverter and save to the temporary folder
+// $s1 - Input file path and name
+// Other input: pyObj (taken from the top level)
+// $s2 (Output) - The SWC file path and name
+// !! some code dup. with convertFileToHocWithNLMorphologyConverter
+proc convertFileToSwcWithNLMorphologyConverter() { local status, isError
+    strdef inFilePathName, appPathNameTempl, appPathName, outFilePathNameTempl, outFilePathName, sysCommandTempl, sysCommand, errorMsg, pyCommand
+    
+    inFilePathName = $s1
+    
+    appPathNameTempl = "%s_Code/Import/3rdParty/NLMorphologyConverter/NLMorphologyConverter.exe"
+    sprint(appPathName, appPathNameTempl, getcwd())
+    outFilePathNameTempl = "%s_Code/Import/%s/last_converted.swc"
+    sprint(outFilePathName, outFilePathNameTempl, getcwd(), pyObj.TempFolderUtils.tempFolderName)
+    sysCommandTempl = "call \"%s\" \"%s\" \"%s\" SWC"
+    sprint(sysCommand, sysCommandTempl, appPathName, inFilePathName, outFilePathName)
+    
+    errorMsg = "Cannot convert the file to SWC format with NLMorphologyConverter"
+    
+    status = runSysOrPyCommandWithWaitBox(sysCommand, 1, "Converting")
+    if (status) {
+        // Just for sanity. Actually, NLMorphologyConverter does not return error codes, but rather prints a message and creates a minimal output file
+        mwh.hidePleaseWaitBox()
+        printImportFailedMsgAndRaiseError(errorMsg)
+    }
+    
+    sprint(pyCommand, "(exec('import os'), os.path.getsize('%s') == 2)[1]", outFilePathName)
+    isError = pyObj.ev(pyCommand)
+    if (isError) {
+        mwh.hidePleaseWaitBox()
+        printImportFailedMsgAndRaiseError(errorMsg)
+    }
+    
+    $s2 = outFilePathName
+}

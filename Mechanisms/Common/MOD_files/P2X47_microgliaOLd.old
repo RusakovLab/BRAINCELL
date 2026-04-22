@@ -1,0 +1,128 @@
+: P2X47_microglia.mod
+: Ionotropic purinergic P2X4/X7 receptor on microglia.
+: P2X Ca2+ entry + thin-shell extrusion to cai_rest.
+:
+: Safety features:
+:   - cai is clamped >= cai_rest (pump never runs backward)
+:   - Strong pump (tau_pump = 20 ms) for quick recovery
+:   - INITIAL explicitly sets ALL states including ica and cai
+
+NEURON {
+    SUFFIX P2X47_microglia
+
+    USEION atp READ atpo
+    USEION ca READ cao WRITE cai, ica
+
+    RANGE gmax, E_rev, PCa_ratio
+    RANGE kon, koff, kdes, krec
+    RANGE cai_rest, tau_pump
+    RANGE ica_p2x, i_total, O_frac
+    RANGE atpo_rng
+}
+
+UNITS {
+    (molar) = (1/liter)
+    (mM)    = (millimolar)
+    (um)    = (micron)
+    (mA)    = (milliamp)
+}
+
+PARAMETER {
+    gmax      = 1e-3    (S/cm2)
+    E_rev     = 0.0     (mV)
+    PCa_ratio = 4.0     (1)
+    kon       = 5000.0  (/ms)
+    koff      = 0.5     (/ms)
+    kdes      = 0.01    (/ms)
+    krec      = 0.003   (/ms)
+
+    cai_rest = 50e-6  (mM)
+    tau_pump = 20.0   (ms)      : strong pump, tau = 20 ms
+}
+
+STATE {
+    C
+    O
+    D
+    cai (mM)
+}
+
+ASSIGNED {
+    v        (mV)
+    diam     (um)
+    ica      (mA/cm2)
+    cao      (mM)
+    atpo     (mM)
+    atpo_rng (mM)       : readout of atpo for debugging (visible in GUI)
+    ica_p2x  (mA/cm2)
+    i_total  (mA/cm2)
+    O_frac
+}
+
+INITIAL {
+    C = 1
+    O = 0
+    D = 0
+    cai = cai_rest
+    ica = 0
+    ica_p2x = 0
+    i_total = 0
+    O_frac = 0
+    atpo_rng = atpo
+}
+
+BREAKPOINT {
+    SOLVE kstates METHOD sparse
+    SOLVE ca_dynamics METHOD derivimplicit
+
+    : Expose atpo as RANGE for GUI viewing
+    atpo_rng = atpo
+
+    : P2X current - driving force with Ca2+ fraction
+    i_total = gmax * O * (v - E_rev)
+    ica     = (PCa_ratio / (PCa_ratio + 1)) * i_total
+    ica_p2x = ica
+    O_frac  = O
+}
+
+KINETIC kstates {
+    LOCAL alpha_rate
+
+    : Gate opens in response to ATP (cooperative binding, 2 ATP per trimer)
+    : Clamp atpo at zero just in case
+    if (atpo > 0) {
+        alpha_rate = kon * atpo * atpo
+    } else {
+        alpha_rate = 0
+    }
+
+    ~ C <-> O  (alpha_rate, koff)
+    ~ O <-> D  (kdes,  krec)
+
+    CONSERVE C + O + D = 1
+}
+
+
+
+DERIVATIVE ca_dynamics {
+    LOCAL influx, efflux
+
+    : Ca2+ entry from P2X current (thin-shell approximation)
+    : factor 0.01 converts um -> cm, 2 is Ca2+ valence, 96.49 is FARADAY C/mmol
+    : Only count inward current (ica < 0 means Ca2+ entering)
+    if (ica < 0) {
+        influx = -ica / (2 * 96.49 * (diam/4) * 0.01)
+    } else {
+        influx = 0
+    }
+
+    : Plasma pump extrusion back to resting level
+    : Only runs if cai > cai_rest (never pumps below rest)
+    if (cai > cai_rest) {
+        efflux = (cai - cai_rest) / tau_pump
+    } else {
+        efflux = 0
+    }
+
+    cai' = influx - efflux
+}

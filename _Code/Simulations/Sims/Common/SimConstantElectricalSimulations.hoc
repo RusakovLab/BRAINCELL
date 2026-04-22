@@ -1,0 +1,264 @@
+
+begintemplate SimConstantElectricalSimulations
+    
+    public preShowCheck, show, preRun, preContinue, postRun, simDismissHandler
+    public biophysJsonFileNameOrEmpty, isCustomProcAdvance, isAltRunControl
+    
+    // Just a workaround to avoid the error in GraphUtils.parseVarsFromTheGraph
+    public CIDel, CIDur, CIAmpl, SynTau1, SynTau2, SynE, SynAmp, NumberStimulus, IntervalBetweenStimul
+    
+    external altRunControlWidget
+    external tstop
+    external unmapIfNotNil
+    external soma_ref
+    
+    strdef biophysJsonFileNameOrEmpty
+    isCustomProcAdvance = -1
+    isAltRunControl = -1
+    
+    // UI
+    objref vBoxConstantStimulations
+    
+    // Stimulators
+    objref electricalStim, current, synapticInput, NetInput
+    
+    // Input Resistance
+    // RinTestPulse  - amplitude of the small additional hyperpolarizing test pulse (nA)
+    // RinSettleTime - extra time after tstop to wait for steady state before sampling (ms)
+    // rinGraph      - persistent Graph; stays open between button clicks so points accumulate
+    RinTestPulse  = -0.001
+    RinSettleTime = 20
+    objref rinGraph
+    objref rinTestClamp
+    
+    proc init() {
+        biophysJsonFileNameOrEmpty = ""
+        isCustomProcAdvance = 0
+        isAltRunControl = 1
+    }
+    
+    func preShowCheck() {
+        return 0
+    }
+    
+    // Opens Constant Electrical Simulation window.
+    proc show() {
+        initParamsConstantStimulation()
+        showConstantUi()
+    }
+    
+    func preRun() {
+        // !! it would be better to split "proc stimulateConstant" into two parts and move the first one to "proc show":
+        //    part 1 - creation of all the objects (they will be destroyed in "proc simDismissHandler")
+        //    part 2 - initialization of the objects based on GUI
+        stimulateConstant(CIDel, CIDur, CIAmpl, SynTau1, SynTau2, SynE, SynAmp, NumberStimulus, IntervalBetweenStimul)
+        return 0
+    }
+    
+    func preContinue() {
+        return 0
+    }
+    
+    proc postRun() {
+        // Empty by design
+    }
+    
+    proc simDismissHandler() {
+        
+        unmapIfNotNil(vBoxConstantStimulations)
+        
+        // Remove point processes after simulation
+        objref electricalStim, current, synapticInput, NetInput
+        
+        // Note: rinGraph is intentionally NOT destroyed here so the Rin plot persists
+        // between parameter changes. It will be cleaned up when the template itself
+        // is garbage-collected.
+    }
+    
+    // All next staff is private
+    
+    
+    // Electrical stimulation
+    // This set of parameters define the single synaptic input.
+    // The user can add here as much as possible.
+    // $1 - Current delay
+    // $2 - Current duration
+    // $3 - Current amplitude
+    // $4 - Rise time
+    // $5 - Decay time
+    // $6 - Reversal potential
+    // $7 - Synaptic amplitude
+    // $8 - Number of stimulus
+    // $9 - Interval between stimulus
+    proc stimulateConstant()  { // Procedure of different stimulations
+        soma_ref.o(0).sec {
+            electricalStim = new NetStim()
+            electricalStim.interval  = $9    //ms
+            electricalStim.start = 0      // ms
+            electricalStim.number = $8
+            electricalStim.noise = 0      // 0 or 1 - noise
+            
+            // Electrode stimulation into the soma
+            current = new IClamp(0.5)
+            current.del = $1  // ms 
+            current.dur = $2  // ms
+            current.amp = $3  // nA
+            
+            // Synaptic stimualtion into the soma
+            synapticInput = new Exp2Syn(0.5)
+            synapticInput.tau1 = $4   //0.5 //  rise time, ms
+            synapticInput.tau2 = $5   //5   //   decay time, ms
+            synapticInput.e = $6      //0      // reversal potential, mV 
+        }
+        
+        NetInput = new NetCon(electricalStim, synapticInput, 0, 0, $7)
+    }
+    
+    // Inits UI and simulation parameters.
+    proc initParamsConstantStimulation() {
+        CIDel = 0
+        CIDur = 100000              // ms
+        CIAmpl = 0                  // nA
+        SynTau1 = 5                 // ms
+        SynTau2 = 10                // ms
+        SynE = 0                    // mV
+        SynAmp = 0.0                // nA
+        NumberStimulus = 0
+        IntervalBetweenStimul = 1   // ms
+        tstop = 10
+        
+        // Input Resistance defaults
+        RinTestPulse  = -0.001      // nA  (small hyperpolarizing pulse)
+        RinSettleTime = 20          // ms  (extra settle time before sampling)
+    }
+    
+    // -------------------------------------------------------------------------
+    // Input Resistance calculation
+    //
+    // Protocol
+    // --------
+    //   Phase 1 (baseline):
+    //     Insert IClamp with amp = CIAmpl, run for (tstop + RinSettleTime) ms.
+    //     Sample soma Vm at the very end -> V_rest.
+    //
+    //   Phase 2 (test pulse):
+    //     Insert IClamp with amp = CIAmpl + RinTestPulse, same duration.
+    //     Sample soma Vm at the very end -> V_test.
+    //
+    //   Rin  = (V_test - V_rest) / RinTestPulse   [mV/nA = MΩ]
+    //
+    //   Plot the point (V_rest, Rin) on the persistent rinGraph.
+    //   Successive button clicks accumulate points on the same graph.
+    // -------------------------------------------------------------------------
+    proc computeAndPlotRin() { local totalDur, V_rest, V_test, Rin
+        
+        totalDur = tstop + RinSettleTime   // ms - enough time to reach steady state
+        
+        // ---- Phase 1: baseline current ----
+        soma_ref.o(0).sec {
+            rinTestClamp = new IClamp(0.5)
+            rinTestClamp.del = 0
+            rinTestClamp.dur = totalDur
+            rinTestClamp.amp = CIAmpl        // nA
+        }
+        
+        // Run a clean simulation from t=0
+        finitialize()
+        while (t < totalDur) {
+            fadvance()
+        }
+        
+        // Sample steady-state voltage
+        soma_ref.o(0).sec { V_rest = v(0.5) }
+        
+        // Clean up phase-1 clamp
+        objref rinTestClamp
+        
+        // ---- Phase 2: baseline + test pulse ----
+        soma_ref.o(0).sec {
+            rinTestClamp = new IClamp(0.5)
+            rinTestClamp.del = 0
+            rinTestClamp.dur = totalDur
+            rinTestClamp.amp = CIAmpl + RinTestPulse   // nA
+        }
+        
+        // Run again from t=0
+        finitialize()
+        while (t < totalDur) {
+            fadvance()
+        }
+        
+        // Sample steady-state voltage
+        soma_ref.o(0).sec { V_test = v(0.5) }
+        
+        // Clean up phase-2 clamp
+        objref rinTestClamp
+        
+        // ---- Compute Rin ----
+        // Guard against zero or negligible test pulse
+        if (abs(RinTestPulse) < 1e-12) {
+            print "Input Resistance: RinTestPulse is too small - aborting."
+            return
+        }
+        Rin = (V_test - V_rest) / RinTestPulse   // MΩ  (mV / nA)
+        
+        print "Rin calculation: V_rest = ", V_rest, " mV,  V_test = ", V_test, " mV,  Rin = ", Rin, " MOhm"
+        
+        // ---- Plot point on the persistent graph ----
+        ensureRinGraphExists()
+        
+        // mark_style 4 = filled circle; size 8 pixels
+        rinGraph.mark(V_rest, Rin, "O", 8)
+        rinGraph.flush()
+    }
+    
+    // Creates the Rin graph the first time, or reuses it if still open.
+    proc ensureRinGraphExists() {
+        if (object_id(rinGraph) == 0) {
+            // Graph does not exist yet - create it
+            rinGraph = new Graph(0)
+            rinGraph.size(-90, -50, 0, 500)
+            rinGraph.label(0.15, 0.92, "Input Resistance vs Resting Vm")
+            rinGraph.label(0.35, 0.05, "Resting Vm (mV)")
+            rinGraph.yaxis(1)   // show y-axis label on left
+            rinGraph.view(-90, 0, 40, 500, 300, 200, 500, 350)
+            // Draw axis labels via xlabel equivalents available on Graph
+            // X-axis label is placed as a text mark at bottom
+            // Y-axis: we use the built-in label mechanism
+            rinGraph.label(0.02, 0.5, "Rin (MOhm)")
+        }
+    }
+    
+    // Shows Constant Electrical Simulation window.
+    proc showConstantUi() {
+        vBoxConstantStimulations = new VBox()
+        vBoxConstantStimulations.intercept(1)
+        {
+            xpanel("")
+            xlabel("Constan depolarization current into soma")
+            xpvalue("Offset of current clamp (ms)", &CIDel, 1)
+            xpvalue("Duration of current clamp (ms)", &CIDur, 1)
+            xpvalue("Amplitude of current clamp (nA)", &CIAmpl, 1)
+            xlabel("---------------------------------------------------------------------------------------------------------")
+            xlabel("Alpha current stimulation into soma")
+            xpvalue("Alpha current rize time (ms)", &SynTau1, 1)
+            xpvalue("Alpha current decay  time (ms)", &SynTau2, 1)
+            xpvalue("Alpha current reverse potential (mV)", &SynE, 1)
+            xpvalue("Alpha conductande (nS)", &SynAmp, 1)
+            xpvalue("Number stimuli of Alpha currents", &NumberStimulus, 1)
+            xpvalue("Interval between stimuli (ms)", &IntervalBetweenStimul, 1)
+            xlabel("---------------------------------------------------------------------------------------------------------")
+            xpvalue("Simulation time (ms)", &tstop, 1)
+            xbutton("Run simulation", "altRunControlWidget.initAndRunHandler()")
+            xlabel("---------------------------------------------------------------------------------------------------------")
+            xlabel("Input Resistance measurement")
+            xpvalue("Test pulse amplitude (nA)", &RinTestPulse, 1)
+            xpvalue("Settle time before sampling (ms)", &RinSettleTime, 1)
+            xbutton("Input resistance", "computeAndPlotRin()")
+            xpanel(0)
+        }
+        vBoxConstantStimulations.intercept(0)
+        vBoxConstantStimulations.map("Constant Electrical Stimulation into Soma")
+    }
+    
+endtemplate SimConstantElectricalSimulations

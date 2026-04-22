@@ -1,0 +1,150 @@
+
+begintemplate MechSettings
+
+    public onDllLoad, isHideStochButton, getAllSpcCatNames, getNumSpeciesInJSON, getUserFriendlyIonNameOrEmpty, getExpIonNameAndDiffIter, getUnrecActIonNameIter, isIon
+    public unrecSpcCatName, ionSuffix
+    
+    external pyObj
+    external sourcePythonCode, findItemInListByString, stringEndsWith, printMsgAndRaiseError
+    external eachItemInList
+    
+    strdef unrecSpcCatName, ionSuffix
+    
+    objref actIonNames
+    
+    objref this
+    
+    
+    proc init() {
+        sourcePythonCode("\\PythonCode", "from MechSettings import *", "MechSettings ctor")
+        
+        // !! need to check that JSON file doesn't contain such a category
+        unrecSpcCatName = "Unrecognized"
+        
+        // !! maybe need to check that JSON file doesn't contain the same ion in 2+ categories
+        
+        ionSuffix = "_ion"  // !! find a better template for this string
+    }
+    
+    proc onDllLoad() { local mechIdx localobj mechType, expIonNames, expIonNameStrObj
+        strdef mechName, msg
+        
+        // Only "Na+" and "K+" are standard to NEURON: they are available even without any custom MOD files.
+        // All other ions depend on user's MOD files (unless defined as HOC-based mechanisms).
+        actIonNames = new List()
+        mechType = new MechanismType(0)     // 0: "Distributed Membrane Mechanisms"
+        for mechIdx = 0, mechType.count - 1 {
+            mechType.select(mechIdx)
+            mechType.selected(mechName)
+            if (isIon(mechName)) {
+                actIonNames.append(new String(mechName))
+            }
+        }
+        
+        compareNumSpeciesBetweenJsonAndInternalMech("OutsideInDiffHelper")
+        
+        compareNumSpeciesBetweenJsonAndInternalMech("InsideOutDiffHelper")
+        
+        expIonNames = getAllExpIonNames()
+        for eachItemInList(expIonNameStrObj, expIonNames) {
+            if (findItemInListByString(actIonNames, expIonNameStrObj.s) == -1) {
+                msg = "JSON file \"diffusible_species.json\" and two MOD files \"_{OutsideIn/InsideOut}DiffHelper.mod\" are out of sync.\n    The lists of species in these files must be identical (the total number of species, their order and \"ionMechName\")."
+                printMsgAndRaiseError(msg)
+            }
+        }
+        
+        // !! do we need this in "start with BrainCell export" mode?
+        // !! make sure we don't rewrite any GLOBAL-s later (in the legacy code)
+        pyObj.ms_setIonGlobalVars()
+    }
+    
+    func isHideStochButton() {
+        strdef mechName, varNameWithIndex
+        mechName = $s1
+        varNameWithIndex = $s2
+        return pyObj.ms_isHideStochButton(mechName, varNameWithIndex)
+    }
+    
+    obfunc getAllSpcCatNames() {
+        return pyObj.ms_getAllSpcCatNames()
+    }
+    
+    func getNumSpeciesInJSON() {
+        return pyObj.ms_getTotalNumExpIons()
+    }
+    
+    proc getUserFriendlyIonNameOrEmpty() {
+        strdef ionMechName
+        ionMechName = $s1
+        $s2 = pyObj.ms_getUserFriendlyIonNameOrEmpty(ionMechName)
+    }
+    
+    iterator getExpIonNameAndDiffIter() { local expIonIdx localobj expIonNamesInThisCat
+        strdef spcCatName, expIonName
+        
+        spcCatName = $s1
+        
+        expIonNamesInThisCat = pyObj.ms_getAllExpIonNamesInThisCat(spcCatName, 1)
+        
+        for expIonIdx = 0, expIonNamesInThisCat.count() - 1 {
+            expIonName = expIonNamesInThisCat.o(expIonIdx).s
+            $s2 = expIonName
+            $&3 = pyObj.ms_getDiff(spcCatName, expIonName)
+            $&4 = pyObj.ms_gett_alpha(spcCatName, expIonName)
+            $&5 = pyObj.ms_getUptakeReversalConc(spcCatName, expIonName)
+            iterator_statement
+        }
+    }
+    
+    iterator getUnrecActIonNameIter() { local actIonIdx localobj expIonNames
+        strdef actIonName
+        
+        expIonNames = getAllExpIonNames()
+        
+        for actIonIdx = 0, actIonNames.count() - 1 {
+            actIonName = actIonNames.o(actIonIdx).s
+            if (findItemInListByString(expIonNames, actIonName) == -1) {
+                $s1 = actIonName
+                iterator_statement
+            }
+        }
+    }
+    
+    func isIon() {
+        strdef mechName
+        mechName = $s1
+        // !! it looks like checking for "_ion" suffix is not what NEURON does internally
+        return stringEndsWith(mechName, ionSuffix)
+    }
+    
+    // All next staff is private
+    
+    
+    _numSpeciesInMod = -1
+    
+    proc compareNumSpeciesBetweenJsonAndInternalMech() {
+        strdef intMechName, msgTempl, msg
+        
+        intMechName = $s1
+        
+        // NEURON 9 requires setdata before calling mechanism functions.
+        // Delegate to Python which handles temp section creation and cleanup without leaving traces in cell topology.
+        _numSpeciesInMod = pyObj.ms_getNumSpeciesInMOD(intMechName)
+        
+        if (getNumSpeciesInJSON() == _numSpeciesInMod) {
+            return
+        }
+        
+        msgTempl = "JSON file \"diffusible_species.json\" and MOD file \"_%s.mod\" are out of sync.\n    The lists of species in these files must be identical (the total number of species, their order and \"ionMechName\")."
+        sprint(msg, msgTempl, intMechName)
+        printMsgAndRaiseError(msg)
+    }
+    
+    obfunc getAllExpIonNames() {
+        return pyObj.ms_getAllExpIonNames()
+    }
+    
+endtemplate MechSettings
+
+objref mechSettings
+mechSettings = new MechSettings()   // !! make sure it's imported when we start with BrainCell export UPD: maybe no need to import this

@@ -1,0 +1,72 @@
+
+begintemplate ReducedPPComp
+
+    public name, enumDmPpFk, enumPpRole, mechIdx, mechStds
+    public applyInhomogeneity
+    
+    external mth, tapSet
+    external stringEmpty, codeContractViolation
+    
+    isGapJuncOrSyn = -1
+    strdef name
+    enumDmPpFk = -1
+    enumPpRole = -1
+    mechIdx = -1
+    objref mechStds[1][1]   // All nil-s except some col(s) of mechIdx row
+    
+    
+    proc init() { local numMechs localobj mechType
+        strdef mechName
+        
+        isGapJuncOrSyn = $1
+        name = $s2
+        enumPpRole = $3
+        mechName = $s4
+        
+        if (!stringEmpty(mechName)) {
+            mechIdx = mth.getMechIdx(1, mechName)
+        } else {
+            mechIdx = -1
+        }
+        
+        enumDmPpFk = 1
+        
+        mechType = new MechanismType(1) // 1: "Point Processes"
+        numMechs = mechType.count
+        objref mechStds[numMechs][3]    // 0: "PARAMETER", 1: "ASSIGNED", 2: "STATE"
+    }
+    
+    // Keep in sync with GapJuncPPComp.applyInhomogeneity and SynPPComp.applyInhomogeneity
+    proc applyInhomogeneity() { local varType, arraySize, arrayIndex, y localobj distFuncHelper, trgTapSet, allTaps, mechStd, tap, thisPp
+        strdef mechName, varName
+        
+        mechName = $s1
+        varType = $2
+        varName = $s3
+        arraySize = $4  // Just a placeholder
+        arrayIndex = $5
+        distFuncHelper = $o6
+        trgTapSet = $o7
+        
+        if (varType == -1) {    // -1: "GLOBAL"
+            codeContractViolation()
+        }
+        
+        if (isGapJuncOrSyn) {
+            allTaps = trgTapSet.allGapJuncs
+        } else {
+            allTaps = trgTapSet.allSyns
+        }
+        
+        mechStd = new MechanismStandard(mechName, varType)
+        
+        for tapSet.applyInhomogeneityIter(tap, allTaps, distFuncHelper) {
+            thisPp = tap.getPointProcess(enumPpRole)
+            mechStd.in(thisPp)
+            y = distFuncHelper.calculateAt(tap.dist)
+            mechStd.set(varName, y, arrayIndex)
+            mechStd.out(thisPp)
+        }
+    }
+    
+endtemplate ReducedPPComp

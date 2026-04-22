@@ -1,0 +1,33 @@
+
+begintemplate InsideOutDiffOnTheFly
+    
+    public setParent, preRun, preContinue, advance, postRun, simDismissHandler
+    
+    objref parentWidget
+    
+    
+    proc setParent() {
+        parentWidget = $o1
+    }
+    
+    func preRun() {
+        return parentWidget.preRun(1)
+    }
+    
+    func preContinue() {
+        return parentWidget.preContinue(1)
+    }
+    
+    proc advance() {
+        parentWidget.onStep(1)
+    }
+    
+    proc postRun() {
+        parentWidget.postRun(1)
+    }
+    
+    proc simDismissHandler() {
+        // !! maybe delete the recorded data
+    }
+    
+endtemplate InsideOutDiffOnTheFly

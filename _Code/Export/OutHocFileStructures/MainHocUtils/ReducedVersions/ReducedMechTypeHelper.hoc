@@ -1,0 +1,192 @@
+
+// In contrast to MechTypeHelper, here we check for missing mechs and vars in the local DLL/SO library
+begintemplate ReducedMechTypeHelper
+
+    public checkForMissingMechs, getMechIdx, getVarIdx, getVarNameWithIndex, isWeightNetConVar, createMechStd
+    
+    external isAstrocyteOrNeuron, libErrMsg, libFileName
+    external stringsEqual, printMsgAndRaiseError, codeContractViolation
+    external eachItemInList
+    
+    strdef weightVarName
+    
+    objref mechTypes[1]
+    
+    objref this
+    
+    
+    proc init() { local mechTypeIdx
+        // This NetCon var requires some special logic when the release probability mechanics is enabled
+        weightVarName = "weight"
+        
+        objref mechTypes[2]         // 0: "Distributed Membrane Mechanisms", 1: "Point Processes"
+        for mechTypeIdx = 0, 1 {    //
+            mechTypes[mechTypeIdx] = new MechanismType(mechTypeIdx)
+        }
+    }
+    
+    func checkForMissingMechs() { local enumDmPp, numArgs, i, isAnyMissing localobj notFoundExpMechNames, mechType, expMechNameStr
+        strdef what
+        
+        enumDmPp = $1
+        if (enumDmPp == 2) {
+            codeContractViolation()
+        }
+        
+        numArgs = numarg()
+        
+        notFoundExpMechNames = new List()
+        
+        mechType = mechTypes[enumDmPp]
+        // !! it would be better to use Python's set here because:
+        //    (a) MechanismType.select has O(n) complexity (see \nrn-master\src\nrniv\nrnmenu.cpp -> MechanismType::select)
+        //    (b) "mechType.select(-1)" behaviour is undocumented
+        for i = 2, numArgs {
+            mechType.select(-1)
+            mechType.select($si)
+            if (mechType.selected() == -1) {
+                notFoundExpMechNames.append(new String($si))
+            }
+        }
+        
+        isAnyMissing = (notFoundExpMechNames.count() != 0)
+        if (isAnyMissing) {
+            if (enumDmPp == 0) {
+                what = "membrane mech(s)"
+            } else {
+                what = "point process(es)"
+            }
+            printf("\n\n    The following %s are used by this HOC file, but missing in \"%s\":\n\n", what, libFileName)
+            for eachItemInList(expMechNameStr, notFoundExpMechNames) {
+                printf("        * %s\n", expMechNameStr.s)
+            }
+        }
+        
+        return isAnyMissing
+    }
+    
+    // We never hardcode mechIdx in this exported HOC file, but instead stick to mechName and convert it to mechIdx with this func given local DLL/SO library
+    // Keep in sync with MechTypeHelper.getMechIdx
+    func getMechIdx() { local enumDmPpFk localobj mechType
+        strdef mechName
+        enumDmPpFk = $1
+        mechName = $s2
+        if (enumDmPpFk != 2) {
+            mechType = mechTypes[enumDmPpFk]
+            mechType.select(mechName)
+            return mechType.selected()
+        } else {
+            if (stringsEqual(mechName, "External Value")) {     // !! keep in sync with utils4FakeMech4GapJuncExtValue.mechName and .mechIdx
+                return 0                                        //
+            } else if (stringsEqual(mechName, "NetCon")) {  // !! keep in sync with utils4FakeMech4SynNetCon.mechName and .mechIdx
+                return 1                                    //
+            } else {
+                codeContractViolation()
+            }
+        }
+    }
+    
+    // We never hardcode varIdx in this exported HOC file, but instead stick to varName and convert it to varIdx with this func given local DLL/SO library
+    func getVarIdx() { local enumDmPpFk, varType, mechIdx, numVars, varIdx localobj mechStd
+        strdef mechName, varName, thisVarName, varTypeName
+        
+        enumDmPpFk = $1
+        mechName = $s2
+        varType = $3
+        varName = $s4
+        
+        // !! maybe create a Python dict in ctor and use it here for performance
+        mechIdx = getMechIdx(enumDmPpFk, mechName)
+        mechStd = createMechStd(enumDmPpFk, mechIdx, varType)
+        numVars = mechStd.count
+        for varIdx = 0, numVars - 1 {
+            mechStd.name(thisVarName, varIdx)
+            if (stringsEqual(varName, thisVarName)) {
+                break
+            }
+        }
+        if (varIdx == numVars) {
+            getVarTypeName(varType, varTypeName)
+            // !! two imperfections here:
+            //    1. this msg is printed for inhom and stoch vars only;
+            //       as for homogen vars, we hit an error in MechanismStandard.set with less clear msg: "{varName} not in this property"
+            //    2. in contrast to the missing mech names (see checkForMissingMechs), we report only the first missing var name
+            printf("\n\n    The following var is used by this HOC file, but the mech defined in \"%s\" doesn't have it:\n\n        \"%s \\ %s \\ %s\"\n\n\n", libFileName, mechName, varTypeName, varName)
+            printMsgAndRaiseError(libErrMsg)
+        }
+        
+        return varIdx
+    }
+    
+    // Keep in sync with MechTypeHelper.getVarNameWithIndex
+    proc getVarNameWithIndex() { local arraySize, arrayIndex
+        strdef varName
+        varName = $s1
+        arraySize = $2
+        arrayIndex = $3
+        if (arraySize == 1) {
+            $s4 = varName
+        } else {
+            sprint($s4, "%s[%d]", varName, arrayIndex)
+        }
+    }
+    
+    func isWeightNetConVar() {
+        strdef varName
+        varName = $s1
+        return stringsEqual(varName, weightVarName)
+    }
+    
+    objref _fms
+    
+    obfunc createMechStd() { local enumDmPpFk, mechIdx, varType, mechTypeIdx localobj mechType, fms, nil
+        strdef mechName, templName, hocCommand
+        
+        enumDmPpFk = $1
+        mechIdx = $2
+        varType = $3
+        
+        if (enumDmPpFk != 2) {
+            mechTypeIdx = enumDmPpFk    // 0: "Distributed Membrane Mechanisms", 1: "Point Processes"
+            mechType = new MechanismType(mechTypeIdx)
+            mechType.select(mechIdx)
+            mechType.selected(mechName)
+            return new MechanismStandard(mechName, varType)
+        } else {
+            if (mechIdx == 0) {         // !! keep in sync with utils4FakeMech4GapJuncExtValue.mechIdx
+                templName = "FakeMechanismStandardForExtValue"
+            } else if (mechIdx == 1) {  // !! keep in sync with utils4FakeMech4SynNetCon.mechIdx
+                templName = "FakeMechanismStandardForNetCon"
+            } else {
+                codeContractViolation()
+            }
+            sprint(hocCommand, "_fms = new %s()", templName)
+            execute(hocCommand, this)
+            fms = _fms
+            _fms = nil
+            return fms
+        }
+    }
+    
+    // All next staff is private
+    
+    
+    // Keep in sync with MechTypeHelper.getVarTypeName
+    proc getVarTypeName() { local varType
+        varType = $1
+        
+        if (varType == 1) {
+            $s2 = "PARAMETER"
+        } else if (varType == 2) {
+            $s2 = "ASSIGNED"
+        } else if (varType == 3) {
+            $s2 = "STATE"
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+endtemplate ReducedMechTypeHelper
+
+objref mth
+mth = new ReducedMechTypeHelper()

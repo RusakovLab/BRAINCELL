@@ -1,0 +1,59 @@
+// ============================================================
+//  load_and_shift_x400.hoc
+//
+//  Purpose  : Load extra_cell_1_GliaForm185-1-3dk.swc and
+//             shift every 3-D point by +400 um along x.
+//
+//  Run with : nrniv load_and_shift_x400.hoc
+// ============================================================
+
+load_file("stdrun.hoc")
+load_file("import3d.hoc")
+
+// ── 1. Path to the SWC file ──────────────────────────────────
+strdef swcPath
+swcPath = "Test/extra_cell_1_GliaForm185-1-3dk.swc"
+
+// ── 2. Import the morphology ─────────────────────────────────
+objref swcReader, importGui
+swcReader = new Import3d_SWC_read()
+swcReader.input(swcPath)
+importGui = new Import3d_GUI(swcReader, 0)
+importGui.instantiate(nil)
+
+// ── 3. Shift every 3-D point by +400 um in x ────────────────
+// All objref declarations must be at top level in HOC.
+objref xVec, yVec, zVec, dVec, sref
+xVec = new Vector()
+yVec = new Vector()
+zVec = new Vector()
+dVec = new Vector()
+
+forall {
+    sref = new SectionRef()
+
+    if (sref.has_parent()) {
+        startIdx = 1
+    } else {
+        startIdx = 0
+    }
+
+    xVec.resize(n3d())
+    yVec.resize(n3d())
+    zVec.resize(n3d())
+    dVec.resize(n3d())
+    for i = 0, n3d() - 1 {
+        xVec.x[i] = x3d(i)
+        yVec.x[i] = y3d(i)
+        zVec.x[i] = z3d(i)
+        dVec.x[i] = diam3d(i)
+    }
+
+    pt3dclear()
+    for i = 0, xVec.size() - 1 {
+       
+            pt3dadd(xVec.x[i]+400, yVec.x[i], zVec.x[i], dVec.x[i])
+        
+    }
+}
+

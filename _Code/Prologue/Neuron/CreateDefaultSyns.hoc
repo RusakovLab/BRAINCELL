@@ -1,0 +1,78 @@
+
+loadIfNotDeclared("Synapse", "Exported/Synapse.hoc", 1)
+
+
+// Default synapse location:
+// 0: "Spine Head", 1: "Dendrite (just under Spine Neck)", 2: "Random"
+// !! Warning: "Random" cannot be used for default synapses at the moment
+smDefEnumSynLoc = 0
+
+
+// Create, init and connect all default synapses; the number is the same as the number of spines
+// Called each time after neuron nanogeometry reseeding; never called after locking the "Where to Seed the Nanostructures" panel
+// !! major code dupl. with SynSet.getNewSecRefConnectionPointAndSpineNeckDiam
+obfunc reseedDefaultSynsForNeuron() { local defStart, defInterval, defNumber, defNoise, defDelay, defWeight, numSyns, synIdx, connectionPoint localobj spineSet, spineHeads_ref, spineNecks_ref, allSyns, srcPp, trgPp, sec_ref, np_ref, netCon, syn
+    
+    spineSet = $o1
+    
+    spineHeads_ref = spineSet.spineHeads_ref
+    spineNecks_ref = spineSet.spineNecks_ref
+    
+    allSyns = new List()
+    
+    // Default values for NetStim
+    defStart = 2
+    defInterval = 100
+    defNumber = 1000
+    defNoise = 1
+    
+    // Default values for NetCon
+    defDelay = 0
+    defWeight = 0.0002
+    if (ImportWithoutSpines) {
+        defWeight = 0.0
+    }
+    
+    numSyns = spineHeads_ref.count()
+    
+    if (smDefEnumSynLoc == 2) {
+        codeContractViolation()     // !! 2: "Random" cannot be used for default synapses at the moment
+    }
+    
+    for synIdx = 0, numSyns - 1 {
+        srcPp = new NetStim()
+        
+        if (smDefEnumSynLoc == 0) {
+            // Synapse is connected to the centre of spine_head
+            connectionPoint = 0.5
+            spineHeads_ref.o(synIdx).sec {
+                trgPp = new Exp2Syn(connectionPoint)
+                sec_ref = new SectionRef()
+            }
+        } else if (smDefEnumSynLoc == 1) {
+            // Synapse is connected to the point on dendrite where spine_neck emerges
+            np_ref = spineNecks_ref.o(synIdx)
+            np_ref.sec {
+                connectionPoint = parent_connection()
+            }
+            np_ref.parent {
+                trgPp = new Exp2Syn(connectionPoint)
+                sec_ref = new SectionRef()
+            }
+        }
+        
+        srcPp.start = defStart
+        srcPp.interval = defInterval
+        srcPp.number = defNumber
+        srcPp.noise = defNoise
+        
+        netCon = new NetCon(srcPp, trgPp, 0, defDelay, defWeight)
+        
+        syn = new Synapse(srcPp, netCon, trgPp, sec_ref, connectionPoint)
+        allSyns.append(syn)
+    }
+    
+    // !! synSet.applyChangesToLoc(0)
+    
+    return allSyns
+}

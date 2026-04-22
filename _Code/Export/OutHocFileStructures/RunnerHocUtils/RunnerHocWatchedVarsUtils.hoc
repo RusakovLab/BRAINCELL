@@ -1,0 +1,109 @@
+
+numWatchedVars = watchedVarNames.count()
+objref recordedVarVecs[numWatchedVars]
+
+objref recordedTimeVec
+
+// in: DtOrMinus1, cvode, recordedVarVecs, recordedTimeVec, numWatchedVars, watchedVarNames (taken from the top level)
+proc setUpVarVecsForRecording() { local numRecsOr0, watchedVarIdx
+    strdef hocCommandTempl, hocCommand
+    
+    // Estimate the number of records taking into scope that both "dt" and "tstop" can be swept
+    if (DtOrMinus1 != -1) {
+        numRecsOr0 = int(tstop / DtOrMinus1 + 1) + 1
+    } else if (!cvode.active()) {
+        // Letting NEURON change "dt" now rather than on start of the simulation
+        setdt()
+        numRecsOr0 = int(tstop / dt + 1) + 1
+    } else {
+        numRecsOr0 = 0      // No estimate
+    }
+    
+    // This works fine for any vars from DMs, PPs/ACs, NetCon-s and top-level vars
+    if (DtOrMinus1 != -1) {
+        hocCommandTempl = "recordedVarVecs[%d].record(&%s, DtOrMinus1)"
+    } else {
+        hocCommandTempl = "recordedVarVecs[%d].record(&%s)"
+    }
+    
+    // But according to NEURON docs, in some cases it is preferable to use the following command
+    //  hocCommandTempl = "recordedVarVecs[%d].record(pointProcessObject, &%s, [DtOrMinus1])"
+    
+    if (cvode.active() && DtOrMinus1 == -1) {
+        recordedTimeVec = new Vector()
+        recordedTimeVec.record(&t)
+    }
+    
+    for watchedVarIdx = 0, numWatchedVars - 1 {
+        // This will be resized by NEURON to 0 size just after "run()", here we just allocate memory as they recommend
+        recordedVarVecs[watchedVarIdx] = new Vector(numRecsOr0)
+        
+        sprint(hocCommand, hocCommandTempl, watchedVarIdx, watchedVarNames.o(watchedVarIdx).s)
+        execute(hocCommand)
+    }
+}
+
+// in: outVarsFileNameFormat, timestamp, outFolderPathName, numSweptVars, pyObj, numWatchedVars, watchedVarNames, watchedVarUnits, colSep, recordedVarVecs, DtOrMinus1, recordedTimeVec (taken from the top level)
+proc saveRecordedVarVecs() { local watchedVarIdx, actNumRecs, recIdx, time localobj outFile, listOfStrs1, listOfStrs2, listOfStrs
+    strdef outFileName, outFilePathName, str
+    
+    sprint(outFileName, outVarsFileNameFormat, timestamp)
+    sprint(outFilePathName, "%s/%s", outFolderPathName, outFileName)
+    outFile = new File()
+    outFile.wopen(outFilePathName)
+    
+    if (numSweptVars != 0) {
+        // Invisible rows: the swept var names and values
+        dumpSweptVarsToFileHeader(outFile)      // This uses numSweptVars, pyObj
+    }
+    
+    listOfStrs1 = new List()
+    listOfStrs2 = new List()
+    
+    // "Long Name" row
+    listOfStrs1.append(new String("t"))
+    
+    // "Units" row
+    listOfStrs2.append(new String(units(&t)))
+    
+    for watchedVarIdx = 0, numWatchedVars - 1 {
+        // "Long Name" row
+        listOfStrs1.append(new String(watchedVarNames.o(watchedVarIdx).s))
+        
+        // "Units" row
+        listOfStrs2.append(new String(watchedVarUnits.o(watchedVarIdx).s))
+    }
+    
+    writeOneLineToFile(listOfStrs1, outFile)    // This uses colSep
+    writeOneLineToFile(listOfStrs2, outFile)
+    
+    // For fixed time step method, this will be < numRecs if user stopped the cycle
+    actNumRecs = recordedVarVecs[0].size()
+    
+    listOfStrs = new List()
+    
+    // Data rows: the time and watched var values
+    for recIdx = 0, actNumRecs - 1 {
+        if (cvode.active() && DtOrMinus1 == -1) {
+            time = recordedTimeVec.x(recIdx)
+        } else if (DtOrMinus1 != -1) {
+            time = recIdx * DtOrMinus1
+        } else {
+            time = recIdx * dt
+        }
+        
+        oneValueToString(time, str)
+        listOfStrs.append(new String(str))
+        
+        for watchedVarIdx = 0, numWatchedVars - 1 {
+            oneValueToString(recordedVarVecs[watchedVarIdx].x[recIdx], str)
+            listOfStrs.append(new String(str))
+        }
+        
+        writeOneLineToFile(listOfStrs, outFile)
+        
+        listOfStrs.remove_all()
+    }
+    
+    outFile.close()
+}

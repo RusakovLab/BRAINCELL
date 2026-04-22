@@ -1,0 +1,8 @@
+
+makeSureDeclaredButCheck("speciesLibrary")
+
+{ load_file("../Utils/SpeciesListItem.hoc") }
+
+{ load_file("SpeciesInfo.hoc") }
+{ load_file("SpeciesCategory.hoc") }
+{ load_file("SpeciesLibrary.hoc") }

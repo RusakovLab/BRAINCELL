@@ -1,0 +1,135 @@
+
+begintemplate InterModularCompUtils
+
+    public makeSureAllCompsCreatedOrImportedAndRescanned, getNumDistMechComps, getAllDistMechCompNames, getReservedNanoDistMechCompNames, findDistMechCompByName, getComp
+    
+    external mmAllComps, gjmAllGapJuncSets, smAllSynSets
+    external isAstrocyteOrNeuron
+    external makeSureGapJuncSetsCreatedOrImported, makeSureSynSetsCreatedOrImported, stringsEqual, codeContractViolation
+    external mmIcrHelper
+    external eachItemInList
+    
+    
+    // !! not intermodular actually
+    proc makeSureAllCompsCreatedOrImportedAndRescanned() {
+        mmIcrHelper.makeSureMechCompsCreatedOrImportedAndRescanned()
+        makeSureGapJuncSetsCreatedOrImported()
+        if (!isAstrocyteOrNeuron) {
+            makeSureSynSetsCreatedOrImported()
+        }
+    }
+    
+    func getNumDistMechComps() {
+        return mmAllComps.count()
+    }
+    
+    // !! not intermodular actually
+    obfunc getAllDistMechCompNames() { localobj compNames, mechComp
+        compNames = new List()
+        for eachItemInList(mechComp, mmAllComps) {
+            compNames.append(new String(mechComp.name))
+        }
+        return compNames
+    }
+    
+    obfunc getReservedNanoDistMechCompNames() { localobj compNames
+        compNames = new List()
+        // It's a code contract that the order of names below cooresponds to nanoProximal_ref and then nanoDistal_ref
+        if (isAstrocyteOrNeuron) {
+            compNames.append(new String("Small Glia"))
+            compNames.append(new String("Large Glia"))
+        } else {
+            compNames.append(new String("Spine Neck"))
+            compNames.append(new String("Spine Head"))
+        }
+        return compNames
+    }
+    
+    func findDistMechCompByName() { local isErrorIfNotFound, compIdx localobj comp, nil
+        strdef compName
+        
+        compName = $s1
+        isErrorIfNotFound = $2
+        
+        for compIdx = 0, getNumDistMechComps() - 1 {
+            comp = mmAllComps.o(compIdx)
+            if (!stringsEqual(comp.name, compName)) {
+                continue
+            }
+            $o3 = comp
+            return compIdx
+        }
+        
+        if (isErrorIfNotFound) {
+            codeContractViolation()
+        } else {
+            $o3 = nil
+            return -1
+        }
+    }
+    
+    obfunc getComp() { local numArg, isDmOrTapPart, isGapJuncOrSyn, tapSetIdx, compIdx, enumBioGjSyn localobj varLibId, allTapSets
+        
+        numArg = numarg()
+        if (numArg == 1) {
+            varLibId = $o1
+            isDmOrTapPart = (varLibId.enumDmPpFk == 0)
+            isGapJuncOrSyn = varLibId.isGapJuncOrSyn
+            tapSetIdx = varLibId.tapSetIdx
+            compIdx = varLibId.compIdx
+        } else if (numArg == 2) {
+            isDmOrTapPart = $1
+            compIdx = $2
+            if (!isDmOrTapPart) {
+                codeContractViolation()
+            }
+            isGapJuncOrSyn = -1
+            tapSetIdx = -1
+        } else if (numArg == 3) {
+            enumBioGjSyn = $1
+            tapSetIdx = $2
+            compIdx = $3
+            if (enumBioGjSyn == 0) {
+                isDmOrTapPart = 1
+                isGapJuncOrSyn = -1
+            } else if (enumBioGjSyn == 1) {
+                isDmOrTapPart = 0
+                isGapJuncOrSyn = 1
+            } else if (enumBioGjSyn == 2) {
+                isDmOrTapPart = 0
+                isGapJuncOrSyn = 0
+            } else {
+                codeContractViolation()
+            }
+        } else if (numArg == 4) {
+            isDmOrTapPart = $1
+            isGapJuncOrSyn = $2
+            tapSetIdx = $3
+            compIdx = $4
+        } else {
+            codeContractViolation()
+        }
+        
+        if (isDmOrTapPart) {
+            if (isGapJuncOrSyn != -1 || tapSetIdx != -1) {
+                codeContractViolation()
+            }
+            return mmAllComps.o(compIdx)
+        } else {
+            if (isGapJuncOrSyn == -1) {
+                codeContractViolation()
+            }
+            if (isGapJuncOrSyn) {
+                allTapSets = gjmAllGapJuncSets
+            } else {
+                allTapSets = smAllSynSets
+            }
+            return allTapSets.o(tapSetIdx).allComps.o(compIdx)
+        }
+    }
+    
+endtemplate InterModularCompUtils
+
+
+objref compUtils
+compUtils = new InterModularCompUtils()

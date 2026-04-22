@@ -1,0 +1,19 @@
+
+strdef outFolderPathName
+
+// in: tempFolderName, runnedHocFileName, tempHocFilePathName, outFolderPathName (taken from the top level)
+proc createTempHocFileWithoutTemplatesAndOutputFolder() { local status
+    strdef isCreateTempHocFileWithoutTemplates, isCreateOrCleanUpOutFolder, pyCode
+    
+    isCreateTempHocFileWithoutTemplates = $s1
+    isCreateOrCleanUpOutFolder = $s2
+    
+    pyCode = "import os\nimport shutil\nisCreateTempHocFileWithoutTemplates = %s\nisCreateOrCleanUpOutFolder = %s\ntempFolderName = '%s'\nrunnedHocFileName = '%s'\ntempHocFilePathName = '%s'\noutFolderPathName = '%s'\ndef createOrCleanUpFolder(folderPathName):\n    if os.path.exists(folderPathName):\n        for itemName in os.listdir(folderPathName):\n            itemPathName = os.path.join(folderPathName, itemName)\n            if os.path.isfile(itemPathName):\n                os.remove(itemPathName)\n            elif os.path.isdir(itemPathName):\n                shutil.rmtree(itemPathName)\n    else:\n        os.mkdir(folderPathName)\ndef createTempHocFileWithoutTemplates():\n    with open(runnedHocFileName, 'r') as inFile, open(tempHocFilePathName, 'w') as outFile:\n        isSkipBlock = False\n        for line in inFile:\n            if line.startswith('begintemplate'):\n                isSkipBlock = True\n            elif line.startswith('endtemplate'):\n                isSkipBlock = False\n            elif not isSkipBlock:\n                outFile.write(line)\nif isCreateTempHocFileWithoutTemplates:\n    createOrCleanUpFolder(tempFolderName)\n    createTempHocFileWithoutTemplates()\nif isCreateOrCleanUpOutFolder:\n    createOrCleanUpFolder(outFolderPathName)"
+    
+    sprint(pyCode, pyCode, isCreateTempHocFileWithoutTemplates, isCreateOrCleanUpOutFolder, tempFolderName, runnedHocFileName, tempHocFilePathName, outFolderPathName)
+    
+    status = nrnpython(pyCode)
+    if (!status) {
+        printMsgAndRaiseError("Failed to create the temporary HOC file or the output folder")
+    }
+}

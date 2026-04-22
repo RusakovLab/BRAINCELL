@@ -1,0 +1,21 @@
+
+// 493 vals => ok, 494 vals => error "Stack too deep. Increase with -NSTACK stacksize option"
+obfunc createVecOfVals() { local numArg, i localobj vec
+    numArg = numarg()
+    vec = new Vector(numArg)
+    for i = 1, numArg {
+        vec.x[i - 1] = $i
+    }
+    return vec
+}
+
+// !! use everywhere in the code
+// 492 strs => ok, 493 strs => error "Stack too deep. Increase with -NSTACK stacksize option"
+obfunc createListOfStrs() { local numArg, i localobj list
+    numArg = numarg()
+    list = new List()
+    for i = 1, numArg {
+        list.append(new String($si))
+    }
+    return list
+}

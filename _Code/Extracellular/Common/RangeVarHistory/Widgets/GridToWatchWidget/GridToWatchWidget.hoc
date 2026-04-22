@@ -1,0 +1,477 @@
+
+// !! try to use shape.flush() in "proc updateShape" for higher performance
+
+{ load_file("HelpersAndUtils/GridOfSections.hoc") }
+{ load_file("HelpersAndUtils/AnchorPointHelpers.hoc") }
+{ load_file("HelpersAndUtils/GridRegion.hoc") }
+
+begintemplate GridToWatchWidget
+
+    public show, dismissHandler
+    public enumWhereToWatch, gridRegion
+    
+    external plotShapeUtils
+    external destroyTempSects
+    external createListOfStrs, createEmptyPanel, addEmptyLabels, unmapIfNotNil
+    external altRunControlWidget
+    external enumMouseEvents
+    
+    objref parentWidget
+    
+    enumWhereToWatch = -1
+    isShowAllSrcs = -1
+    isMoreControl = -1
+    
+    objref mainBox, shape, gridSettingsDeck, twoDimGridPlaneDeck, nmbOfPtsDeck, moreControlOverGridDeck, deployDestroyDeck
+    
+    isOutsideInDiffusion = -1
+    objref shapeShowHelper, gridRegion
+    
+    
+    proc init() {
+        
+        isOutsideInDiffusion = $1
+        shapeShowHelper = $o2
+        gridRegion = $o3
+        parentWidget = $o4
+        
+        // Defaults
+        if (isOutsideInDiffusion) {
+            enumWhereToWatch = 0
+            isShowAllSrcs = 1
+        } else {
+            enumWhereToWatch = 1
+            isShowAllSrcs = 0
+        }
+        isMoreControl = 0
+    }
+    
+    _isCalledFromShow = -1
+    
+    proc show() { localobj vBox1, vBox2, vBox3, hBox, spacerDeck
+        strdef what, title, text, menuToolName
+        
+        if (isOutsideInDiffusion) {
+            what = "variable"
+        } else {
+            what = "concentration"
+        }
+        sprint(title, "Where to watch the %s", what)
+        
+        gridRegion.onJustBeforeShow()
+        
+        mainBox = new HBox()
+        mainBox.intercept(1)
+        {
+            vBox1 = new VBox()
+            vBox1.intercept(1)
+            {
+                xpanel("")
+                sprint(text, "%s:", title)
+                xlabel(text)
+                xpanel()
+                xpanel("")
+                text = "Some custom grid in space"
+                if (isOutsideInDiffusion) {
+                    xradiobutton("All cell segms (except nanogeom)", "whereToWatchChangedHandler(0)", enumWhereToWatch == 0)
+                    xradiobutton(text, "whereToWatchChangedHandler(1)", enumWhereToWatch == 1)
+                    xradiobutton("Both 2 above", "whereToWatchChangedHandler(2)", enumWhereToWatch == 2)
+                } else {
+                    xlabel(text)
+                }
+                xpanel()
+                gridSettingsDeck = new Deck()
+                gridSettingsDeck.intercept(1)
+                {
+                    createEmptyPanel()
+                    vBox2 = new VBox()
+                    vBox2.intercept(1)
+                    {
+                        hBox = new HBox()
+                        hBox.intercept(1)
+                        {
+                            vBox3 = new VBox()
+                            vBox3.intercept(1)
+                            {
+                                xpanel("")
+                                xlabel("The grid type:")
+                                xpanel()
+                                spacerDeck = new Deck()
+                                spacerDeck.intercept(1)
+                                {
+                                    xpanel("")
+                                    xradiobutton("2D grid", "gridTypeChangedHandler(0)", !gridRegion.is3dOr2dGrid)  // !! or "Planar" ?
+                                    xradiobutton("3D grid", "gridTypeChangedHandler(1)", gridRegion.is3dOr2dGrid)   // !! or "Volumetric" ?
+                                    xpanel()
+                                }
+                                spacerDeck.intercept(0)
+                                spacerDeck.flip_to(0)
+                                spacerDeck.map()
+                            }
+                            vBox3.intercept(0)
+                            vBox3.map()
+                            twoDimGridPlaneDeck = new Deck()
+                            twoDimGridPlaneDeck.intercept(1)
+                            {
+                                createEmptyPanel()
+                                vBox3 = new VBox()
+                                vBox3.intercept(1)
+                                {
+                                    xpanel("")
+                                    xlabel("2D grid plane:")
+                                    xpanel()
+                                    spacerDeck = new Deck()
+                                    spacerDeck.intercept(1)
+                                    {
+                                        xpanel("")
+                                        xradiobutton("XY", "twoDimGridPlaneChangedHandler(0)", gridRegion.twoDimGridPlaneIdx == 0)
+                                        xradiobutton("ZY", "twoDimGridPlaneChangedHandler(1)", gridRegion.twoDimGridPlaneIdx == 1)
+                                        xradiobutton("XZ", "twoDimGridPlaneChangedHandler(2)", gridRegion.twoDimGridPlaneIdx == 2)
+                                        xpanel()
+                                    }
+                                    spacerDeck.intercept(0)
+                                    spacerDeck.flip_to(0)
+                                    spacerDeck.map()
+                                }
+                                vBox3.intercept(0)
+                                vBox3.map()
+                            }
+                            twoDimGridPlaneDeck.intercept(0)
+                            // twoDimGridPlaneDeck.flip_to(*)  // Will be done in gridTypeChangedHandler below
+                            twoDimGridPlaneDeck.map()
+                        }
+                        hBox.intercept(0)
+                        hBox.map()
+                        xpanel("")
+                        xpvalue("* Padding", &gridRegion.paddingOrMinus1, 1, "paddingChangedHandler()")
+                        xlabel("* \"-1\" means \"not used\"")
+                        xpanel()
+                        xpanel("")
+                        xlabel("Number of points:")
+                        xpanel()
+                        nmbOfPtsDeck = new Deck()
+                        nmbOfPtsDeck.intercept(1)
+                        {
+                            // !! maybe add handlers to prevent fractional values for nx, ny and nz
+                            xpanel("")
+                            xpvalue("Nx", &gridRegion.nx, 1, "gridRegion.numPtsChangedHandler(0)")
+                            xpvalue("Ny", &gridRegion.ny, 1, "gridRegion.numPtsChangedHandler(1)")
+                            xpanel()
+                            xpanel("")
+                            xpvalue("Nz", &gridRegion.nz, 1, "gridRegion.numPtsChangedHandler(2)")
+                            xpvalue("Ny", &gridRegion.ny, 1, "gridRegion.numPtsChangedHandler(1)")
+                            xpanel()
+                            xpanel("")
+                            xpvalue("Nx", &gridRegion.nx, 1, "gridRegion.numPtsChangedHandler(0)")
+                            xpvalue("Nz", &gridRegion.nz, 1, "gridRegion.numPtsChangedHandler(2)")
+                            xpanel()
+                            xpanel("")
+                            xpvalue("Nx", &gridRegion.nx, 1, "gridRegion.numPtsChangedHandler(0)")
+                            xpvalue("Ny", &gridRegion.ny, 1, "gridRegion.numPtsChangedHandler(1)")
+                            xpvalue("Nz", &gridRegion.nz, 1, "gridRegion.numPtsChangedHandler(2)")
+                            xpanel()
+                        }
+                        nmbOfPtsDeck.intercept(0)
+                        // nmbOfPtsDeck.flip_to(*)     // Will be done in gridTypeChangedHandler below
+                        nmbOfPtsDeck.map()
+                    }
+                    vBox2.intercept(0)
+                    vBox2.map()
+                }
+                gridSettingsDeck.intercept(0)
+                // gridSettingsDeck.flip_to(*)     // Will be done in whereToWatchChangedHandler below
+                gridSettingsDeck.map()
+                xpanel("")
+                addEmptyLabels(2)
+                xbutton("Done", "doneHandler()")
+                xpanel()
+            }
+            vBox1.intercept(0)
+            vBox1.map()
+            vBox1 = new VBox()
+            vBox1.intercept(1)
+            {
+                hBox = new HBox()
+                hBox.intercept(1)
+                {
+                    xpanel("")
+                    xradiobutton("XY projection", "viewDirectionChangedHandler(0)", shapeShowHelper.viewDirIdx == 0)
+                    xradiobutton("ZY projection", "viewDirectionChangedHandler(1)", shapeShowHelper.viewDirIdx == 1)
+                    xradiobutton("XZ projection", "viewDirectionChangedHandler(2)", shapeShowHelper.viewDirIdx == 2)
+                    xpanel()
+                    if (isOutsideInDiffusion) {
+                        xpanel("")
+                        xradiobutton("Show all srcs for all species", "showAllSrcsChangedHandler(1)", isShowAllSrcs)
+                        xradiobutton("Hide all srcs for all species", "showAllSrcsChangedHandler(0)", !isShowAllSrcs)
+                        xpanel()
+                    }
+                }
+                hBox.intercept(0)
+                hBox.map()
+                shape = new Shape()
+                shapeShowHelper.setShape(shape)
+                deployDestroyDeck = new Deck()
+                deployDestroyDeck.intercept(1)
+                {
+                    createEmptyPanel()
+                    hBox = new HBox()
+                    hBox.intercept(1)
+                    {
+                        xpanel("")
+                        xbutton("Deploy grid", "deployGrid()")
+                        xpanel()
+                        xpanel("")
+                        xbutton("Destroy grid", "destroyGrid()")
+                        xpanel()
+                        xpanel("")
+                        xcheckbox("More control", &isMoreControl, "moreControlCheckBoxHandler()")
+                        xpanel()
+                    }
+                    hBox.intercept(0)
+                    hBox.map("", -1, -1, 1, 61)
+                }
+                deployDestroyDeck.intercept(0)
+                // deployDestroyDeck.flip_to(*)    // Will be done in whereToWatchChangedHandler below
+                deployDestroyDeck.map()
+                xpanel("")
+                text = "Hint%s: Drag the anchor points to adjust the grid region."
+                if (isOutsideInDiffusion) {
+                    sprint(text, text, " 1")
+                } else {
+                    sprint(text, text, "")
+                }
+                xlabel(text)
+                if (isOutsideInDiffusion) {
+                    xlabel("Hint 2: After adding/deleting/moving/resizing an extracellular source,")
+                    xlabel("            close this widget and open again (just to update the Shape).")
+                }
+                xlabel("Warning: Don't use \"3D Rotate\" when editing the grid region")
+                xlabel("                (toggle \"XY/ZY/XZ projection\" instead).")
+                xpanel()
+            }
+            vBox1.intercept(0)
+            vBox1.map()
+            if (enumWhereToWatch != 0 && isMoreControl) {
+                vBox1 = new VBox()
+                vBox1.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("Grid region:")
+                    xpanel()
+                    moreControlOverGridDeck = new Deck()
+                    moreControlOverGridDeck.intercept(1)
+                    {
+                        createOnePanelForMoreGridControl(0, 1, -1)   // XY
+                        createOnePanelForMoreGridControl(2, 1, -1)   // ZY
+                        createOnePanelForMoreGridControl(0, 2, -1)   // XZ
+                        createOnePanelForMoreGridControl(0, 1, 2)    // XYZ
+                    }
+                    moreControlOverGridDeck.intercept(0)
+                    // moreControlOverGridDeck.flip_to(*)   // Will be done in gridTypeChangedHandler below
+                    moreControlOverGridDeck.map()
+                }
+                vBox1.intercept(0)
+                vBox1.map()
+            }
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map(title, 700, 475, -1, -1)
+        
+        _isCalledFromShow = 1
+        {
+            whereToWatchChangedHandler(enumWhereToWatch)        // --> updateShape
+            gridTypeChangedHandler(gridRegion.is3dOr2dGrid)     // --> updateShape
+        }
+        _isCalledFromShow = 0
+        viewDirectionChangedHandler(shapeShowHelper.viewDirIdx) // --> updateShape
+        
+        menuToolName = "Edit Grid Region"
+        shape.menu_tool(menuToolName, "mouseEventsHandler")
+        shape.exec_menu(menuToolName)
+    }
+    
+    proc dismissHandler() {
+        shapeShowHelper.dismissShape()
+        unmapIfNotNil(mainBox)
+    }
+    
+    // All next staff is private
+    
+    
+    proc createOnePanelForMoreGridControl() { local idx1, idx2, idx3OrMinus1 localobj rangeLabels
+        idx1 = $1
+        idx2 = $2
+        idx3OrMinus1 = $3
+        rangeLabels = createListOfStrs("Dx (um)", "Dy (um)", "Dz (um)")
+        xpanel("")
+        xlabel("")
+        xlabel("Centre:")
+        xpvalue("xc (um)", &gridRegion.xyzCentre.x[0], 1, "moreGridControlParamChangedHandler()")
+        xpvalue("yc (um)", &gridRegion.xyzCentre.x[1], 1, "moreGridControlParamChangedHandler()")
+        xpvalue("zc (um)", &gridRegion.xyzCentre.x[2], 1, "moreGridControlParamChangedHandler()")
+        xlabel("")
+        xlabel("Range:")
+        // !! BUG: no variable domains here
+        xpvalue(rangeLabels.o(idx1).s, &gridRegion.xyzRange.x[idx1], 1, "moreGridControlParamChangedHandler()")
+        xpvalue(rangeLabels.o(idx2).s, &gridRegion.xyzRange.x[idx2], 1, "moreGridControlParamChangedHandler()")
+        if (idx3OrMinus1 != -1) {
+            xpvalue(rangeLabels.o(idx3OrMinus1).s, &gridRegion.xyzRange.x[idx3OrMinus1], 1, "moreGridControlParamChangedHandler()")
+        } else {
+            xlabel("")
+        }
+        xlabel("")
+        xlabel("Hint: Set \"Padding (%) = 0\" to tighten.")
+        xpanel()
+    }
+    
+    proc whereToWatchChangedHandler() { local enumWhereToWatch_old, cardIdx
+        enumWhereToWatch_old = enumWhereToWatch
+        
+        enumWhereToWatch = $1
+        
+        if (!_isCalledFromShow && isMoreControl && (enumWhereToWatch_old == 0 || enumWhereToWatch == 0)) {
+            moreControlCheckBoxHandler()
+            return
+        }
+        
+        cardIdx = (enumWhereToWatch != 0)
+        gridSettingsDeck.flip_to(cardIdx)
+        deployDestroyDeck.flip_to(cardIdx)
+        
+        if ((enumWhereToWatch_old == 0 && enumWhereToWatch > 0) || (enumWhereToWatch == 0 && enumWhereToWatch_old > 0)) {
+            updateShape()
+        }
+    }
+    
+    proc gridTypeChangedHandler() { local cardIdx
+        gridRegion.is3dOr2dGrid = $1
+        
+        cardIdx = 1 - gridRegion.is3dOr2dGrid
+        twoDimGridPlaneDeck.flip_to(cardIdx)
+        if (!gridRegion.is3dOr2dGrid) {
+            cardIdx = gridRegion.twoDimGridPlaneIdx
+        } else {
+            cardIdx = 3
+        }
+        nmbOfPtsDeck.flip_to(cardIdx)
+        if (isMoreControl) {
+            moreControlOverGridDeck.flip_to(cardIdx)
+        }
+        
+        updateShape()
+    }
+    
+    proc twoDimGridPlaneChangedHandler() { local cardIdx
+        gridRegion.twoDimGridPlaneIdx = $1
+        
+        cardIdx = gridRegion.twoDimGridPlaneIdx
+        nmbOfPtsDeck.flip_to(cardIdx)
+        if (isMoreControl) {
+            moreControlOverGridDeck.flip_to(cardIdx)
+        }
+        
+        updateShape()
+    }
+    
+    proc paddingChangedHandler() {
+        gridRegion.onPaddingChanged()
+        
+        updateShape()
+    }
+    
+    proc viewDirectionChangedHandler() {
+        shapeShowHelper.viewDirIdx = $1
+        
+        plotShapeUtils.setViewDir(shape, shapeShowHelper.viewDirIdx)
+        shape.exec_menu("View = plot")
+        
+        updateShape()
+    }
+    
+    proc showAllSrcsChangedHandler() {
+        isShowAllSrcs = $1
+        
+        updateShape()
+    }
+    
+    proc deployGrid() {
+        parentWidget.dismissNeuronPlayerWidget()
+        
+        gridRegion.deployGrid()
+    }
+    
+    proc destroyGrid() {
+        parentWidget.dismissNeuronPlayerWidget()
+        
+        // !! not sure why, but without the decoration, simple call of "destroyTempSects()" is followed
+        //    by much longer UI freezing time compared to "gridRegion.deployGrid()"
+        //    when we work with massive grids (e.g. 100 x 100 x 10)
+        //    UPD: the decoration fixes the problem in test, but not in the main mode
+        shape.erase()
+        {
+            destroyTempSects()
+        }
+        updateShape()
+    }
+    
+    proc moreControlCheckBoxHandler() { localobj mainBoxCopy
+        dismissHandler()
+        // !! not sure why this temporary copy is needed, but without it we'll catch Segmentation violation
+        // !! UPD: still hit it sporadically in inside-out diff test for astrocyte
+        mainBoxCopy = mainBox
+        show()
+    }
+    
+    proc moreGridControlParamChangedHandler() {
+        gridRegion.paddingOrMinus1 = -1
+        updateShape()
+    }
+    
+    proc mouseEventsHandler() { local eventType, x_sc, y_sc, keystate, isUpdate
+        eventType = $1
+        x_sc = $2
+        y_sc = $3
+        keystate = $4   // Just a placeholder
+        
+        if (enumWhereToWatch == 0) {
+            // !! maybe turn off/on the mouse events in gridTypeChangedHandler using "shape.exec_menu"
+            return
+        }
+        
+        if (eventType == enumMouseEvents.press) {
+            gridRegion.onMousePress(x_sc, y_sc)
+        } else (eventType == enumMouseEvents.dragging) {
+            isUpdate = gridRegion.onMouseDrag(x_sc, y_sc, shapeShowHelper.viewDirIdx)
+            if (isUpdate) {
+                updateShape()
+            }
+        }
+    }
+    
+    proc doneHandler() {
+        dismissHandler()
+        
+        altRunControlWidget.isInited = 0
+    }
+    
+    proc updateShape() {
+        if (_isCalledFromShow) {
+            return
+        }
+        if (0) {
+            // !! much faster, but the ECSs labels step down each time we call "proc updateShape"
+            shape.erase()
+        } else {
+            shape.erase_all()
+            shape.observe()
+        }
+        if (isShowAllSrcs) {
+            shapeShowHelper.showAllSrcs()
+        }
+        if (enumWhereToWatch != 0) {
+            gridRegion.showEdgesAndAnchorPoints(shape, shapeShowHelper.viewDirIdx)
+        }
+    }
+    
+endtemplate GridToWatchWidget

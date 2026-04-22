@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BrainCell AI Agent — User Manual</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 14px; color: #2c3e50; max-width: 900px; margin: 0 auto; padding: 30px 40px; line-height: 1.6; }
+  h1 { color: #1F4E79; font-size: 26px; border-bottom: 3px solid #2E75B6; padding-bottom: 8px; margin-top: 40px; }
+  h2 { color: #2E75B6; font-size: 20px; margin-top: 30px; }
+  h3 { color: #2c3e50; font-size: 16px; margin-top: 20px; }
+
+  .cover { text-align: center; padding: 40px 0 30px 0; border-bottom: 3px solid #2E75B6; margin-bottom: 30px; }
+  .cover h1 { font-size: 48px; border: none; margin: 0; padding: 0; }
+  .cover .subtitle { font-size: 24px; color: #2E75B6; margin: 10px 0; }
+  .cover .tagline { font-size: 15px; color: #777; font-style: italic; margin: 10px 0 20px 0; }
+
+  .info-box { padding: 14px 18px; border-radius: 4px; margin: 14px 0; border-left: 6px solid; }
+  .info-teal  { background: #E8F4F8; border-color: #2E75B6; color: #1A4A6A; }
+  .info-green { background: #E2F5E9; border-color: #27AE60; color: #1A5C2A; }
+  .info-amber { background: #FFF8E1; border-color: #E67E22; color: #7D3C00; }
+  .info-cyan  { background: #D6E4F0; border-color: #2E75B6; color: #1A4A6A; }
+  .info-gray  { background: #F5F5F5; border-color: #999;    color: #555; }
+
+  code, .code-block { font-family: "Courier New", monospace; }
+  .code-block {
+    background: #1E1E1E; color: #00FF00; padding: 14px 18px;
+    border-radius: 4px; border-left: 5px solid #2E75B6;
+    margin: 12px 0; white-space: pre-wrap; font-size: 13px; line-height: 1.7;
+  }
+  code { background: #f0f0f0; color: #c0392b; padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+
+  .step-box { display: flex; align-items: stretch; margin: 14px 0; border-radius: 4px; overflow: hidden; }
+  .step-num { background: #2E75B6; color: white; font-size: 22px; font-weight: bold;
+              min-width: 50px; display: flex; align-items: center; justify-content: center; }
+  .step-title { background: #D6E4F0; color: #1F4E79; font-size: 16px; font-weight: bold;
+                padding: 12px 18px; flex: 1; display: flex; align-items: center; }
+
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 13px; }
+  th { background: #1F4E79; color: white; padding: 10px 12px; text-align: left; }
+  td { padding: 9px 12px; border: 1px solid #ccc; }
+  tr:nth-child(even) td { background: #E8F4F8; }
+  tr:nth-child(odd) td { background: white; }
+
+  .cover-meta { background: #E8F4F8; border-left: 6px solid #2E75B6; padding: 14px 18px; text-align: left; display: inline-block; margin-top: 20px; font-size: 13px; color: #1A4A6A; }
+  .cover-meta div { margin: 3px 0; }
+
+  ul { padding-left: 24px; }
+  ul li { margin: 5px 0; }
+  ol { padding-left: 24px; }
+  ol li { margin: 7px 0; }
+
+  .page-break { border: none; border-top: 2px dashed #ccc; margin: 40px 0; }
+  .print-note { background: #f9f9f9; border: 1px solid #ddd; padding: 8px 14px; font-size: 12px; color: #777; margin-bottom: 20px; border-radius: 3px; }
+
+  @media print {
+    .page-break { page-break-before: always; border: none; margin: 0; }
+    body { padding: 20px; }
+    .print-note { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-note">💡 To print or save as PDF: press <strong>Ctrl+P</strong> in your browser → choose "Save as PDF"</div>
+
+<!-- COVER -->
+<div class="cover">
+  <div style="font-size:52px; font-weight:bold; color:#1F4E79;">BrainCell AI Agent</div>
+  <div class="subtitle">User Manual</div>
+  <div class="tagline">Step-by-step guide to using Claude Code with BrainCell</div>
+  <div class="cover-meta">
+    <div><strong>Platform:</strong> &nbsp; Claude Code v2.1.50</div>
+    <div><strong>Account:</strong> &nbsp;&nbsp; Claude Pro subscription (no extra API cost)</div>
+    <div><strong>Repository:</strong> D:\GitHubRusakovLab\BrainCellClaude</div>
+    <div><strong>Author:</strong> &nbsp;&nbsp;&nbsp; Leonid Savtchenko &bull; Rusakov Lab, UCL</div>
+    <div><strong>Date:</strong> &nbsp;&nbsp;&nbsp;&nbsp; February 2026</div>
+  </div>
+</div>
+
+<!-- SECTION 1 -->
+<h1>1. What Is the BrainCell AI Agent?</h1>
+
+<p>The BrainCell AI Agent is <strong>Claude Code</strong> — an AI-powered coding assistant that runs in your terminal and has full access to your BrainCell repository. Unlike a regular chatbot, it can read, understand, and modify your actual files.</p>
+
+<table>
+  <tr><th>Feature</th><th>Description</th></tr>
+  <tr><td>Reads your code</td><td>Automatically finds and reads MOD, HOC, and Python files</td></tr>
+  <tr><td>Understands biophysics</td><td>Explains KINETIC schemes, ion channels, transporters in scientific detail</td></tr>
+  <tr><td>Suggests modifications</td><td>Proposes code changes — you approve before anything is saved</td></tr>
+  <tr><td>No extra cost</td><td>Runs on your Claude Pro subscription (£18/month)</td></tr>
+  <tr><td>Remembers context</td><td>Within a session, remembers which files it has already read</td></tr>
+</table>
+
+<div class="info-box info-amber">
+  ⚠️ <strong>Important:</strong> Claude Code can read and edit your files. Always review proposed changes before approving.<br>
+  Use Git to back up your work before asking Claude Code to modify files.
+</div>
+
+<hr class="page-break">
+
+<!-- SECTION 2 -->
+<h1>2. Starting the Agent — Every Time</h1>
+
+<p>Follow these steps each time you want to use the agent.</p>
+
+<div class="step-box"><div class="step-num">1</div><div class="step-title">Open Anaconda Prompt</div></div>
+<p>Click <strong>Start Menu</strong> → search <strong>Anaconda Prompt</strong> → click to open.<br>
+You will see a black window with a prompt like: <code>(base) C:\Users\savtc&gt;</code></p>
+
+<div class="step-box"><div class="step-num">2</div><div class="step-title">Navigate to your BrainCell repository</div></div>
+<p>Type the following command and press <strong>Enter</strong>:</p>
+<div class="code-block">cd D:\GitHubRusakovLab\BrainCellClaude</div>
+<p>The prompt will change to: <code>(base) D:\GitHubRusakovLab\BrainCellClaude&gt;</code></p>
+
+<div class="step-box"><div class="step-num">3</div><div class="step-title">Launch Claude Code</div></div>
+<p>Type the following and press <strong>Enter</strong>:</p>
+<div class="code-block">claude</div>
+<p>You will see the Claude Code welcome screen with your name and account details.</p>
+
+<div class="step-box"><div class="step-num">4</div><div class="step-title">Trust the folder (first time only)</div></div>
+<p>The very first time, Claude Code asks if you trust the folder. Select <strong>1</strong> and press Enter:</p>
+<div class="code-block">Quick safety check: Is this a project you created or one you trust?
+&gt; 1. Yes, I trust this folder
+  2. No, exit</div>
+
+<div class="step-box"><div class="step-num">5</div><div class="step-title">Allow file reading for the session</div></div>
+<p>When Claude Code first tries to read a file, select <strong>option 2</strong> to allow access for the whole session — no more prompts:</p>
+<div class="code-block">Do you want to proceed?
+  1. Yes
+&gt; 2. Yes, allow reading from BrainCellClaude/ during this session   &lt;-- select this
+  3. No</div>
+
+<div class="info-box info-green">
+  ✔ You are ready! Type your question at the <code>&gt;</code> prompt and press Enter.
+</div>
+
+<hr class="page-break">
+
+<!-- SECTION 3 -->
+<h1>3. Asking Questions About BrainCell</h1>
+
+<p>Type any question in plain English. Claude Code will find the relevant files and answer based on your actual code.</p>
+
+<h2>3.1 Understanding MOD files (biophysics)</h2>
+<div class="code-block">&gt; How does GluTrans.mod work? Explain the biophysics.
+&gt; What is the kinetic scheme in cadifus.mod?
+&gt; Explain the voltage dependence in Kir4.mod
+&gt; What ions does nkpump.mod use and what does it model?
+&gt; Explain all the states in the GluTrans transport cycle
+&gt; What is the rate-limiting step in the glutamate transporter cycle?</div>
+
+<h2>3.2 Searching across the codebase</h2>
+<div class="code-block">&gt; Find all mechanisms that handle calcium diffusion in astrocytes
+&gt; Which MOD files use KINETIC blocks?
+&gt; What mechanisms are involved in extracellular K+ dynamics?
+&gt; Find all gap junction mechanisms and explain their differences
+&gt; Which Python files generate HOC code?
+&gt; What files are involved in simulating a myelinated axon?</div>
+
+<h2>3.3 Understanding architecture</h2>
+<div class="code-block">&gt; Explain the architecture of the _Code/Managers/ folder
+&gt; How does SimMyelinatedAxon.py work?
+&gt; What does CommonLoads.hoc load and why is it important?
+&gt; How do the JSON files in Biophysics/ connect to the HOC files?
+&gt; What is the role of GeneratorsForMainHocFile.py?</div>
+
+<h2>3.4 Comparing files</h2>
+<div class="code-block">&gt; Compare Kir.mod and Kir4.mod — what are the differences?
+&gt; What is the difference between gap.mod and gap_neuron.mod?
+&gt; Compare GAT1_Bicho.mod and GAT1_current.mod
+&gt; How does na3n.mod differ from naxn.mod?</div>
+
+<h2>3.5 Physiological interpretation</h2>
+<div class="code-block">&gt; What would happen to glutamate clearance if I doubled k61 in GluTrans.mod?
+&gt; How would increasing the Kir4.1 density affect K+ buffering in the astrocyte?
+&gt; What are the limitations of the current cadifus.mod model?
+&gt; Suggest improvements to make GluTrans.mod more realistic</div>
+
+<div class="info-box info-cyan">
+  💡 <strong>Tip:</strong> Be specific for better answers.<br>
+  Instead of: <em>"explain calcium"</em><br>
+  Ask: <em>"How does cadifus.mod model IP3-dependent calcium release in astrocytes?"</em>
+</div>
+
+<hr class="page-break">
+
+<!-- SECTION 4 -->
+<h1>4. Modifying Files Safely</h1>
+
+<div class="info-box info-amber">
+  ⚠️ <strong>Safety Rule:</strong> Before modifying any file, commit your current work in Git first.<br>
+  This gives you a safe restore point if something goes wrong.
+</div>
+
+<h2>4.1 How to request a modification</h2>
+<p>Describe what you want in plain English, mentioning the file name:</p>
+<div class="code-block">&gt; Add Q10 temperature dependence (Q10=2.2) to Kir4.mod
+&gt; In GluTrans.mod, make the transporter density a RANGE variable
+&gt; Add a comment block to cadifus.mod explaining the IP3 kinetics
+&gt; In nkpump.mod, add a RANGE variable to expose the pump current for recording
+&gt; Add a RANGE variable itrans to GluTrans.mod so the current can be plotted</div>
+
+<h2>4.2 The safe modification workflow</h2>
+<ol>
+  <li>Claude Code reads the file and proposes a change</li>
+  <li>It shows you exactly what it plans to write</li>
+  <li>It asks: <em>"Do you want to proceed? 1. Yes / 2. No"</em></li>
+  <li><strong>Read the proposed change carefully</strong> before selecting Yes</li>
+  <li>If you select Yes, the file is saved immediately</li>
+  <li>Test by recompiling MOD files and running your simulation</li>
+</ol>
+
+<h2>4.3 What to check before approving a MOD change</h2>
+<ul>
+  <li>USEION declarations match all ions that are read or written</li>
+  <li>RANGE variables declared for any new parameters you want to access from HOC</li>
+  <li>Units are correct: conductances in S/cm², currents in mA/cm², concentrations in mM, time in ms</li>
+  <li>STATE variables have initial values in the INITIAL block</li>
+  <li>New parameters have sensible default values</li>
+</ul>
+
+<h2>4.4 Undoing a change</h2>
+<p>If something goes wrong, restore the original file from Git (in a separate Anaconda Prompt window):</p>
+<div class="code-block">cd D:\GitHubRusakovLab\BrainCellClaude
+git checkout Mechanisms/Common/MOD_files/GluTrans.mod</div>
+
+<hr class="page-break">
+
+<!-- SECTION 5 -->
+<h1>5. Example Questions — Ready to Use</h1>
+
+<p>Copy and paste any of these directly into the Claude Code prompt.</p>
+
+<h2>5.1 Biophysics analysis</h2>
+<table>
+  <tr><th>Question</th><th>What you will learn</th></tr>
+  <tr><td>How does GluTrans.mod model glutamate uptake into astrocytes?</td><td>6-state Markov cycle, voltage dependence, electrogenic current formula</td></tr>
+  <tr><td>Explain the IP3-calcium coupling in cadifus.mod</td><td>IP3 receptor kinetics, calcium diffusion, buffering mechanisms</td></tr>
+  <tr><td>What is the physiological role of Kir4.1 and how is it modelled in Kir4.mod?</td><td>K⁺ spatial buffering, Kir4.1 channel properties, current formula</td></tr>
+  <tr><td>How does nkpump.mod respond to intracellular Na⁺?</td><td>Pump stoichiometry, concentration dependence, voltage sensitivity</td></tr>
+  <tr><td>What is the difference between gap40tau, gap43tau, and gap45tau?</td><td>Tau values, intended use cases, parameter differences</td></tr>
+  <tr><td>Explain all mechanisms involved in GABA signalling in BrainCell</td><td>GAT1 transporter, GABA_tonic, GabaUpdate — roles and interactions</td></tr>
+</table>
+
+<h2>5.2 Architecture questions</h2>
+<table>
+  <tr><th>Question</th><th>What you will learn</th></tr>
+  <tr><td>What does GeneratorsForMainHocFile.py generate and when is it called?</td><td>HOC code generation pipeline</td></tr>
+  <tr><td>How does InsideOutDiffCalculator.py implement intracellular diffusion?</td><td>Diffusion algorithm, compartment coupling</td></tr>
+  <tr><td>Explain the relationship between SynManager.hoc and AMPASyn.mod</td><td>How the manager assigns mechanisms to compartments</td></tr>
+  <tr><td>What does LFPCalculator.py compute and how?</td><td>Local field potential algorithm, electrode geometry</td></tr>
+</table>
+
+<h2>5.3 Modification requests</h2>
+<table>
+  <tr><th>Request</th><th>Expected result</th></tr>
+  <tr><td>Add Q10 temperature correction (Q10=3) to GluTrans.mod</td><td>New Q10 parameter, all rates multiplied by Q10^((T−T₀)/10)</td></tr>
+  <tr><td>Add a comment header to Kir4.mod explaining its physiological role</td><td>Documentation block at top of file</td></tr>
+  <tr><td>In cadifus.mod, make the diffusion coefficient DCa a RANGE variable</td><td>DCa moved from PARAMETER to RANGE, accessible from HOC</td></tr>
+  <tr><td>Add a RANGE variable itrans to GluTrans.mod so the current can be plotted</td><td>RANGE declaration added, itrans assigned in BREAKPOINT block</td></tr>
+</table>
+
+<hr class="page-break">
+
+<!-- SECTION 6 -->
+<h1>6. Tips, Shortcuts and Troubleshooting</h1>
+
+<h2>6.1 Keyboard shortcuts inside Claude Code</h2>
+<table>
+  <tr><th>Key / Command</th><th>Action</th></tr>
+  <tr><td><code>Ctrl + C</code></td><td>Cancel the current operation</td></tr>
+  <tr><td><code>Ctrl + L</code></td><td>Clear the screen</td></tr>
+  <tr><td><code>/exit</code></td><td>Quit Claude Code</td></tr>
+  <tr><td><code>/help</code></td><td>Show all available commands</td></tr>
+  <tr><td><code>Ctrl + O</code></td><td>Expand collapsed file list — see which files are being read</td></tr>
+  <tr><td>↑ Up arrow</td><td>Recall previous command</td></tr>
+</table>
+
+<h2>6.2 Tips for better answers</h2>
+<ul>
+  <li>Mention the file name when you know it</li>
+  <li>Add biological context: <em>"in the context of astrocyte calcium signalling"</em></li>
+  <li>Ask follow-up questions: <em>"Can you show me where exactly in the code that happens?"</em></li>
+  <li>Ask for physiological interpretation: <em>"What would doubling k61 do to glutamate clearance speed?"</em></li>
+  <li>If the answer seems wrong, say: <em>"Please re-read the file and try again"</em></li>
+</ul>
+
+<h2>6.3 Session management</h2>
+<ul>
+  <li>At the start of each session, allow folder reading when prompted (select option 2)</li>
+  <li>Claude Code does not remember previous sessions — start fresh each time</li>
+  <li>For complex tasks, break them into steps: understand first, then modify</li>
+  <li>If Claude Code seems confused, start a new session: type <code>/exit</code> then <code>claude</code></li>
+</ul>
+
+<h2>6.4 Troubleshooting</h2>
+<table>
+  <tr><th>Problem</th><th>Solution</th></tr>
+  <tr><td><code>claude</code> is not recognised as a command</td><td>Close and reopen Anaconda Prompt, then type: <code>claude</code></td></tr>
+  <tr><td>Claude Code gives a wrong answer about a file</td><td>Ask: <em>"Please re-read the file and try again"</em></td></tr>
+  <tr><td>"credit balance too low" error</td><td>Run <code>claude</code> again and choose <strong>No</strong> when asked about the API key — this uses your Pro account instead</td></tr>
+  <tr><td>Modified file causes NEURON compilation error</td><td>Restore with: <code>git checkout &lt;filepath&gt;</code></td></tr>
+  <tr><td>Very slow response (>1 minute)</td><td>Normal for complex questions. Press <code>Ctrl+O</code> to see which files are being read</td></tr>
+  <tr><td>Claude Code asks for folder trust every session</td><td>Make sure you <code>cd</code> into <code>D:\GitHubRusakovLab\BrainCellClaude</code> before typing <code>claude</code></td></tr>
+</table>
+
+<hr class="page-break">
+
+<!-- SECTION 7 — QUICK REFERENCE -->
+<h1>7. Quick Reference Card</h1>
+<p><em>Print this page and keep it at your desk.</em></p>
+
+<div class="info-box info-teal">
+  <strong>START EVERY SESSION:</strong><br>
+  1. &nbsp; Open Anaconda Prompt<br>
+  2. &nbsp; <code>cd D:\GitHubRusakovLab\BrainCellClaude</code><br>
+  3. &nbsp; <code>claude</code><br>
+  4. &nbsp; When asked about file reading → select <strong>option 2</strong> (allow for session)
+</div>
+
+<div class="info-box info-green">
+  <strong>ANALYSIS — safe, read only:</strong><br>
+  &nbsp; How does [filename].mod work?<br>
+  &nbsp; Explain the biophysics of [mechanism]<br>
+  &nbsp; Find all files related to [topic]<br>
+  &nbsp; Compare [file1] and [file2]<br>
+  &nbsp; What would changing [parameter] do physiologically?
+</div>
+
+<div class="info-box info-amber">
+  <strong>MODIFICATION — always review before approving!</strong><br>
+  &nbsp; Add [parameter] to [filename].mod<br>
+  &nbsp; Make [variable] a RANGE variable in [filename].mod<br>
+  &nbsp; Add temperature dependence Q10=[value] to [filename].mod<br>
+  &nbsp; Add comments explaining [concept] to [filename]
+</div>
+
+<div class="info-box info-gray">
+  <strong>EXIT:</strong> &nbsp; type <code>/exit</code> &nbsp; or press <code>Ctrl+C</code><br>
+  <strong>UNDO A FILE CHANGE:</strong><br>
+  &nbsp; <code>git checkout Mechanisms/path/to/filename.mod</code>
+</div>
+
+<br>
+<p style="text-align:center; color:#999; font-size:12px; border-top:1px solid #eee; padding-top:16px;">
+  Savtchenko / Rusakov Lab, UCL &bull; BrainCell AI Agent User Manual &bull; February 2026
+</p>
+
+</body>
+</html>

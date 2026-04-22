@@ -1,0 +1,190 @@
+
+// !! create a singleton template "FakePPComp" to be called from both SynNCComp and GapJuncExtValueComp
+
+// !! just copied from SynPPComp: clean this up
+
+begintemplate GapJuncExtValueComp
+    
+    public fixedMechIdx, name, enumDmPpFk, enumPpRole, isMechVarTypeInhom, mechStds
+    public isMechVarInhom, prepareVarsEditorHeader, getDistRange, getSecList, markMechDirty, updateStatsCurve, updateVerbatimModelCurve, applyInhomogeneity
+    public isMechVarTypeInhom, mechStds, isMechDirty
+    
+    external mth, math, mcu, utils4FakeMech4GapJuncExtValue
+    external tapSet
+    external codeContractViolation
+    external enumGapJuncPpRoles
+    external pyObj
+    
+    fixedMechIdx = -1
+    strdef name
+    enumDmPpFk = -1
+    enumPpRole = -1
+    objref gapJuncSet
+    
+    double isMechVarTypeInhom[1][1]     // 0/1 flag
+    // !! would it make sense to create these MechanismStandard-s without 2nd ctor arg and get rid of 2nd dimension in this array?
+    objref mechStds[1][1]
+    double isMechDirty[1]               // 0/1 flag
+    
+    objref this
+    
+    
+    proc init() { local numArg, numMechs localobj impRedObj, mechStd, nil
+        
+        numArg = numarg()
+        if (numArg == 2) {
+            // Load data from the imported reduced template (part 1)
+            impRedObj = $o1
+            gapJuncSet = $o2
+        } else if (numArg == 1) {
+            gapJuncSet = $o1
+        } else {
+            codeContractViolation()
+        }
+        
+        fixedMechIdx = utils4FakeMech4GapJuncExtValue.mechIdx
+        name = "External GJ"
+        // !!?? name = utils4FakeMech4GapJuncExtValue.mechName
+        enumDmPpFk = 2
+        enumPpRole = enumGapJuncPpRoles.extValue
+        
+        numMechs = fixedMechIdx + 1
+        
+        double isMechVarTypeInhom[numMechs][1]
+        objref mechStds[numMechs][1]
+        double isMechDirty[numMechs]
+        
+        mechStd = new FakeMechanismStandardForExtValue()
+        if (gapJuncSet.allGapJuncs.count() > 0 && gapJuncSet.isExtOrInt) {
+            // It's a code contract that all the gap juncs have homogeneous PP-s at the time of new GapJuncPPComp-s construction
+            // (but this does not apply to "start with BrainCell export" mode)
+            mechStd.in(gapJuncSet.allGapJuncs.o(0).getPointProcess(enumPpRole))
+        }
+        mechStds[fixedMechIdx][0] = mechStd
+        
+        // !! search for inhomogeneities in the vars
+        
+        if (impRedObj == nil) {
+            return
+        }
+        
+        // Load data from the imported reduced template (part 2)
+        
+        mechStd = impRedObj.mechStds[fixedMechIdx][0]
+        if (mechStd != nil) {
+            mechStds[fixedMechIdx][0] = mechStd     // Replacing it just to have NaN-s for all inhom vars
+            mcu.setOneIfNeededIn_isMechVarTypeInhom(this, fixedMechIdx, 1)
+        }
+    }
+    
+    // !! code dupl. with MechComp
+    func isMechVarInhom() { local mechIdx, varType, arrayIndex, varTypeIdx
+        strdef varName
+        mechIdx = $1
+        varType = $2
+        varName = $s3
+        arrayIndex = $4
+        if (mechIdx != fixedMechIdx || varType != 1) {
+            codeContractViolation()
+        }
+        varTypeIdx = mth.convertVarTypeToVarTypeIdx(varType)
+        return math.isNaN(mechStds[mechIdx][varTypeIdx].get(varName, arrayIndex))
+    }
+    
+    // !! mostly code dupl. with MechComp
+    // !! it would be better to move this to MechTypeHelper
+    proc prepareVarsEditorHeader() { local mechIdx, varType
+        strdef mechName
+        
+        mechIdx = $1
+        varType = $2    // !! just a placeholder
+        
+        if (mechIdx != fixedMechIdx || varType != 1) {
+            codeContractViolation()
+        }
+        
+        mth.getMechName(2, mechIdx, mechName)
+        sprint($s3, "%s in %s:", mechName, name)
+    }
+    
+    func getDistRange() {
+        return gapJuncSet.getDistRange(&$&1, &$&2)
+    }
+    
+    obfunc getSecList() {
+        return gapJuncSet.getSecList()
+    }
+    
+    proc markMechDirty() { local mechIdx
+        mechIdx = $1    // Just a placeholder
+        
+        if (mechIdx != fixedMechIdx) {
+            codeContractViolation()
+        }
+        
+        isMechDirty[mechIdx] = 1
+    }
+    
+    proc updateStatsCurve() { local yMin, yMax, yMean, varType, arraySize, arrayIndex, y localobj graph, gapJunc
+        strdef mechName, varName, actPpName
+        
+        graph = $o1
+        yMin = $&2          // Read / write
+        yMax = $&3          // Read / write
+        // yMean = $&4      // Write only
+        mechName = $s5
+        varType = $6
+        varName = $s7
+        // arraySize = $8   // Just a placeholder
+        arrayIndex = $9
+        
+        gapJuncSet.getPpNameOrEmpty(actPpName)
+        if (!pyObj.ms_doesGapJuncHavePtr(actPpName)) {
+            // The actual gap junctions use PPs without pointers
+            return
+        }
+        
+        for tapSet.updateStatsCurveIter(gapJunc, gapJuncSet.allGapJuncs, graph, &y, &yMin, &yMax, &yMean) {
+            y = gapJunc.extValue
+        }
+        
+        $&2 = yMin
+        $&3 = yMax
+        $&4 = yMean
+    }
+    
+    proc updateVerbatimModelCurve() {
+        // It's a code contract that all the gap juncs have homogeneous PP-s at the time of new GapJuncPPComp-s construction
+        codeContractViolation()
+    }
+    
+    // Keep in sync with ReducedGapJuncExtValueComp2.applyInhomogeneity
+    proc applyInhomogeneity() { local varType, arraySize, arrayIndex, y localobj distFuncHelper, mechStd, gapJunc, thisPp
+        strdef mechName, varName
+        
+        mechName = $s1
+        varType = $2
+        varName = $s3
+        arraySize = $4  // Just a placeholder
+        arrayIndex = $5
+        distFuncHelper = $o6
+        
+        if (varType != 1) {     // 1: "PARAMETER"
+            codeContractViolation()
+        }
+        
+        mechStd = new FakeMechanismStandardForExtValue(mechName, varType)
+        
+        for tapSet.applyInhomogeneityIter(gapJunc, gapJuncSet.allGapJuncs, distFuncHelper) {
+            // !! simplify this
+            thisPp = gapJunc.getPointProcess(enumPpRole)
+            mechStd.in(thisPp)
+            y = distFuncHelper.calculateAt(gapJunc.dist)
+            // !! BUG: "variable_domain" used in "MechanismStandard.panel()" is ignored in "MechanismStandard.set()" and "MechanismStandard.out()",
+            //         so we can use any invalid value here without even a warning
+            mechStd.set(varName, y, arrayIndex)
+            mechStd.out(thisPp)
+        }
+    }
+    
+endtemplate GapJuncExtValueComp

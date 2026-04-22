@@ -1,0 +1,4 @@
+
+{ nrnpython("import wrapper2") }
+
+quit()

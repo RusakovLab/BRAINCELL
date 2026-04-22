@@ -1,0 +1,38 @@
+
+// !! in this test, when user clicks "Done" in SpineSeedingMainWidget, we catch "object prefix is NULL" error, but that's fine
+
+isAstrocyteOrNeuron = 0
+isBaseOrNanoStart = 1
+// !! isExternalSimStart = 0
+{ load_file("../_Code/InterModular/InterModularLoads.hoc") }
+
+// Load some test base geometry file
+{ load_file("../Geometry/Neuron/test.hoc") }
+
+// !!
+forall {
+    nseg = 10
+}
+
+objref ic
+{ load_file("../_Code/Import/ImportBaseGeometry/SectionUtils.hoc") }
+{ load_file("../_Code/Import/ImportBaseGeometry/SectionRefUtils.hoc") }
+objref usedNamesForSoma, usedNamesForDendrites, usedNamesForAxon
+usedNamesForSoma = createListOfStrs("soma")
+usedNamesForDendrites = createListOfStrs("dendrite", "apical_dendrite")
+usedNamesForAxon = createListOfStrs("axon")
+createCompartmentReferences(usedNamesForSoma, usedNamesForDendrites, usedNamesForAxon)
+
+proc initVoltage() {}
+MaxNumberSpinesPerDendrite = 10
+
+objref mechsDllUtils
+mechsDllUtils = new MechsDllUtils("../")
+{ mechsDllUtils.loadDefaultMechsDllDependingOnCellType() }
+
+{ load_file("../_Code/Prologue/CommonPrologue.hoc") }
+
+{ load_file("../_Code/NanoSeeding/NanoSeedingLoads.hoc") }
+{ spineSeedingMainWidget.show() }
+
+{ chdir("..") }     // Without this, getcwd() will return different path compared to the start from "init.hoc"

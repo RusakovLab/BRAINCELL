@@ -1,0 +1,177 @@
+
+// !! having both HOC:ExtraCellListItem and Py:ExtraCell looks too complicated; try either:
+//      * get rid of the first one creating a browsed list as following: listOfExtraCellListItems.browser("", "__str__")
+//      * or move everything from Py:ExtraCell to HOC:ExtraCellListItem except "i3d.instantiate(self)"
+
+objref _tempTopLevelHocObj
+
+begintemplate ExtraCellListItem
+    
+    public pyExtraCell, biophysComp, s
+    public getCoords0, getCoords, setCoords
+    public unrefPyExtraCellInHoc, initFromExisting
+    
+    external _tempTopLevelHocObj
+    external getSomaSecCentreCoords, setSomaSecCentreCoords, codeContractViolation
+    external eachItemInList
+    external pyObj
+    
+    objref pyExtraCell, biophysComp
+    strdef s, topLevelHocObjName
+    
+    objref rootSec_ref
+    
+    x0 = -1
+    y0 = -1
+    z0 = -1
+    
+    
+    proc init() { local extraCellIdx, numSecs localobj list_ref, sec_ref, nil
+        strdef filePathName, listItemName, tempFolderPath, sOrEmpty, pyCommand, fileName
+        
+        // If called with no args, this is an "adopt" shell — initFromExisting() will populate it
+        if (numarg() == 0) { return }
+        
+        filePathName = $s1
+        listItemName = $s2
+        extraCellIdx = $3
+        // See also: ExtraCellsManagerWidget.listItemAndBiophysCompNameTempl
+        sprint(topLevelHocObjName, "EXTRA_CELL_%d", extraCellIdx)
+        
+        sprint(tempFolderPath, "%s_Code/Import/%s", getcwd(), pyObj.TempFolderUtils.tempFolderName)
+        pyExtraCell = pyObj.ExtraCell(filePathName, tempFolderPath, topLevelHocObjName)
+        
+        // Without this, the new sections won't be accessible via the standard tool:
+        //  "Graph -> Plot what?", then "Show -> Python Sections"
+        // The name must be in sync with the one used in py:ExtraCell.__str__
+        createNewTopLevelHocObjRefAndAssignPyExtraCell(topLevelHocObjName, pyExtraCell)
+        
+        list_ref = pyExtraCell.list_ref
+        
+        if (list_ref == nil) {
+            // Some error occurred
+            pyExtraCell = nil
+            return
+        }
+        
+        for eachItemInList(sec_ref, list_ref) {
+            if (sec_ref.has_parent()) {
+                continue
+            }
+            
+            if (rootSec_ref == nil) {
+                rootSec_ref = sec_ref
+                // break
+                continue
+            }
+            
+            codeContractViolation()
+        }
+        
+        getCoords(&x0, &y0, &z0)
+        
+        numSecs = list_ref.count()
+        getEnding(numSecs, sOrEmpty)
+        
+        sprint(pyCommand, "(exec('import os'), os.path.basename('%s'))[1]", filePathName)
+        fileName = pyObj.ev(pyCommand)
+        sprint(s, "%s (%d sec%s): %s", listItemName, numSecs, sOrEmpty, fileName)
+    }
+    
+    proc getCoords0() {
+        $&1 = x0
+        $&2 = y0
+        $&3 = z0
+    }
+    
+    proc getCoords() {
+        getSomaSecCentreCoords(rootSec_ref, &$&1, &$&2, &$&3)
+    }
+    
+    proc setCoords() {
+        setSomaSecCentreCoords(rootSec_ref, $1, $2, $3)
+    }
+    
+    proc unrefPyExtraCellInHoc() {
+        createTopLevelHocObjRefAsNil(topLevelHocObjName)
+    }
+    
+    // All next staff is private
+    
+    
+    proc getEnding() { local num
+        num = $1
+        if (num == 1) {
+            $s2 = ""
+        } else {
+            $s2 = "s"
+        }
+    }
+    
+    proc createTopLevelHocObjRefAsNil() {
+        strdef topLevelHocObjName, hocCommand
+        topLevelHocObjName = $s1
+        sprint(hocCommand, "objref %s", topLevelHocObjName)
+        execute(hocCommand)
+    }
+    
+    proc createNewTopLevelHocObjRefAndAssignPyExtraCell() { localobj pyExtraCell, nil
+        strdef topLevelHocObjName, hocCommand
+        
+        topLevelHocObjName = $s1
+        pyExtraCell = $o2
+        
+        createTopLevelHocObjRefAsNil(topLevelHocObjName)
+        
+        sprint(hocCommand, "%s = _tempTopLevelHocObj", topLevelHocObjName)
+        
+        _tempTopLevelHocObj = pyExtraCell
+        {
+            execute(hocCommand)
+        }
+        _tempTopLevelHocObj = nil
+    }
+    // New public proc — parallel to init(), but for adopting an already-instantiated Python object.
+    // Used when re-importing an exported HOC that already contains EXTRA_CELL_N objects.
+    // $o1  = already-instantiated pyExtraCell Python object
+    // $s2  = listItemName  (e.g. "Extra Cell #1")
+    // $3   = extraCellIdx  (e.g. 1)
+    // $s4  = filePathName  (for display label only — no import happens)
+    proc initFromExisting() { local extraCellIdx, numSecs localobj list_ref, sec_ref, nil
+        strdef listItemName, filePathName, sOrEmpty, pyCommand, fileName
+        
+        pyExtraCell  = $o1
+        listItemName = $s2
+        extraCellIdx = $3
+        filePathName = $s4
+        
+        sprint(topLevelHocObjName, "EXTRA_CELL_%d", extraCellIdx)
+        
+        // The top-level HOC name already exists (set by the exported HOC),
+        // but we re-assign here so the widget's internal state is consistent.
+        createNewTopLevelHocObjRefAndAssignPyExtraCell(topLevelHocObjName, pyExtraCell)
+        
+        list_ref = pyExtraCell.list_ref
+        
+        for eachItemInList(sec_ref, list_ref) {
+            if (sec_ref.has_parent()) {
+                continue
+            }
+            if (rootSec_ref == nil) {
+                rootSec_ref = sec_ref
+                continue
+            }
+            codeContractViolation()
+        }
+        
+        getCoords(&x0, &y0, &z0)
+        
+        numSecs = list_ref.count()
+        getEnding(numSecs, sOrEmpty)
+        
+        sprint(pyCommand, "(exec('import os'), os.path.basename('%s'))[1]", filePathName)
+        fileName = pyObj.ev(pyCommand)
+        sprint(s, "%s (%d sec%s): %s", listItemName, numSecs, sOrEmpty, fileName)
+    }
+    
+endtemplate ExtraCellListItem

@@ -1,0 +1,78 @@
+
+begintemplate EnumArgTypes
+    
+    public number, objref_, strdef_, ptrToNumber, argDoesNotExist
+    
+    // https://www.neuron.yale.edu/neuron/static/new_doc/programming/hocsyntax.html#argtype
+    proc init() {
+        number = 0      // $i
+        objref_ = 1     // $oi
+        strdef_ = 2     // $si
+        ptrToNumber = 3 // $&i in HOC, _ref_{hocVarName} or {hocObjName}._ref_{hocVarName} in Python
+        argDoesNotExist = -1
+    }
+    
+endtemplate EnumArgTypes
+
+objref enumArgTypes
+enumArgTypes = new EnumArgTypes()
+
+
+// For LMB only
+begintemplate EnumMouseEvents
+    
+    public press, dragging, release
+    
+    // https://www.neuron.yale.edu/neuron/static/new_doc/visualization/graph.html#Graph.menu_tool
+    proc init() {
+        press = 2
+        dragging = 1
+        release = 3
+    }
+    
+endtemplate EnumMouseEvents
+
+objref enumMouseEvents
+enumMouseEvents = new EnumMouseEvents()
+
+
+begintemplate EnumColours
+    
+    public white, black, red, blue, green, orange, brown, violet, yellow, grey
+    public makeSureNotWhite, makeSureNotWhite2
+    
+    // https://www.neuron.yale.edu/neuron/static/new_doc/visualization/graph.html#Graph.color
+    proc init() {
+        white = 0
+        black = 1
+        red = 2
+        blue = 3
+        green = 4
+        orange = 5
+        brown = 6
+        violet = 7
+        yellow = 8
+        grey = 9
+        
+        period = 10
+    }
+    
+    // !! use this in all modules where needed (e.g. for extracellular sources and sets of GJs)
+    func makeSureNotWhite() { local colour
+        colour = $1
+        if (colour % period == white) {
+            colour += 1
+        }
+        return colour
+    }
+    
+    // !! use this in all modules where needed (e.g. for extracellular sources and sets of GJs)
+    func makeSureNotWhite2() { local colour
+        colour = $1
+        return makeSureNotWhite(colour + int(colour / period))
+    }
+    
+endtemplate EnumColours
+
+objref enumColours
+enumColours = new EnumColours()

@@ -1,0 +1,34 @@
+
+begintemplate FakeMechanismType
+
+    public count
+    public select, selected
+    
+    external isAstrocyteOrNeuron
+    external utils4FakeMech4GapJuncExtValue, utils4FakeMech4SynNetCon
+    
+    objref mechNames
+    count = -1
+    
+    selMechIdx = -1
+    
+    
+    proc init() {
+        mechNames = new List()
+        mechNames.append(new String(utils4FakeMech4GapJuncExtValue.mechName))
+        if (!isAstrocyteOrNeuron) {
+            mechNames.append(new String(utils4FakeMech4SynNetCon.mechName))
+        }
+        
+        count = mechNames.count()
+    }
+    
+    proc select() {
+        selMechIdx = $1
+    }
+    
+    proc selected() {
+        $s1 = mechNames.o(selMechIdx).s
+    }
+    
+endtemplate FakeMechanismType

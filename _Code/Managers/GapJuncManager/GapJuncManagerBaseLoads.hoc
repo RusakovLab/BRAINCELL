@@ -1,0 +1,4 @@
+
+// !! it would be better to avoid the 3rd arg "1" below
+loadIfNotDeclared("EnumGapJuncCompIdxs", "Exported/GapJuncEnums.hoc", 1)
+loadIfNotDeclared("FakeMechanismStandardForExtValue", "FakesForExtValue/Exported/FakeMechanismStandardForExtValue.hoc", 1)

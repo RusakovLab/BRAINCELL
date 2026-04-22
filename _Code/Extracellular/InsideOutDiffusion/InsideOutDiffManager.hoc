@@ -1,0 +1,11 @@
+
+{ load_file("InsideOutDiffManagerLoads.hoc") }
+
+proc showInsideOutDiffManagerBaseWidget() {
+
+    dismissIfNotNil(manageAndRunWidget)
+    manageAndRunWidget = new ManageAndRunWidget(4)
+    manageAndRunWidget.show()
+    manageAndRunWidget.showIODManagerHandler()
+    manageAndRunWidget.showAltRunControlHandler()
+}

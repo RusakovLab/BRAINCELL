@@ -1,0 +1,339 @@
+
+{ load_file("../Exported/InterModularSectionUtilsPart1_Exported.hoc") }
+{ load_file("../Exported/InterModularSectionUtilsPart2_Exported.hoc") }
+
+
+// Get the name of the currently accessed section (either object name or array name)
+// Here are some examples:
+//  "secName"                               -> "secName"
+//  "secArrName[12]"                        -> "secArrName"
+//  "secArrName[12][34]"                    -> "secArrName"
+//  "objArrName[12].secName"                -> "objArrName[12].secName"
+//  "objArrName[12][34].secName"            -> "objArrName[12][34].secName"
+//  "objArrName[12].secArrName[34]"         -> "objArrName[12].secArrName"
+//  "objArrName[12].secArrName[34][56]"     -> "objArrName[12].secArrName"
+//  "objArrName[12][34].secArrName[56]"     -> "objArrName[12][34].secArrName"
+//  "objArrName[12][34].secArrName[56][78]" -> "objArrName[12][34].secArrName"
+// $s1 (output) - The section name
+proc getCurrentSecName() {
+    strdef pyCommand
+    // !! for better performance, maybe don't use the regular expression here at all
+    //    or, at least, compile it once with re.compile and then reuse
+    sprint(pyCommand, "(exec('import re'), re.sub(r'(\\[\\d+\\])+$', '', '%s'))[1]", secname())
+    $s1 = pyObj.ev(pyCommand)
+}
+
+// Get names of all created sections (either object name or array name)
+// Returns List of String-s containing all unique names
+obfunc getAllSectionNames() { local isFound localobj secNamesHocList, secNamesPySet
+    strdef secName
+    
+    secNamesHocList = new List()
+    secNamesPySet = pyObj.set()
+    
+    forall {
+        getCurrentSecName(secName)
+        
+        // Check if we have found this name before
+        isFound = pyObj.isInPySet(secNamesPySet, secName)
+        
+        if (!isFound) {
+            secNamesHocList.append(new String(secName))
+            secNamesPySet.add(secName)
+        }
+    }
+    
+    return secNamesHocList
+}
+
+// !! not intermodular actually
+// !! see also: isAnyDisconSecsInList
+func isAnyDisconSecsInCell() { local dist
+    forall {
+        dist = distance(0)
+        if (isDisconnectedDistance(dist)) {
+            return 1    // No problem when we return from "forall"
+        }
+    }
+    return 0
+}
+
+// !! not intermodular actually
+// !! see also: isAnyDisconSecsInCell
+func isAnyDisconSecsInList() { local secIdx, dist localobj list_ref
+    list_ref = $o1
+    for secIdx = 0, list_ref.count - 1 {    // Don't use eachSecInList here because we return
+        list_ref.o(secIdx).sec {
+            dist = distance(0)
+        }
+        if (isDisconnectedDistance(dist)) {
+            return 1
+        }
+    }
+    return 0
+}
+
+// !! the range returned by this proc depends on the initial segmentation;
+//    do I need to apply some default segmentation before calling it?
+// !! not intermodular actually
+// !! see also: getDistRangeGivenSections, TapSet.getDistRange
+proc getMaxDistForCell() { local maxDist, x, dist
+    
+    maxDist = -1
+    
+    // We could check just 2 end points for each section for higher performance,
+    // but there is no guarantee that the distance centre was not placed somewhere in this compartment inside a section
+    forall {
+        for (x) {
+            dist = distance(x)
+            if (isDisconnectedDistance(dist)) {
+                continue
+            }
+            maxDist = math.max(maxDist, dist)
+        }
+    }
+    
+    if (maxDist == -1) {
+        codeContractViolation()
+    }
+    
+    $&1 = maxDist
+}
+
+// !! the range returned by this func depends on the initial segmentation;
+//    do I need to apply some default segmentation before calling it?
+// !! see also: getMaxDistForCell, TapSet.getDistRange
+func getDistRangeGivenSections() { local distMin, distMax, isDisconnected, x, dist localobj list_ref
+    
+    list_ref = $o1
+    
+    distMin = math.inf
+    distMax = -1
+    
+    isDisconnected = 0
+    // We could check just 2 end points for each section for higher performance,
+    // but there is no guarantee that the distance centre was not placed somewhere in this compartment inside a section
+    for eachSecInList(list_ref) {
+        for (x) {
+            dist = distance(x)
+            if (isDisconnectedDistance(dist)) {
+                isDisconnected = 1
+                break
+            }
+            math.updateMinMax(&distMin, &distMax, dist)
+        }
+    }
+    
+    if (isDisconnected) {
+        return 1
+    }
+    
+    $&2 = distMin
+    $&3 = distMax
+    
+    return 0
+}
+
+func isDisconnectedDistance() { local dist
+    dist = $1
+    return (dist == 1e20)   // NEURON docs read: "If a continuous path does not exist the return value is 1e20"
+}
+
+// For all sections from this SectionList, add corresponding SectionRef to the List
+// $o1 - The SectionList
+// $o2 - The List
+proc secListToListOfSecRef() { localobj secList, list_ref
+    secList = $o1
+    list_ref = $o2
+    forsec secList {
+        list_ref.append(new SectionRef())
+    }
+}
+
+obfunc listOfSecRefToSecList() { localobj list_ref, secList
+    list_ref = $o1
+    secList = new SectionList()
+    for eachSecInList(list_ref) {
+        secList.append()
+    }
+    return secList
+}
+
+func capDiam() {
+    // If user sets too small "diam" for a section, NEURON resets it to 1e-9 when user enters
+    //  Tools -> Distributed Mechanisms -> Viewers -> Shape Name
+    // and then double clicks on a section in the list.
+    // So we cap "diam" in advance just to avoid the unexpected behaviour later.
+    return math.max($1, 1e-9)
+}
+
+// Delete all sections
+// (The names remain declared and cannot be used for anything else than creating new sections and section arrays)
+proc deleteAllSections() {
+    forall {
+        delete_section()
+    }
+}
+
+// Check if the currently accessed section belongs to a dendrite
+// Input: usedNamesForDendrites (taken from the top level)
+// Returns: 0/1 flag
+func checkIfCurrentSecIsDendrite() { local idxOrMinus1
+    strdef secName
+    
+    getCurrentSecName(secName)
+    
+    // !! improve performance here using Set in Python
+    idxOrMinus1 = findItemInListByString(usedNamesForDendrites, secName)
+    
+    return (idxOrMinus1 != -1)
+}
+
+// For the current section and all its children subtree, take only those sections which are selectable, and add SectionRef-s to the List
+// $o1 - The List
+// $o2 - The plugin object that implements "isCurrentSectSelectable" predicate func
+proc addThisAndFilteredChildSecRefsToTheList() { localobj list_ref, in_plugin, secList
+    list_ref = $o1
+    in_plugin = $o2
+    
+    secList = new SectionList()
+    secList.subtree()
+    
+    forsec secList {
+        if (in_plugin.isCurrentSectSelectable()) {
+            list_ref.append(new SectionRef())
+        }
+    }
+}
+
+// For all duplicate sections, remove SectionRef-s from the List, so only one copy remains
+// $o1 - The List
+proc removeAllDupSecRefsFromTheList() { localobj list_ref, secList
+    list_ref = $o1
+    
+    secList = listOfSecRefToSecList(list_ref)
+    secList.unique()
+    
+    list_ref.remove_all()
+    secListToListOfSecRef(secList, list_ref)
+}
+
+// See also: eachSecInList
+iterator eachSecInListIfExists() { local secIdx, isReported localobj list_ref, sec_ref
+    list_ref = $o1
+    isReported = $&2
+    for secIdx = 0, list_ref.count - 1 {
+        sec_ref = list_ref.o(secIdx)
+        if (sec_ref.exists()) {
+            sec_ref.sec {
+                iterator_statement
+            }
+        } else if (!isReported) {
+            print "\n\n    Warning: Some deleted section(s) detected, so it's recommended to click \"Deep rescan\" in the Manager of Biophysics.\n"
+            isReported = 1
+        }
+    }
+    $&2 = isReported
+}
+
+iterator eachRandomlySeededSlotInSecList() { local numSlotsPerSec, isForcedSeedingAtEndOfEachSec, secIdx, slotIdx, connectionPoint, minSeedingDistance, controlFactor, invNormFactor localobj list_ref, seedingDensityHelper, randomSeeder
+    
+    list_ref = $o2
+    numSlotsPerSec = $3
+    seedingDensityHelper = $o4
+    randomSeeder = $o5
+    isForcedSeedingAtEndOfEachSec = $6  // Note: an attempt to read the top-level var "isAstrocyteOrNeuron" inside the iterator leads to Segmentation violation
+    
+    for secIdx = 0, list_ref.count - 1 {
+        list_ref.o(secIdx).sec {
+            for slotIdx = 0, numSlotsPerSec - 1 {
+                connectionPoint = slotIdx / numSlotsPerSec
+                minSeedingDistance = seedingDensityHelper.getMinSeedingDistance(connectionPoint)
+                controlFactor = minSeedingDistance * numSlotsPerSec
+                invNormFactor = L / controlFactor                       // !! this can be > 1
+                if (randomSeeder.uniform(0, 1) < invNormFactor) {       // !! use .repick() for performance
+                    $&1 = connectionPoint
+                    iterator_statement
+                }
+            }
+            if (isForcedSeedingAtEndOfEachSec) {
+                // Two more extra stalks to give astrocytes more fluff and volume
+                $&1 = 1
+                iterator_statement
+                iterator_statement
+            }
+        }
+    }
+}
+
+proc interpEachSegmCentreCoordsFromSec3DPointCoords_CalledFromPython() { localobj sec_ref, xSegm_vec, ySegm_vec, zSegm_vec
+    sec_ref = $o1
+    xSegm_vec = $o2
+    ySegm_vec = $o3
+    zSegm_vec = $o4
+    
+    sec_ref.sec {
+        interpEachSegmCentreCoordsFromSec3DPointCoords(xSegm_vec, ySegm_vec, zSegm_vec)
+    }
+}
+
+// This proc can be implemented in different ways depending on what we consider to be the "soma coordinates".
+// In alternative implementations, we can:
+//  * analyze all the points in somaSec_ref.sec
+//  * analyze all the sections in soma
+//  * take only one middle point
+//  * calculate the centre of mass (as a weighted sum using diam-s as weight factors)
+// etc.
+// !! see also: FrapUtils.getSecCentreCoords
+proc getSomaSecCentreCoords() { local n localobj somaSec_ref
+    somaSec_ref = $o1
+    somaSec_ref.sec {
+        n = n3d()
+        $&2 = (x3d(0) + x3d(n - 1)) / 2
+        $&3 = (y3d(0) + y3d(n - 1)) / 2
+        $&4 = (z3d(0) + z3d(n - 1)) / 2
+    }
+}
+
+// !! BUG: this doesn't move the cell in case when somaSec_ref is not the topological root;
+//         try to reuse "getNamesOfAllTopologicalRoots" from the Import module and operate on the root sections
+proc setSomaSecCentreCoords() { local x_soma, y_soma, z_soma, x_soma_old, y_soma_old, z_soma_old, n, idx, delta_x, delta_y, delta_z localobj somaSec_ref, x_vec, y_vec, z_vec, diam_vec
+    
+    somaSec_ref = $o1
+    x_soma = $2
+    y_soma = $3
+    z_soma = $4
+    
+    // !! would it make sense to cache them rather than calculate each time?
+    getSomaSecCentreCoords(somaSec_ref, &x_soma_old, &y_soma_old, &z_soma_old)
+    
+    somaSec_ref.sec {
+        n = n3d()
+        
+        x_vec = new Vector(n)
+        y_vec = new Vector(n)
+        z_vec = new Vector(n)
+        diam_vec = new Vector(n)
+        
+        for idx = 0, n - 1 {
+            x_vec.x(idx) = x3d(idx)
+            y_vec.x(idx) = y3d(idx)
+            z_vec.x(idx) = z3d(idx)
+            diam_vec.x(idx) = diam3d(idx)
+        }
+        
+        delta_x = x_soma - x_soma_old
+        delta_y = y_soma - y_soma_old
+        delta_z = z_soma - z_soma_old
+        
+        pt3dclear()
+        for idx = 0, n - 1 {
+            pt3dadd(x_vec.x(idx) + delta_x, y_vec.x(idx) + delta_y, z_vec.x(idx) + delta_z, diam_vec.x(idx))
+        }
+        
+        // !! is there any better way to move the cell in NEURON or, at least,
+        //    can I use "pt3dchange" instead of "pt3dclear" + "pt3dadd"?
+        //    to improve the current approach a bit, I can find the section with the minimum number of 3D points
+        //    and use it instead of soma_ref.o(0).sec
+    }
+}

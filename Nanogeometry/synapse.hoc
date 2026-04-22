@@ -1,0 +1,3556 @@
+//////////////////// Table of contents ///////////////////////////////////
+/*
+    Line 39:            Version info
+    Line 56:            Params
+    Line 66:            Utils
+    Line 268:           Prerequisites
+    Line 309:           Sections
+    Line 313:           Extra cells
+    Line 370:           Imported section names
+    Line 398:           Section references
+    Line 452:           Topology
+    Line 468:           Geometry, nseg, Ra
+    Line 562:           Distance centre
+    Line 571:           DLL check, "Import & Edit" measures
+    Line 806:           Inhom and stoch library
+    Line 1391:          Dist funcs
+    Line 1562:          Biophys: Compartments
+    Line 1728:          Biophys: Homogen vars
+    Line 1939:          Biophys: Homogen vars
+    Line 2154:          Biophys: Inhom vars
+    Line 2177:          Templates for taps
+    Line 2293:          Templates for gap juncs
+    Line 2603:          GJ set #1: Locations
+    Line 2666:          GJ set #1: Compartments
+    Line 2675:          GJ set #1: Homogen vars
+    Line 2703:          GJ set #1: "Import & Edit" measures
+    Line 2711:          GJ set #1: Main part
+    Line 2723:          Templates for synapses
+    Line 3421:          Syn set #1: Locations
+    Line 3428:          Syn set #1: Compartments
+    Line 3438:          Syn set #1: Homogen vars
+    Line 3492:          Syn set #1: "Import & Edit" measures
+    Line 3507:          Syn set #1: Main part
+    Line 3519:          Cleanup
+    Line 3547:          APCount-s
+*/
+//////////////////////////////////////////////////////////////////////////
+
+//////////////////// Start of version info ///////////////////////////////
+/*
+    This HOC file was generated using:
+      * BrainCell version: 2.0
+      * NEURON version:    8.2.3
+      * Python version:    3.11.5
+*/
+//////////////////// End of version info /////////////////////////////////
+
+if (unix_mac_pc() == 1) {
+    load_file("stdrun.hoc")
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+isAstrocyteOrNeuron = 0
+
+//////////////////// Start of params /////////////////////////////////////
+
+celsius = 34.0    // (degC)
+v_init = -64.65    // (mV)
+tstop = 100.0    // (ms)
+dt = 0.1    // (ms)
+steps_per_ms = 10.0
+
+//////////////////// End of params ///////////////////////////////////////
+
+//////////////////// Start of utils //////////////////////////////////////
+
+objref nil
+
+// Print the message, print the call stack, raise the error
+// $s1 - The message
+proc printMsgAndRaiseError() {
+    strdef msg
+    sprint(msg, "\n\n    %s\n", $s1)
+    execerror(msg)
+}
+
+// Print "Not implemented" message, print the call stack, raise the error
+proc printNotImplementedMsgAndRaiseError() {
+    strdef msg1, msg2
+    sprint(msg1, "\n\n    %s", $s1)
+    msg2 = "\n    Not implemented.\n    If required, please ask the developer to prioritize.\n"
+    execerror(msg1, msg2)
+}
+
+// Report the bug, print the call stack, raise the error
+proc codeContractViolation() {
+    execerror("\n\n    Bug in BrainCell program: Code contract violation", "\n    Please report this problem to the developer along with the call stack shown below\n")
+}
+
+// An iterator to simplify looping over all elements of the List a bit.
+// Basically, we replace this:
+//     local idx localobj item
+//     for idx = 0, list.count() - 1 {
+//         item = list.o(idx)
+//         do_smth(item)
+//     }
+// with this:
+//     localobj item
+//     for eachItemInList(item, list) {
+//         do_smth(item)
+//     }
+// There are some limitations:
+//  1. iterator_statement cannot contain "return" (otherwise we'll catch Segmentation violation)
+//  2. We cannot create another iterator which calls eachItemInList inside (otherwise the outer iterator "forgets" its input arguments on 2nd iteration)
+// Also, calling "execerror" inside the iterator crashes NEURON
+// $o1 (output) - An element of the List
+// $o2 - The List
+// $3 (optional) - The first index (0 by default)
+iterator eachItemInList() { local numArg, firstIdx, idx localobj list
+    list = $o2
+    numArg = numarg()
+    if (numArg == 2) {
+        firstIdx = 0
+    } else if (numArg == 3) {
+        firstIdx = $3
+    } else {
+        codeContractViolation()
+    }
+    for idx = firstIdx, list.count() - 1 {
+        $o1 = list.o(idx)
+        iterator_statement
+    }
+}
+
+
+// See also: eachSecInList, eachSegmInSecList
+
+// Check if given string is empty
+// $s1 - The string
+// Returns 0/1 flag
+func stringEmpty() { localobj strFuncs
+    strFuncs = new StringFunctions()
+    return strFuncs.len($s1) == 0
+}
+
+// Check if given two strings are equal
+// $s1 - The first string
+// $s2 - The second string
+// Returns 0/1 flag
+func stringsEqual() {
+    return strcmp($s1, $s2) == 0
+}
+
+// Create a List of SectionRef-s containing references to all the sections given name or regex
+// $s1 - The name or regex
+// $2 - 0/1 flag indicating whether to look for top-level sections or the sections owned by objects (template instances)
+// Returns: The List of SectionRef-s
+obfunc createListOfSectionRefs() { local isOwnedByObjects localobj list_ref
+    strdef secNameOrRegex
+    
+    secNameOrRegex = $s1
+    isOwnedByObjects = $2
+    
+    if (isOwnedByObjects) {
+        sprint(secNameOrRegex, ".*].%s", secNameOrRegex)
+        // !! the format string ".*]\\.%s" looks more correct (using "verbatim" dot instead of "any char" dot), but doesn't work for unknown reason
+        //    the format string ".*]\.%s" doesn't look correct even though works fine (perhaps the unknown escape sequence "\." is interpreted as ".")
+    }
+    
+    list_ref = new List()
+    
+    // forsec secNameOrRegex {                  // - These two don't require that match must start at the beginning of the string
+    // forall ifsec secNameOrRegex {            // /
+    forall if (issection(secNameOrRegex)) {     // - This does
+        list_ref.append(new SectionRef())
+    }
+    
+    return list_ref
+}
+
+// Be careful using this iterator after plotShape.push_selected() or in "forsec" block to avoid this error:
+//  "The sectionstack index should be 1 but it is 2"
+// (!! need to investigate what exactly causes the error)
+// See also: eachSecInListIfExists
+iterator eachSecInList() { local numArg, i, secIdx localobj list_ref
+    numArg = numarg()
+    for i = 1, numArg {
+        list_ref = $oi
+        // Don't replace with eachItemInList to avoid Segmentation violation
+        for secIdx = 0, list_ref.count() - 1 {
+            list_ref.o(secIdx).sec {
+                iterator_statement
+            }
+        }
+    }
+}
+
+// Be careful using this iterator after plotShape.push_selected() or in "forsec" block to avoid this error:
+//  "The sectionstack index should be 1 but it is 2"
+// (!! need to investigate what exactly causes the error)
+iterator eachSegmInSecList() { local secIdx, x localobj list_ref
+    list_ref = $o2
+    // Don't replace with eachItemInList or eachSecInList to avoid Segmentation violation
+    for secIdx = 0, list_ref.count() - 1 {
+        list_ref.o(secIdx).sec {
+            for (x, 0) {
+                $&1 = x
+                iterator_statement
+            }
+        }
+    }
+}
+
+func makeSureDeclared() { local numArg, isCustomDeclaration, i localobj hocCommandTempls
+    strdef name, hocCommand
+    
+    numArg = numarg()
+    
+    if (numArg == 0) {
+        codeContractViolation()
+    }
+    
+    name = $s1
+    if (name_declared(name)) {
+        return 1
+    }
+    
+    isCustomDeclaration = (numArg > 1)
+    
+    hocCommandTempls = new List()
+    if (!isCustomDeclaration) {
+        hocCommandTempls.append(new String("objref %s"))
+    } else {
+        for i = 2, numArg {
+            hocCommandTempls.append(new String($si))
+        }
+    }
+    
+    for i = 0, hocCommandTempls.count() - 1 {
+        sprint(hocCommand, hocCommandTempls.o(i).s, name)
+        // execute(hocCommand)  // This works for objref, but doesn't work for iterator
+        execute1(hocCommand)    // This works for both objref and iterator
+    }
+    
+    return 0
+}
+
+begintemplate ReducedBasicMath
+
+    public inf, nan
+    public max, isNaN
+    
+    inf = -1
+    nan = -1
+    
+    proc init() {
+        sscanf("inf", "%f", &inf)
+        sscanf("nan", "%f", &nan)
+    }
+    
+    func max() {
+        if ($1 > $2) {
+            return $1
+        } else {
+            return $2
+        }
+    }
+    
+    func isNaN() {
+        return !($1 == $1)  // Do not replace with "!="
+    }
+    
+endtemplate ReducedBasicMath
+
+//////////////////// End of utils ////////////////////////////////////////
+
+//////////////////// Start of prerequisites //////////////////////////////
+
+if (!nrnpython("")) {
+    printMsgAndRaiseError("Sorry, this HOC file requires Python for some operations. Please install Python.")
+}
+
+objref pyObj
+pyObj = new PythonObject()
+
+{ nrnpython("ev = lambda arg : eval(arg)") }
+
+
+proc _callPythonStringFunc() { local status
+    strdef inStr, pyStringFunc, pyCommand
+    
+    inStr = $s1
+    pyStringFunc = $s2
+    
+    sprint(pyCommand, "pyRes = '%s'.%s", inStr, pyStringFunc)
+    status = nrnpython(pyCommand)
+    if (!status) {
+        // !! printPythonErrMsgAndStop
+        printMsgAndRaiseError("Exception raised in Python code (caught in _callPythonStringFunc)")
+    }
+}
+
+// Check if the given string starts with the given prefix
+// $s1 - The tested string
+// $s2 - The prefix
+// Returns 0/1 flag
+func stringStartsWith() {
+    strdef inStr, inPrefix, pyMembCall
+    inStr = $s1
+    inPrefix = $s2
+    sprint(pyMembCall, "startswith('%s')", inPrefix)
+    _callPythonStringFunc(inStr, pyMembCall)
+    return pyObj.pyRes
+}
+
+//////////////////// End of prerequisites ////////////////////////////////
+
+//////////////////// Start of sections ///////////////////////////////////
+
+create s1_0, s1_1, s1_2, s1_3, s1_4, s1_5, s1_6, s1_7, d1, ax
+
+//////////////////// Start of extra cells ////////////////////////////////
+
+load_file("import3d.hoc")
+{ makeSureDeclared("isLoadedFromMainProgram", "isLoadedFromMainProgram = 0") }
+{ if (!name_declared("EXTRA_CELL_1")) execute("objref EXTRA_CELL_1") }
+{ if (!name_declared("EXTRA_CELL_2")) execute("objref EXTRA_CELL_2") }
+{ if (!name_declared("EXTRA_CELL_3")) execute("objref EXTRA_CELL_3") }
+// Re-instantiate extra cells -- skipped when loaded from BrainCell (cells already exist)
+if (!isLoadedFromMainProgram) {
+    { nrnpython("import sys, os; _d = os.path.join(os.getcwd(), 'synapse'); sys.path.insert(0, _d) if _d not in sys.path else None") }
+    { nrnpython("from ExtraCell import ExtraCell") }
+    strdef _swcPath
+
+    // Extra cell 1: D:/GitHubRusakovLab/BrainCellDevelopment/Nanogeometry/synapse/extra_cell_1_Cell2_Geometry.swc
+    { makeSureDeclared("EXTRA_CELL_1", "objref EXTRA_CELL_1") }
+    { nrnpython("from neuron import h; import os; _abs = 'D:/GitHubRusakovLab/BrainCellDevelopment/Nanogeometry/synapse/extra_cell_1_Cell2_Geometry.swc'; _rel = os.path.join(os.getcwd(), 'synapse', 'extra_cell_1_Cell2_Geometry.swc'); _rel2 = os.path.join(os.path.dirname(os.getcwd()), 'synapse', 'extra_cell_1_Cell2_Geometry.swc'); h._swcPath = _abs if os.path.exists(_abs) else (_rel if os.path.exists(_rel) else _rel2)") }
+    { EXTRA_CELL_1 = pyObj.ExtraCell(_swcPath, "D:/GitHubRusakovLab/BrainCellDevelopment/_Code/Import/temp_folder", "EXTRA_CELL_1") }
+    // Apply spatial position: (1.9999999403953552, 0.0, 0.0)
+    { nrnpython("from neuron import h; _ec = h.EXTRA_CELL_1; _root = next(sr.sec for sr in _ec.list_ref if not h.SectionRef(sec=sr.sec).has_parent()); _n = _root.n3d(); _cx = (_root.x3d(0) + _root.x3d(_n-1)) / 2; _cy = (_root.y3d(0) + _root.y3d(_n-1)) / 2; _cz = (_root.z3d(0) + _root.z3d(_n-1)) / 2; _dx = 1.9999999403953552-_cx; _dy = 0.0-_cy; _dz = 0.0-_cz; [s.pt3dchange(i, s.x3d(i)+_dx, s.y3d(i)+_dy, s.z3d(i)+_dz, s.diam3d(i)) for sr in _ec.list_ref for s in [sr.sec] for i in range(s.n3d())]") }
+
+    // Extra cell 2: D:/GitHubRusakovLab/BrainCellDevelopment/Nanogeometry/synapse/extra_cell_2_Cell3_Geometry.swc
+    { makeSureDeclared("EXTRA_CELL_2", "objref EXTRA_CELL_2") }
+    { nrnpython("from neuron import h; import os; _abs = 'D:/GitHubRusakovLab/BrainCellDevelopment/Nanogeometry/synapse/extra_cell_2_Cell3_Geometry.swc'; _rel = os.path.join(os.getcwd(), 'synapse', 'extra_cell_2_Cell3_Geometry.swc'); _rel2 = os.path.join(os.path.dirname(os.getcwd()), 'synapse', 'extra_cell_2_Cell3_Geometry.swc'); h._swcPath = _abs if os.path.exists(_abs) else (_rel if os.path.exists(_rel) else _rel2)") }
+    { EXTRA_CELL_2 = pyObj.ExtraCell(_swcPath, "D:/GitHubRusakovLab/BrainCellDevelopment/_Code/Import/temp_folder", "EXTRA_CELL_2") }
+    // Apply spatial position: (1.300000011920929, 1.0, 0.0)
+    { nrnpython("from neuron import h; _ec = h.EXTRA_CELL_2; _root = next(sr.sec for sr in _ec.list_ref if not h.SectionRef(sec=sr.sec).has_parent()); _n = _root.n3d(); _cx = (_root.x3d(0) + _root.x3d(_n-1)) / 2; _cy = (_root.y3d(0) + _root.y3d(_n-1)) / 2; _cz = (_root.z3d(0) + _root.z3d(_n-1)) / 2; _dx = 1.300000011920929-_cx; _dy = 1.0-_cy; _dz = 0.0-_cz; [s.pt3dchange(i, s.x3d(i)+_dx, s.y3d(i)+_dy, s.z3d(i)+_dz, s.diam3d(i)) for sr in _ec.list_ref for s in [sr.sec] for i in range(s.n3d())]") }
+
+    // Extra cell 3: D:/GitHubRusakovLab/BrainCellDevelopment/Nanogeometry/synapse/extra_cell_3_Cell3_Geometry.swc
+    { makeSureDeclared("EXTRA_CELL_3", "objref EXTRA_CELL_3") }
+    { nrnpython("from neuron import h; import os; _abs = 'D:/GitHubRusakovLab/BrainCellDevelopment/Nanogeometry/synapse/extra_cell_3_Cell3_Geometry.swc'; _rel = os.path.join(os.getcwd(), 'synapse', 'extra_cell_3_Cell3_Geometry.swc'); _rel2 = os.path.join(os.path.dirname(os.getcwd()), 'synapse', 'extra_cell_3_Cell3_Geometry.swc'); h._swcPath = _abs if os.path.exists(_abs) else (_rel if os.path.exists(_rel) else _rel2)") }
+    { EXTRA_CELL_3 = pyObj.ExtraCell(_swcPath, "D:/GitHubRusakovLab/BrainCellDevelopment/_Code/Import/temp_folder", "EXTRA_CELL_3") }
+    // Apply spatial position: (1.300000011920929, -1.0, 0.0)
+    { nrnpython("from neuron import h; _ec = h.EXTRA_CELL_3; _root = next(sr.sec for sr in _ec.list_ref if not h.SectionRef(sec=sr.sec).has_parent()); _n = _root.n3d(); _cx = (_root.x3d(0) + _root.x3d(_n-1)) / 2; _cy = (_root.y3d(0) + _root.y3d(_n-1)) / 2; _cz = (_root.z3d(0) + _root.z3d(_n-1)) / 2; _dx = 1.300000011920929-_cx; _dy = -1.0-_cy; _dz = 0.0-_cz; [s.pt3dchange(i, s.x3d(i)+_dx, s.y3d(i)+_dy, s.z3d(i)+_dz, s.diam3d(i)) for sr in _ec.list_ref for s in [sr.sec] for i in range(s.n3d())]") }
+}
+
+//////////////////// End of extra cells //////////////////////////////////
+
+ NumberDendrites = 1
+NumberNanoBranches = 1
+
+begintemplate NeuronNanoBranch
+    public spine_neck, spine_head
+    create spine_neck, spine_head
+endtemplate NeuronNanoBranch
+
+if (NumberNanoBranches != 0) {
+    objref neuronNanoBranch[NumberNanoBranches]
+} else {
+    objref neuronNanoBranch[1]
+}
+
+for idx = 0, NumberNanoBranches - 1 {
+    neuronNanoBranch[idx] = new NeuronNanoBranch()
+}
+
+//////////////////// End of sections /////////////////////////////////////
+
+//////////////////// Start of imported section names /////////////////////
+
+// These names are stored here just to be able to import this file back into the main program and then export again
+
+// Soma
+objref usedNamesForSoma
+usedNamesForSoma = new List()
+{ usedNamesForSoma.append(new String("s1_0")) }
+{ usedNamesForSoma.append(new String("s1_1")) }
+{ usedNamesForSoma.append(new String("s1_2")) }
+{ usedNamesForSoma.append(new String("s1_3")) }
+{ usedNamesForSoma.append(new String("s1_4")) }
+{ usedNamesForSoma.append(new String("s1_5")) }
+{ usedNamesForSoma.append(new String("s1_6")) }
+{ usedNamesForSoma.append(new String("s1_7")) }
+
+// Dendrites
+objref usedNamesForDendrites
+usedNamesForDendrites = new List()
+{ usedNamesForDendrites.append(new String("d1")) }
+
+// Axon
+objref usedNamesForAxon
+usedNamesForAxon = new List()
+{ usedNamesForAxon.append(new String("ax")) }
+
+//////////////////// End of imported section names ///////////////////////
+
+//////////////////// Start of section references /////////////////////////
+
+// dendrite_ref and axon_ref are not used in this file, but required to import it back into the main program
+objref soma_ref, dendrite_ref, axon_ref
+
+// Soma
+soma_ref = new List()
+s1_0 soma_ref.append(new SectionRef())
+s1_1 soma_ref.append(new SectionRef())
+s1_2 soma_ref.append(new SectionRef())
+s1_3 soma_ref.append(new SectionRef())
+s1_4 soma_ref.append(new SectionRef())
+s1_5 soma_ref.append(new SectionRef())
+s1_6 soma_ref.append(new SectionRef())
+s1_7 soma_ref.append(new SectionRef())
+
+// Dendrites
+dendrite_ref = new List()
+d1 dendrite_ref.append(new SectionRef())
+
+// Axon
+axon_ref = new List()
+ax axon_ref.append(new SectionRef())
+
+// Nanogeometry
+
+// Two List-s of SectionRef containing references to all the sections of nano geometry
+objref nanoProximal_ref, nanoDistal_ref
+
+// Create two List-s of SectionRef containing references to all the sections of nano geometry
+// Input: isAstrocyteOrNeuron (taken from the top level)
+// Output: nanoProximal_ref, nanoDistal_ref (initialized on the top level)
+// !! deprecated: collect the references when creating sections rather than search for sections with regex afterwards
+proc createRefsForNanoGeometry_deprecated() {
+    nanoProximal_ref = new List()
+    nanoDistal_ref = new List()
+    
+    if (isAstrocyteOrNeuron) {
+        nanoProximal_ref = createListOfSectionRefs("SmallGlia[.*", 1)
+        nanoDistal_ref = createListOfSectionRefs("LargeGlia[.*", 1)
+    } else {
+        nanoProximal_ref = createListOfSectionRefs("spine_neck", 1)
+        nanoDistal_ref = createListOfSectionRefs("spine_head", 1)
+    }
+    
+    if (nanoProximal_ref.count() != nanoDistal_ref.count()) {
+        codeContractViolation()
+    }
+}
+
+createRefsForNanoGeometry_deprecated()
+
+//////////////////// End of section references ///////////////////////////
+
+//////////////////// Start of topology ///////////////////////////////////
+
+s1_0 connect s1_1(0.0), 1.0
+s1_1 connect s1_2(0.0), 1.0
+s1_2 connect s1_3(0.0), 1.0
+s1_3 connect s1_4(0.0), 1.0
+s1_4 connect s1_5(0.0), 1.0
+s1_5 connect s1_6(0.0), 1.0
+s1_6 connect s1_7(0.0), 1.0
+s1_0 connect d1(0.0), 1.0
+s1_0 connect ax(0.0), 1.0
+d1 connect NeuronNanoBranch[0].spine_neck(0.0), 1.0
+NeuronNanoBranch[0].spine_neck connect NeuronNanoBranch[0].spine_head(0.0), 1.0
+
+//////////////////// End of topology /////////////////////////////////////
+
+//////////////////// Start of geometry, nseg, Ra /////////////////////////
+
+s1_0 {
+    pt3dclear()
+    pt3dadd(0.0, 0.0, 0.0, 1.836909530733566e-16)
+    pt3dadd(0.1875, 0.0, 0.0, 1.148050308227539)
+    nseg = 5
+    Ra = 100.0
+}
+s1_1 {
+    pt3dclear()
+    pt3dadd(0.1875, 0.0, 0.0, 1.148050308227539)
+    pt3dadd(0.375, 0.0, 0.0, 2.1213202476501465)
+    nseg = 5
+    Ra = 100.0
+}
+s1_2 {
+    pt3dclear()
+    pt3dadd(0.375, 0.0, 0.0, 2.1213202476501465)
+    pt3dadd(0.5625, 0.0, 0.0, 2.7716386318206787)
+    nseg = 5
+    Ra = 100.0
+}
+s1_3 {
+    pt3dclear()
+    pt3dadd(0.5625, 0.0, 0.0, 2.7716386318206787)
+    pt3dadd(0.75, 0.0, 0.0, 3.0)
+    nseg = 5
+    Ra = 100.0
+}
+s1_4 {
+    pt3dclear()
+    pt3dadd(0.75, 0.0, 0.0, 3.0)
+    pt3dadd(0.9375, 0.0, 0.0, 2.7716386318206787)
+    nseg = 5
+    Ra = 100.0
+}
+s1_5 {
+    pt3dclear()
+    pt3dadd(0.9375, 0.0, 0.0, 2.7716386318206787)
+    pt3dadd(1.125, 0.0, 0.0, 2.1213202476501465)
+    nseg = 5
+    Ra = 100.0
+}
+s1_6 {
+    pt3dclear()
+    pt3dadd(1.125, 0.0, 0.0, 2.1213202476501465)
+    pt3dadd(1.3125, 0.0, 0.0, 1.148050308227539)
+    nseg = 5
+    Ra = 100.0
+}
+s1_7 {
+    pt3dclear()
+    pt3dadd(1.3125, 0.0, 0.0, 1.148050308227539)
+    pt3dadd(1.5, 0.0, 0.0, 1.836909530733566e-16)
+    nseg = 5
+    Ra = 100.0
+}
+d1 {
+    pt3dclear()
+    pt3dadd(0.1875, 0.0, 0.0, 0.30000001192092896)
+    pt3dadd(-2.8125, 0.0, 0.029999999329447746, 0.30000001192092896)
+    nseg = 10
+    Ra = 100.0
+}
+ax {
+    pt3dclear()
+    pt3dadd(0.1875, 0.0, 0.0, 0.009999999776482582)
+    pt3dadd(0.19210530817508698, -0.0019470916595309973, 0.0, 0.009999999776482582)
+    pt3dadd(0.19671061635017395, -0.0038941833190619946, 0.0, 0.009999999776482582)
+    Ra = 150.0
+}
+NeuronNanoBranch[0].spine_neck {
+    pt3dclear()
+    pt3dadd(-2.8125, 0.0, 0.029999999329447746, 0.5998328328132629)
+    pt3dadd(-2.8125, 0.3708733022212982, 0.029999999329447746, 0.5998328328132629)
+    nseg = 2
+    Ra = 150.0
+}
+NeuronNanoBranch[0].spine_head {
+    pt3dclear()
+    pt3dadd(-2.8125, 0.3708733022212982, 0.029999999329447746, 0.5998328328132629)
+    pt3dadd(-2.8125, 0.30420663952827454, 0.029999999329447746, 0.5998328328132629)
+    pt3dadd(-2.8125, 0.23753997683525085, 0.029999999329447746, 0.5998328328132629)
+    pt3dadd(-2.8125, 0.17087331414222717, 0.029999999329447746, 0.5998328328132629)
+    pt3dadd(-2.8125, 0.10420665144920349, 0.029999999329447746, 0.5998328328132629)
+    pt3dadd(-2.8125, 0.03753998875617981, 0.029999999329447746, 0.5998328328132629)
+    pt3dadd(-2.8125, -0.029126673936843872, 0.029999999329447746, 0.5998328328132629)
+    nseg = 7
+    Ra = 150.0
+}
+
+//////////////////// End of geometry, nseg, Ra ///////////////////////////
+
+//////////////////// Start of distance centre ////////////////////////////
+
+// !! BUG: hardcoded rather than exported
+
+// The distance centre
+soma_ref.o(0).sec distance()
+
+//////////////////// End of distance centre //////////////////////////////
+
+//////////////////// Start of DLL check, "Import & Edit" measures ////////
+
+isLoadedFromMainProgram = 1
+{ makeSureDeclared("isBaseOrNanoStart", "isLoadedFromMainProgram = 0") }
+
+{ makeSureDeclared("mechsDllUtils") }
+
+strdef libErrMsg, libFileName
+libErrMsg = "Please make sure the correct file \"nrnmech.dll\" is present in the same folder with this HOC file."
+libFileName = "nrnmech.dll"
+if (isLoadedFromMainProgram) {
+    mechsDllUtils.ifMissingInThisFolderThenLoadDefaultMechsDllDependingOnCellType()
+} else {
+    platformId = unix_mac_pc()
+    if (platformId == 1) {
+        // Assuming NSG supercomputer environment
+        libErrMsg = "Please make sure the file \"x86_64/.libs/libnrnmech.so\" was built successfully."
+        libFileName = "libnrnmech.so"
+    } else if (platformId == 3) {
+        // Assuming desktop environment (empty by design)
+    } else {
+        codeContractViolation()
+    }
+}
+
+// In contrast to MechTypeHelper, here we check for missing mechs and vars in the local DLL/SO library
+begintemplate ReducedMechTypeHelper
+
+    public checkForMissingMechs, getMechIdx, getVarIdx, getVarNameWithIndex, isWeightNetConVar, createMechStd
+    
+    external isAstrocyteOrNeuron, libErrMsg, libFileName
+    external stringsEqual, printMsgAndRaiseError, codeContractViolation
+    external eachItemInList
+    
+    strdef weightVarName
+    
+    objref mechTypes[1]
+    
+    objref this
+    
+    
+    proc init() { local mechTypeIdx
+        // This NetCon var requires some special logic when the release probability mechanics is enabled
+        weightVarName = "weight"
+        
+        objref mechTypes[2]         // 0: "Distributed Membrane Mechanisms", 1: "Point Processes"
+        for mechTypeIdx = 0, 1 {    //
+            mechTypes[mechTypeIdx] = new MechanismType(mechTypeIdx)
+        }
+    }
+    
+    func checkForMissingMechs() { local enumDmPp, numArgs, i, isAnyMissing localobj notFoundExpMechNames, mechType, expMechNameStr
+        strdef what
+        
+        enumDmPp = $1
+        if (enumDmPp == 2) {
+            codeContractViolation()
+        }
+        
+        numArgs = numarg()
+        
+        notFoundExpMechNames = new List()
+        
+        mechType = mechTypes[enumDmPp]
+        // !! it would be better to use Python's set here because:
+        //    (a) MechanismType.select has O(n) complexity (see \nrn-master\src\nrniv\nrnmenu.cpp -> MechanismType::select)
+        //    (b) "mechType.select(-1)" behaviour is undocumented
+        for i = 2, numArgs {
+            mechType.select(-1)
+            mechType.select($si)
+            if (mechType.selected() == -1) {
+                notFoundExpMechNames.append(new String($si))
+            }
+        }
+        
+        isAnyMissing = (notFoundExpMechNames.count() != 0)
+        if (isAnyMissing) {
+            if (enumDmPp == 0) {
+                what = "membrane mech(s)"
+            } else {
+                what = "point process(es)"
+            }
+            printf("\n\n    The following %s are used by this HOC file, but missing in \"%s\":\n\n", what, libFileName)
+            for eachItemInList(expMechNameStr, notFoundExpMechNames) {
+                printf("        * %s\n", expMechNameStr.s)
+            }
+        }
+        
+        return isAnyMissing
+    }
+    
+    // We never hardcode mechIdx in this exported HOC file, but instead stick to mechName and convert it to mechIdx with this func given local DLL/SO library
+    // Keep in sync with MechTypeHelper.getMechIdx
+    func getMechIdx() { local enumDmPpFk localobj mechType
+        strdef mechName
+        enumDmPpFk = $1
+        mechName = $s2
+        if (enumDmPpFk != 2) {
+            mechType = mechTypes[enumDmPpFk]
+            mechType.select(mechName)
+            return mechType.selected()
+        } else {
+            if (stringsEqual(mechName, "External Value")) {     // !! keep in sync with utils4FakeMech4GapJuncExtValue.mechName and .mechIdx
+                return 0                                        //
+            } else if (stringsEqual(mechName, "NetCon")) {  // !! keep in sync with utils4FakeMech4SynNetCon.mechName and .mechIdx
+                return 1                                    //
+            } else {
+                codeContractViolation()
+            }
+        }
+    }
+    
+    // We never hardcode varIdx in this exported HOC file, but instead stick to varName and convert it to varIdx with this func given local DLL/SO library
+    func getVarIdx() { local enumDmPpFk, varType, mechIdx, numVars, varIdx localobj mechStd
+        strdef mechName, varName, thisVarName, varTypeName
+        
+        enumDmPpFk = $1
+        mechName = $s2
+        varType = $3
+        varName = $s4
+        
+        // !! maybe create a Python dict in ctor and use it here for performance
+        mechIdx = getMechIdx(enumDmPpFk, mechName)
+        mechStd = createMechStd(enumDmPpFk, mechIdx, varType)
+        numVars = mechStd.count
+        for varIdx = 0, numVars - 1 {
+            mechStd.name(thisVarName, varIdx)
+            if (stringsEqual(varName, thisVarName)) {
+                break
+            }
+        }
+        if (varIdx == numVars) {
+            getVarTypeName(varType, varTypeName)
+            // !! two imperfections here:
+            //    1. this msg is printed for inhom and stoch vars only;
+            //       as for homogen vars, we hit an error in MechanismStandard.set with less clear msg: "{varName} not in this property"
+            //    2. in contrast to the missing mech names (see checkForMissingMechs), we report only the first missing var name
+            printf("\n\n    The following var is used by this HOC file, but the mech defined in \"%s\" doesn't have it:\n\n        \"%s \\ %s \\ %s\"\n\n\n", libFileName, mechName, varTypeName, varName)
+            printMsgAndRaiseError(libErrMsg)
+        }
+        
+        return varIdx
+    }
+    
+    // Keep in sync with MechTypeHelper.getVarNameWithIndex
+    proc getVarNameWithIndex() { local arraySize, arrayIndex
+        strdef varName
+        varName = $s1
+        arraySize = $2
+        arrayIndex = $3
+        if (arraySize == 1) {
+            $s4 = varName
+        } else {
+            sprint($s4, "%s[%d]", varName, arrayIndex)
+        }
+    }
+    
+    func isWeightNetConVar() {
+        strdef varName
+        varName = $s1
+        return stringsEqual(varName, weightVarName)
+    }
+    
+    objref _fms
+    
+    obfunc createMechStd() { local enumDmPpFk, mechIdx, varType, mechTypeIdx localobj mechType, fms, nil
+        strdef mechName, templName, hocCommand
+        
+        enumDmPpFk = $1
+        mechIdx = $2
+        varType = $3
+        
+        if (enumDmPpFk != 2) {
+            mechTypeIdx = enumDmPpFk    // 0: "Distributed Membrane Mechanisms", 1: "Point Processes"
+            mechType = new MechanismType(mechTypeIdx)
+            mechType.select(mechIdx)
+            mechType.selected(mechName)
+            return new MechanismStandard(mechName, varType)
+        } else {
+            if (mechIdx == 0) {         // !! keep in sync with utils4FakeMech4GapJuncExtValue.mechIdx
+                templName = "FakeMechanismStandardForExtValue"
+            } else if (mechIdx == 1) {  // !! keep in sync with utils4FakeMech4SynNetCon.mechIdx
+                templName = "FakeMechanismStandardForNetCon"
+            } else {
+                codeContractViolation()
+            }
+            sprint(hocCommand, "_fms = new %s()", templName)
+            execute(hocCommand, this)
+            fms = _fms
+            _fms = nil
+            return fms
+        }
+    }
+    
+    // All next staff is private
+    
+    
+    // Keep in sync with MechTypeHelper.getVarTypeName
+    proc getVarTypeName() { local varType
+        varType = $1
+        
+        if (varType == 1) {
+            $s2 = "PARAMETER"
+        } else if (varType == 2) {
+            $s2 = "ASSIGNED"
+        } else if (varType == 3) {
+            $s2 = "STATE"
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+endtemplate ReducedMechTypeHelper
+
+objref mth
+mth = new ReducedMechTypeHelper()
+
+isAnyDmMissing = mth.checkForMissingMechs(0, "AMPARec", "GluSrc", "GluUptake")
+isAnyPpMissing = mth.checkForMissingMechs(1, "Gap_neuron")
+if (isAnyDmMissing || isAnyPpMissing) {
+    printf("\n\n")
+    printMsgAndRaiseError(libErrMsg)
+}
+// !! for better user experience, we should add two more checks here:
+//    1. given mech used in HOC, all referred var names exist in DLL/SO (see the comment in mth.getVarIdx just before printMsgAndRaiseError);
+//    2. given mech array var used in HOC, all referred array idxs don't exceed the array size in DLL/SO
+
+{ makeSureDeclared("math", "objref %s", "%s = new ReducedBasicMath()") }
+{ makeSureDeclared("rngUtils") }
+
+objref mmAllComps, gjmAllGapJuncSets, smAllSynSets
+objref _comp
+
+//////////////////// End of DLL check, "Import & Edit" measures //////////
+
+//////////////////// Start of inhom and stoch library ////////////////////
+
+begintemplate VarLibId
+    
+    // !! isDmOrTapPart, enumPpRoleOrMinus1, mechName, varTypeIdx, varName, arraySize
+    
+    public enumDmPpFk, compIdx, mechIdx, varType, varIdx, arrayIndex
+    public isGapJuncOrSyn, tapSetIdx    // For taps only ("-1" for biophys vars)
+    public isEqual
+    
+    external mth
+    external codeContractViolation
+    // external enumArgTypes        // !! maybe export and use this
+    
+    
+    proc init() { local argType5, argType7, enumArgTypes_number, enumArgTypes_strdef
+        strdef mechName, varName
+        
+        argType5 = argtype(5)
+        argType7 = argtype(7)
+        
+        enumArgTypes_number = 0
+        enumArgTypes_strdef = 2
+        
+        enumDmPpFk = $1
+        isGapJuncOrSyn = $2     // Must be "-1" for biophys vars
+        tapSetIdx = $3          //
+        compIdx = $4
+        
+        if (argType5 == enumArgTypes_number) {
+            // Passed in most cases
+            mechIdx = $5
+        } else if (argType5 == enumArgTypes_strdef) {
+            // Passed only in the exported HOC file (see py:GensForInhomAndStochModels._createVarLibIdCtorCall)
+            mechName = $s5
+            mechIdx = mth.getMechIdx(enumDmPpFk, mechName)
+        } else {
+            codeContractViolation()
+        }
+        
+        varType = $6
+        
+        if (argType7 == enumArgTypes_number) {
+            // Passed in most cases
+            varIdx = $7
+        } else if (argType7 == enumArgTypes_strdef) {
+            // Passed only in the exported HOC file (except gap junc ext value because its name is dynamic)
+            varName = $s7
+            varIdx = mth.getVarIdx(enumDmPpFk, mechName, varType, varName)
+        } else {
+            codeContractViolation()
+        }
+        
+        arrayIndex = $8
+        
+        if (enumDmPpFk == 0) {
+            if (isGapJuncOrSyn != -1 || tapSetIdx != -1) {
+                codeContractViolation()
+            }
+        } else {
+            if (isGapJuncOrSyn == -1 || tapSetIdx == -1) {
+                codeContractViolation()
+            }
+        }
+    }
+    
+    func isEqual() { localobj other
+        other = $o1
+        return (enumDmPpFk == other.enumDmPpFk && isGapJuncOrSyn == other.isGapJuncOrSyn && tapSetIdx == other.tapSetIdx && compIdx == other.compIdx && mechIdx == other.mechIdx && varType == other.varType && varIdx == other.varIdx && arrayIndex == other.arrayIndex)
+    }
+    
+endtemplate VarLibId
+
+begintemplate ReducedInhomAndStochTarget
+
+    public makeInhom, makeStoch, isEqual, applyBiophysInhomogeneity, applyTapInhomogeneity, setPlayIfPossible, stopPlayingVars, onInit, onStep
+    public varLibId, isDmOrTapPart, isGapJuncOrSyn, tapSetIdx
+    public segmentationHelper, distFuncHelper, boundingHelper, stochFuncHelper
+    public isInhom, distFuncCatIdx, distFuncIdx, isStoch, stochFuncCatIdx, stochFuncIdx
+    public seh
+    
+    external mmAllComps, gjmAllGapJuncSets, smAllSynSets
+    external mth, rngUtils
+    external codeContractViolation
+    external eachItemInList, eachSecInList, eachSegmInSecList
+    
+    // "init" args
+    objref varLibId
+    isDmOrTapPart = -1
+    isGapJuncOrSyn = -1         // For taps only ("-1" for biophys vars)
+    tapSetIdx = -1              //
+    enumPpRoleOrMinus1 = -1     //
+    strdef mechName
+    strdef varName
+    arraySize = -1
+    
+    // "make*" args
+    objref segmentationHelper, distFuncHelper
+    objref boundingHelper, stochFuncHelper
+    isInhom = -1
+    distFuncCatIdx = -1
+    distFuncIdx = -1
+    isStoch = -1
+    stochFuncCatIdx = -1
+    stochFuncIdx = -1
+    
+    objref list_ref
+    objref trgTapSet, allGapJuncs, allSyns, seh
+    
+    objref baseMechStd, tempMechStd
+    
+    objref this
+    
+    
+    proc init() { local varTypeIdx localobj comp
+    
+        varLibId = $o1
+        
+        isDmOrTapPart = (varLibId.enumDmPpFk == 0)
+        isGapJuncOrSyn = varLibId.isGapJuncOrSyn
+        tapSetIdx = varLibId.tapSetIdx
+        
+        comp = getComp()
+        
+        if (isDmOrTapPart) {
+            if (isGapJuncOrSyn != -1 || tapSetIdx != -1) {
+                codeContractViolation()
+            }
+            list_ref = comp.list_ref
+        } else {
+            if (isGapJuncOrSyn == -1) {
+                codeContractViolation()
+            }
+            if (isGapJuncOrSyn) {
+                trgTapSet = gjmAllGapJuncSets.o(tapSetIdx)
+                allGapJuncs = trgTapSet.allGapJuncs
+            } else {
+                trgTapSet = smAllSynSets.o(tapSetIdx)
+                allSyns = trgTapSet.allSyns
+                seh = trgTapSet.seh
+            }
+        }
+        
+        // !! rename enumPpRoleOrMinus1 to enumTapPartOrMinus1
+        if (varLibId.enumDmPpFk == 0) {
+            enumPpRoleOrMinus1 = -1
+        } else if (varLibId.enumDmPpFk < 3) {
+            enumPpRoleOrMinus1 = comp.enumPpRole
+        } else {
+            codeContractViolation()
+        }
+        
+        varTypeIdx = varLibId.varType - 1
+        baseMechStd = comp.mechStds[varLibId.mechIdx][varTypeIdx]
+        
+        // !! need to test if using the "Fake*" templates with "in-set-out" workflow we still achieve better performance
+        //    than "sprint"-ing and executing a HOC-command for direct var assignment
+        tempMechStd = mth.createMechStd(varLibId.enumDmPpFk, varLibId.mechIdx, varLibId.varType)
+        
+        tempMechStd.name(mechName)
+        arraySize = tempMechStd.name(varName, varLibId.varIdx)
+    }
+    
+    proc makeInhom() {
+        segmentationHelper = $o1
+        distFuncHelper = $o2
+        distFuncCatIdx = $3
+        distFuncIdx = $4
+        isInhom = 1
+        setIsPlayable()
+    }
+    
+    proc makeStoch() {
+        boundingHelper = $o1
+        stochFuncHelper = $o2
+        stochFuncCatIdx = $3
+        stochFuncIdx = $4
+        isStoch = 1
+        setIsPlayable()
+    }
+    
+    func isEqual() { localobj otherVarLibId
+        otherVarLibId = $o1
+        return varLibId.isEqual(otherVarLibId)
+    }
+    
+    // Keep in sync with MechComp.applySegmentationAndInhomogeneity
+    proc applyBiophysInhomogeneity() { local x, dist, y
+    
+        if (!isDmOrTapPart || !isInhom || varLibId.varType == -1) { // -1: "GLOBAL"
+            codeContractViolation()
+        }
+        
+        distFuncHelper.onJustBeforeFirstSection()
+        for eachSecInList(list_ref) {
+            distFuncHelper.onJustBeforeNewSection()
+            for (x, 0) {
+                tempMechStd.in(x)
+                dist = distance(x)
+                y = distFuncHelper.calculateAt(dist)
+                tempMechStd.set(varName, y, varLibId.arrayIndex)
+                tempMechStd.out(x)
+            }
+        }
+        distFuncHelper.onJustAfterLastSection()
+    }
+    
+    // Keep in sync with InhomAndStochTarget.restoreInhomogeneity
+    proc applyTapInhomogeneity() { localobj comp
+        if (isDmOrTapPart || !isInhom) {
+            codeContractViolation()
+        }
+        
+        comp = getComp()
+        comp.applyInhomogeneity(mechName, varLibId.varType, varName, arraySize, varLibId.arrayIndex, distFuncHelper, trgTapSet)
+    }
+    
+    _x = -1
+    
+    // Keep in sync with InhomAndStochTarget.setPlayIfPossible
+    func setPlayIfPossible() { local homogenValue
+        strdef hocCommand
+        
+        if (!isPlayable) {
+            return 0
+        }
+        
+        for eachSegmInSecList(&_x, list_ref) {
+            sprint(hocCommand, "stochFuncHelper.rng.play(&%s(_x))", varName)
+            execute(hocCommand, this)
+        }
+        
+        homogenValue = baseMechStd.get(varName, varLibId.arrayIndex)
+        distFuncHelper.setMeanOnStartPlaying(homogenValue)
+        
+        return 1
+    }
+    
+    // Keep in sync with InhomAndStochTarget.stopPlayingVars
+    proc stopPlayingVars() {
+        if (!isPlayable) {
+            return
+        }
+        
+        // NEURON docs say: "To disconnect the Random object from its list of variables, either the variables or the Random object must be destroyed."
+        // But actually it doesn't seem like there's any way to destroy the "played" Random object without dire consequences.
+        
+        // !! BUG: Hanging here, and the same effect if we just assign "nil" to stochFuncHelper.rng
+        //         No hanging if we don't call stochFuncHelper.rng.play upstream
+        //         It looks like we have only two options to disable the "play" effect:
+        //         1. "create" all sections in list_ref from scratch (replacing the old sections) - and only after this we can destroy the old RNG
+        //         2. Adjust RNG to produce constant and copy the generator to some storage just to keep alive while we replace stochFuncHelper.rng
+        //            (If we play the same var with multiple RNG-s, only the last one has visible effect)
+        //            But after this, we won't be able to make the var inhomogeneous
+        //         Alternatively, we could use Vector.play() and Vector.play_remove() instead of Random.play(),
+        //         but this requires some troublesome orchestration and looks like not giving an advantage compared to the non-played mode in our case
+        stochFuncHelper.rng = rngUtils.getFor_stochFunc_withUniqueSeed()
+        
+        distFuncHelper.resetMeanOnStopPlaying()
+    }
+    
+    // Keep in sync with InhomAndStochTarget.onInit
+    proc onInit() {
+        if (!isStoch) {
+            return
+        }
+        
+        // One unused value to set up the generator and the colourizer
+        boundingHelper.generateFirstBoundedValue(stochFuncHelper)
+        
+        if (!isDmOrTapPart && !isGapJuncOrSyn) {
+            // For synapses, stochastic vars can hold the values from the previous simulation for a long time before the first synaptic event on this simulation,
+            // and this is why we restore the base values here for reproducibility of the experiments
+            // Notice that for biophysics and gap junctions, stochastic vars change their values on each iteration, so there is no need to restore their base values here
+            makeStepOrRestoreBaseValues(0)
+        }
+    }
+    
+    proc onStep() {
+        makeStepOrRestoreBaseValues(1)
+    }
+    
+    // All next staff is private
+    
+    
+    // Keep in sync with InhomAndStochTarget.makeStepOrRestoreBaseValues and "applyInhomogeneity"
+    // !! maybe BUG: (ASSIGNED or STATE) and (isInhom and isStoch) => the inhom model is applied on each iter;
+    //               maybe the correct behaviour would be to ignore the inhom model (especially if VerbatimDistFunc) and just to take the current value and add the noise to it
+    proc makeStepOrRestoreBaseValues() { local isStepOrRestore, isStoch_, homogenValue
+        
+        isStepOrRestore = $1
+        
+        if (isStepOrRestore) {
+            isStoch_ = isStoch
+            
+            if (isPlayable) {
+                return
+            }
+            if (!isStoch_) {
+                if (isInhom) {
+                    return
+                } else {
+                    codeContractViolation()
+                }
+            }
+        } else {
+            isStoch_ = 0
+        }
+        
+        if (isInhom) {
+            distFuncHelper.onJustBeforeFirstSection()
+        } else {
+            homogenValue = baseMechStd.get(varName, varLibId.arrayIndex)
+        }
+        
+        if (isDmOrTapPart) {
+            dmStep(isStoch_, homogenValue)
+        } else {
+            if (isGapJuncOrSyn) {
+                gapJuncPartStep(isStoch_, homogenValue)
+            } else {
+                synPartStepOrRestore(isStepOrRestore, isStoch_, homogenValue)
+            }
+        }
+        
+        if (isInhom) {
+            distFuncHelper.onJustAfterLastSection()
+        }
+    }
+    
+    proc dmStep() { local isStoch_, homogenValue, x, dist, value
+        
+        isStoch_ = $1
+        homogenValue = $2
+        
+        for eachSecInList(list_ref) {
+            if (isInhom) {
+                distFuncHelper.onJustBeforeNewSection()
+            }
+            for (x, 0) {
+                // The base value
+                if (isInhom) {
+                    dist = distance(x)
+                    value = distFuncHelper.calculateAt(dist)
+                } else {
+                    value = homogenValue
+                }
+                
+                // The additive noise
+                if (isStoch_) {
+                    value += boundingHelper.generateNextBoundedValue(stochFuncHelper)
+                }
+                
+                // This approach is 20-30% faster than "sprint"-ing a HOC-command
+                // of type "varName(x) = value" or "varName[varLibId.arrayIndex](x) = value" and then "execute"-ing it
+                tempMechStd.in(x)
+                tempMechStd.set(varName, value, varLibId.arrayIndex)
+                tempMechStd.out(x)
+            }
+        }
+    }
+    
+    // !! code dup. with proc synPartStepOrRestore
+    proc gapJuncPartStep() { local isStoch_, homogenValue, value localobj prevSec_ref, gapJunc, gapJuncPart, nil
+        
+        isStoch_ = $1
+        homogenValue = $2
+        
+        if (varLibId.enumDmPpFk == 0) {
+            codeContractViolation()
+        }
+        
+        prevSec_ref = nil
+        for eachItemInList(gapJunc, allGapJuncs) {
+            if (gapJunc.sec_ref != prevSec_ref && isInhom) {
+                distFuncHelper.onJustBeforeNewSection()
+            }
+            
+            gapJuncPart = gapJunc.getPointProcess(enumPpRoleOrMinus1)
+            
+            // The base value
+            if (isInhom) {
+                value = distFuncHelper.calculateAt(gapJunc.dist)
+            } else {
+                value = homogenValue
+            }
+            
+            // The additive noise
+            if (isStoch_) {
+                value += boundingHelper.generateNextBoundedValue(stochFuncHelper)
+            }
+            
+            // !! if gapJuncPart is an External Value, then see the comment for tempMechStd in ctor
+            tempMechStd.in(gapJuncPart)
+            tempMechStd.set(varName, value, varLibId.arrayIndex)
+            tempMechStd.out(gapJuncPart)
+            
+            prevSec_ref = gapJunc.sec_ref
+        }
+    }
+    
+    // !! code dup. with proc gapJuncPartStep
+    proc synPartStepOrRestore() { local isStepOrRestore, isStoch_, homogenValue, isWeightVar, value localobj prevSec_ref, syn, synPart, nil
+        
+        isStepOrRestore = $1
+        isStoch_ = $2
+        homogenValue = $3
+        
+        isWeightVar = mth.isWeightNetConVar(varName)
+        prevSec_ref = nil
+        for eachItemInList(syn, allSyns) {
+            if (syn.sec_ref != prevSec_ref && isInhom) {
+                distFuncHelper.onJustBeforeNewSection()
+            }
+            
+            if (isStepOrRestore && !syn.sefwPp.isAnyEventsOnThisIter) {
+                prevSec_ref = syn.sec_ref
+                continue
+            }
+            
+            synPart = syn.getPointProcess(enumPpRoleOrMinus1)
+            
+            // The base value
+            if (isInhom) {
+                value = distFuncHelper.calculateAt(syn.dist)
+            } else {
+                value = homogenValue
+            }
+            
+            // The additive noise
+            if (isStoch_) {
+                value += boundingHelper.generateNextBoundedValue(stochFuncHelper)
+            }
+            
+            // !! if synPart is a NetCon, then see the comment for tempMechStd in ctor
+            tempMechStd.in(synPart)
+            tempMechStd.set(varName, value, varLibId.arrayIndex)
+            tempMechStd.out(synPart)
+            
+            if (varLibId.enumDmPpFk == 2 && isWeightVar) {
+                syn.sefwNetCon.weight = value
+                // Here we could also have similar logic to sync the value from "syn.netCon.@release_probability" to "syn.sefwPp.release_probability",
+                // but it's not needed because the button "Define stoch model" is hidden for "@release_probability"
+            }
+            
+            prevSec_ref = syn.sec_ref
+        }
+    }
+    
+    // Keep in sync with InhomAndStochTarget.setIsPlayable
+    proc setIsPlayable() {
+        if (!isStoch) {
+            isPlayable = 0
+            return          // Just a shortcut because boundingHelper used below is nil
+        }
+        isPlayable = (!isInhom && stochFuncCatIdx == 0 && (stochFuncIdx == 0 || stochFuncIdx == 1) && boundingHelper.isUntouched())
+        
+        // !! not implemented - see the comment in stopPlayingVars
+        isPlayable = 0
+    }
+    
+    obfunc getComp() { local compIdx localobj allTapSets
+        
+        compIdx = varLibId.compIdx
+        
+        if (isDmOrTapPart) {
+            return mmAllComps.o(compIdx)
+        } else {
+            if (isGapJuncOrSyn) {
+                allTapSets = gjmAllGapJuncSets
+            } else {
+                allTapSets = smAllSynSets
+            }
+            return allTapSets.o(tapSetIdx).allComps.o(compIdx)
+        }
+    }
+    
+endtemplate ReducedInhomAndStochTarget
+
+begintemplate ReducedInhomAndStochLibrary
+
+    public onInhomCreate, onStochApply, applyAllBiophysInhomModels, applyAllInhomModelsInTheTapSet, isAnyStochVarsForSynsInTheSet, isAnyStochVars
+    public activeSpecVars
+    
+    external eachItemInList
+    external codeContractViolation
+    
+    objref activeSpecVars
+    
+    
+    proc init() {
+        activeSpecVars = new List()
+    }
+    
+    // in: varLibId, segmentationHelper, distFuncHelper, distFuncCatIdx, distFuncIdx
+    proc onInhomCreate() { localobj actSpecVar
+        actSpecVar = createActiveSpecVar($o1)
+        actSpecVar.makeInhom($o2, $o3, $4, $5)
+    }
+    
+    // in: varLibId, boundingHelper, stochFuncHelper, stochFuncCatIdx, stochFuncIdx
+    proc onStochApply() { localobj actSpecVar
+        actSpecVar = findOrCreateActiveSpecVar($o1)
+        actSpecVar.makeStoch($o2, $o3, $4, $5)
+    }
+    
+    proc applyAllBiophysInhomModels() { localobj actSpecVar
+        for eachItemInList(actSpecVar, activeSpecVars) {
+            if (!actSpecVar.isDmOrTapPart || !actSpecVar.isInhom || actSpecVar.isStoch) {
+                codeContractViolation()
+            }
+            actSpecVar.applyBiophysInhomogeneity()
+        }
+    }
+    
+    // !! think about replacing this proc with "applyAllInhomModelsInAllTapSets" (no args, called once just before "Cleanup" paragraph)
+    proc applyAllInhomModelsInTheTapSet() { local isGapJuncOrSyn, tapSetIdx localobj actSpecVar
+        isGapJuncOrSyn = $1
+        tapSetIdx = $2
+        for eachItemInList(actSpecVar, activeSpecVars) {
+            if (actSpecVar.isDmOrTapPart || !actSpecVar.isInhom || actSpecVar.isGapJuncOrSyn != isGapJuncOrSyn || actSpecVar.tapSetIdx != tapSetIdx) {
+                continue
+            }
+            actSpecVar.applyTapInhomogeneity()
+        }
+    }
+    
+    func isAnyStochVarsForSynsInTheSet() { local isFound localobj seh, actSpecVar
+        seh = $o1
+        isFound = 0
+        for eachItemInList(actSpecVar, activeSpecVars) {
+            if (actSpecVar.seh != seh) {
+                continue    // Bio, gap junc, syn (different set)
+            }
+            if (actSpecVar.isStoch) {
+                // Don't replace with "return 1" because iterators cannot return a value (Segmentation violation)
+                isFound = 1
+                break
+            }
+        }
+        return isFound
+    }
+    
+    func isAnyStochVars() { local idx
+        for idx = 0, activeSpecVars.count() - 1 {
+            if (activeSpecVars.o(idx).isStoch) {
+                return 1
+            }
+        }
+        return 0
+    }
+    
+    // All next staff is private
+    
+    
+    // in: varLibId
+    // out: actSpecVar
+    obfunc createActiveSpecVar() { localobj actSpecVar
+        actSpecVar = new ReducedInhomAndStochTarget($o1)
+        activeSpecVars.append(actSpecVar)
+        return actSpecVar
+    }
+    
+    // in: varLibId
+    // out: actSpecVar
+    obfunc findOrCreateActiveSpecVar() { local idx localobj actSpecVar
+        // Not many activeSpecVars-s, so hashless comparison works just fine
+        for idx = 0, activeSpecVars.count() - 1 {
+            actSpecVar = activeSpecVars.o(idx)
+            if (actSpecVar.isEqual($o1)) {
+                return actSpecVar
+            }
+        }
+        return createActiveSpecVar($o1)
+    }
+    
+endtemplate ReducedInhomAndStochLibrary
+
+objref inhomAndStochLibrary
+inhomAndStochLibrary = new ReducedInhomAndStochLibrary()
+
+objref _vecOfVals, _listOfStrs
+
+//////////////////// End of inhom and stoch library //////////////////////
+
+//////////////////// Start of dist funcs /////////////////////////////////
+
+begintemplate SimpleModelDistFuncHelper
+
+    public selectedHandler, calculateAt, onJustBeforeFirstSection, onJustBeforeNewSection, onJustAfterLastSection, exportParams, importParams, dismissHandler
+    public mainBox
+    public parentWidget
+    
+    external codeContractViolation
+    
+    objref mainBox, parentWidget
+    
+    modelIdx = -1
+    double params[1]
+    
+    numParams = -1
+    
+    
+    proc init() { local numArg
+    
+        numParams = 6
+        double params[numParams]
+        
+        numArg = numarg()
+        
+        if (numArg == 0) {
+            // Empty by design (we are being created in the exported HOC file or in the process of biophys JSON import,
+            // so will be inited in proc importParams shortly downstream)
+        } else if (numArg == 1) {
+            setModelIdx($1)
+            
+            if (modelIdx < 3) {
+                params[1] = 0.1
+                params[2] = 0.0005
+            } else if (modelIdx == 3) {
+                params[1] = 1
+                params[3] = 1
+                params[4] = 0.01
+                params[5] = 2e-4
+            } else {
+                params[1] = 1
+                params[2] = -0.01
+            }
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    func selectedHandler() {
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            if (modelIdx != 4) {
+                xpvalue("a0", &params[0], 1, "valueChangedHandler()")   // !! if modelIdx == 0, then maybe make it equal to the initial value of the mech's variable
+                if (modelIdx >= 1) {
+                    xpvalue("a1", &params[1], 1, "valueChangedHandler()")
+                    if (modelIdx >= 2) {
+                        xpvalue("a2", &params[2], 1, "valueChangedHandler()")
+                        if (modelIdx == 3) {
+                            xpvalue("b0", &params[3], 1, "valueChangedHandler()")
+                            xpvalue("b1", &params[4], 1, "valueChangedHandler()")
+                            xpvalue("b2", &params[5], 1, "valueChangedHandler()")
+                        }
+                    }
+                }
+            } else {
+                xpvalue("a", &params[0], 1, "valueChangedHandler()")
+                xpvalue("b", &params[1], 1, "valueChangedHandler()")
+                xpvalue("c", &params[2], 1, "valueChangedHandler()")
+            }
+            xpanel()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("Distance func params", 210, 525, -1, -1)
+        
+        return 0
+    }
+    
+    func calculateAt() { local x, xSq, y
+        x = $1
+        if (modelIdx != 4) {
+            y = params[0]
+            if (modelIdx >= 1) {
+                y += params[1] * x
+                if (modelIdx >= 2) {
+                    xSq = x * x
+                    y += params[2] * xSq
+                    if (modelIdx == 3) {
+                        y /= params[3] + params[4] * x + params[5] * xSq
+                    }
+                }
+            }
+            return y
+        } else {
+            return params[0] + params[1] * exp(params[2] * x)
+        }
+    }
+    
+    proc onJustBeforeFirstSection() {
+        // Empty by design
+    }
+    
+    proc onJustBeforeNewSection() {
+        // Empty by design
+    }
+    
+    proc onJustAfterLastSection() {
+        // Empty by design
+    }
+    
+    proc exportParams() { local idx localobj vecOfVals, listOfStrs
+        vecOfVals = $o1
+        listOfStrs = $o2    // Not used by design
+        
+        vecOfVals.resize(numParams + 1)
+        vecOfVals.x(0) = modelIdx
+        for idx = 0, numParams - 1 {
+            vecOfVals.x(1 + idx) = params[idx]
+        }
+    }
+    
+    proc importParams() { local idx localobj vecOfVals, listOfStrs
+        vecOfVals = $o1
+        listOfStrs = $o2    // Not used by design
+        
+        if (vecOfVals.size() != numParams + 1 || listOfStrs.count() != 0) {
+            codeContractViolation()
+        }
+        
+        setModelIdx(vecOfVals.x(0))
+        for idx = 0, numParams - 1 {
+            params[idx] = vecOfVals.x(1 + idx)
+        }
+    }
+    
+    proc dismissHandler() {
+        if (mainBox.ismapped()) {
+            mainBox.unmap()
+        }
+    }
+    
+    // All next staff is private
+    
+    
+    proc valueChangedHandler() {
+        parentWidget.updateCurves()
+    }
+    
+    proc setModelIdx() {
+        modelIdx = $1
+        if (modelIdx < 0 || modelIdx > 4) {
+            codeContractViolation()
+        }
+    }
+    
+endtemplate SimpleModelDistFuncHelper
+
+
+begintemplate ReducedSegmentationHelper
+    public segmentationMode, total_nseg, min_nseg
+    segmentationMode = -1
+    total_nseg = -1
+    min_nseg = -1
+endtemplate ReducedSegmentationHelper
+
+objref _segmentationHelper, _distFuncHelper
+
+//////////////////// End of dist funcs ///////////////////////////////////
+
+//////////////////// Start of biophys: Compartments //////////////////////
+
+begintemplate ReducedMechComp
+
+    public initHomogenBiophysics
+    public name, list_ref, isMechInserted, mechStds
+    
+    external math
+    external eachSecInList
+    
+    strdef name
+    objref list_ref
+    double isMechInserted[1]
+    objref mechStds[1][1]
+    
+    objref mechType
+    numMechs = -1
+    
+    
+    proc init() {
+        name = $s1
+        list_ref = $o2
+        
+        mechType = new MechanismType(0) // 0: "Distributed Membrane Mechanisms"
+        numMechs = mechType.count
+        
+        double isMechInserted[numMechs]
+        objref mechStds[numMechs][3]    // 0: "PARAMETER", 1: "ASSIGNED", 2: "STATE"
+    }
+    
+    // Keep in sync with MechComp.applyHomogenChangesToDirtyMechs in the main program
+    proc initHomogenBiophysics() { local morphologyMechIdx, diamVarTypeIdx, mechIdx, varTypeIdx, diamValue localobj mechStd, nil
+        strdef diamVarName
+        
+        morphologyMechIdx = 0
+        diamVarTypeIdx = 0
+        diamVarName = "diam"
+        
+        for mechIdx = 0, numMechs - 1 {
+            if (!isMechInserted[mechIdx]) {
+                continue
+            }
+            mechType.select(mechIdx)
+            for eachSecInList(list_ref) {
+                mechType.make()
+                for varTypeIdx = 0, 2 {     // 0: "PARAMETER", 1: "ASSIGNED", 2: "STATE"
+                    mechStd = mechStds[mechIdx][varTypeIdx]
+                    if (mechStd == nil) {
+                        continue
+                    }
+                    if (mechIdx != morphologyMechIdx || varTypeIdx != diamVarTypeIdx) {
+                        // Here we assign NaN values to inhom vars, but they will be overwritten shortly downstream
+                        mechStd.out()
+                    } else {
+                        diamValue = mechStd.get(diamVarName)
+                        if (!math.isNaN(diamValue)) {
+                            diam = diamValue
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+endtemplate ReducedMechComp
+
+// "Soma"
+obfunc _getListOfSecRefsForComp1() { local idx1, idx2 localobj list_ref
+    list_ref = new List()
+    s1_0 list_ref.append(new SectionRef())
+    s1_1 list_ref.append(new SectionRef())
+    s1_2 list_ref.append(new SectionRef())
+    s1_3 list_ref.append(new SectionRef())
+    s1_4 list_ref.append(new SectionRef())
+    s1_5 list_ref.append(new SectionRef())
+    s1_6 list_ref.append(new SectionRef())
+    s1_7 list_ref.append(new SectionRef())
+    return list_ref
+}
+
+// "Dendrites"
+obfunc _getListOfSecRefsForComp2() { local idx1, idx2 localobj list_ref
+    list_ref = new List()
+    d1 list_ref.append(new SectionRef())
+    return list_ref
+}
+
+// "Axon"
+obfunc _getListOfSecRefsForComp3() { local idx1, idx2 localobj list_ref
+    list_ref = new List()
+    ax list_ref.append(new SectionRef())
+    return list_ref
+}
+
+// "Spine Neck"
+obfunc _getListOfSecRefsForComp4() { local idx1, idx2 localobj list_ref
+    list_ref = new List()
+    NeuronNanoBranch[0].spine_neck list_ref.append(new SectionRef())
+    return list_ref
+}
+
+// "Spine Head"
+obfunc _getListOfSecRefsForComp5() { local idx1, idx2 localobj list_ref
+    list_ref = new List()
+    NeuronNanoBranch[0].spine_head list_ref.append(new SectionRef())
+    return list_ref
+}
+
+// "Extra Cell #1"
+obfunc _getListOfSecRefsForComp6() { localobj list_ref
+    list_ref = new List()
+    forsec "EXTRA_CELL_1.dend_5[0]" { list_ref.append(new SectionRef()) }
+    forsec "EXTRA_CELL_1.dend_5[1]" { list_ref.append(new SectionRef()) }
+    forsec "EXTRA_CELL_1.dend_5[2]" { list_ref.append(new SectionRef()) }
+    forsec "EXTRA_CELL_1.dend_5[3]" { list_ref.append(new SectionRef()) }
+    return list_ref
+}
+
+// "Extra Cell #2"
+obfunc _getListOfSecRefsForComp7() { localobj list_ref
+    list_ref = new List()
+    forsec "EXTRA_CELL_2.dend_5[0]" { list_ref.append(new SectionRef()) }
+    forsec "EXTRA_CELL_2.dend_5[1]" { list_ref.append(new SectionRef()) }
+    forsec "EXTRA_CELL_2.dend_5[2]" { list_ref.append(new SectionRef()) }
+    forsec "EXTRA_CELL_2.dend_5[3]" { list_ref.append(new SectionRef()) }
+    return list_ref
+}
+
+// "Extra Cell #3"
+obfunc _getListOfSecRefsForComp8() { localobj list_ref
+    list_ref = new List()
+    forsec "EXTRA_CELL_3.dend_5[0]" { list_ref.append(new SectionRef()) }
+    forsec "EXTRA_CELL_3.dend_5[1]" { list_ref.append(new SectionRef()) }
+    forsec "EXTRA_CELL_3.dend_5[2]" { list_ref.append(new SectionRef()) }
+    forsec "EXTRA_CELL_3.dend_5[3]" { list_ref.append(new SectionRef()) }
+    return list_ref
+}
+
+mmAllComps = new List()
+
+_comp = new ReducedMechComp("Soma", _getListOfSecRefsForComp1())
+{ mmAllComps.append(_comp) }
+
+_comp = new ReducedMechComp("Dendrites", _getListOfSecRefsForComp2())
+{ mmAllComps.append(_comp) }
+
+_comp = new ReducedMechComp("Axon", _getListOfSecRefsForComp3())
+{ mmAllComps.append(_comp) }
+
+_comp = new ReducedMechComp("Spine Neck", _getListOfSecRefsForComp4())
+{ mmAllComps.append(_comp) }
+
+_comp = new ReducedMechComp("Spine Head", _getListOfSecRefsForComp5())
+{ mmAllComps.append(_comp) }
+
+_comp = new ReducedMechComp("Extra Cell #1", _getListOfSecRefsForComp6())
+{ mmAllComps.append(_comp) }
+
+_comp = new ReducedMechComp("Extra Cell #2", _getListOfSecRefsForComp7())
+{ mmAllComps.append(_comp) }
+
+_comp = new ReducedMechComp("Extra Cell #3", _getListOfSecRefsForComp8())
+{ mmAllComps.append(_comp) }
+
+//////////////////// End of biophys: Compartments ////////////////////////
+
+//////////////////// Start of biophys: Homogen vars //////////////////////
+
+// "Soma"
+proc _addHomogenVarsInfoToBiophysComp1() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(5)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    mechIdxs.x[3] = mth.getMechIdx(0, "glu_ion")
+    mechIdxs.x[4] = mth.getMechIdx(0, "GluSrc")
+    
+    for idx = 0, 4 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+    
+    mechStd = new MechanismStandard("morphology", 1)    // PARAMETER
+    mechStd.set("diam", math.nan)
+    comp.mechStds[mechIdxs.x[0]][0] = mechStd
+    
+    mechStd = new MechanismStandard("capacitance", 1)    // PARAMETER
+    mechStd.set("cm", 0.8)    // (uF/cm2)
+    comp.mechStds[mechIdxs.x[1]][0] = mechStd
+    
+    mechStd = new MechanismStandard("pas", 1)    // PARAMETER
+    mechStd.set("g_pas", 8.968609865470852e-05)    // (S/cm2)
+    mechStd.set("e_pas", -85.0)    // (mV)
+    comp.mechStds[mechIdxs.x[2]][0] = mechStd
+    
+    mechStd = new MechanismStandard("GluSrc", 1)    // PARAMETER
+    mechStd.set("amplitude_GluSrc", math.nan)
+    comp.mechStds[mechIdxs.x[4]][0] = mechStd
+}
+
+// "Dendrites"
+proc _addHomogenVarsInfoToBiophysComp2() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(3)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    
+    for idx = 0, 2 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+    
+    mechStd = new MechanismStandard("morphology", 1)    // PARAMETER
+    mechStd.set("diam", 0.30000001192092896)    // (um)
+    comp.mechStds[mechIdxs.x[0]][0] = mechStd
+    
+    mechStd = new MechanismStandard("capacitance", 1)    // PARAMETER
+    mechStd.set("cm", 0.8)    // (uF/cm2)
+    comp.mechStds[mechIdxs.x[1]][0] = mechStd
+    
+    mechStd = new MechanismStandard("pas", 1)    // PARAMETER
+    mechStd.set("g_pas", 8.968609865470852e-05)    // (S/cm2)
+    mechStd.set("e_pas", -85.0)    // (mV)
+    comp.mechStds[mechIdxs.x[2]][0] = mechStd
+}
+
+// "Axon"
+proc _addHomogenVarsInfoToBiophysComp3() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(3)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    
+    for idx = 0, 2 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+    
+    mechStd = new MechanismStandard("morphology", 1)    // PARAMETER
+    mechStd.set("diam", 0.01)    // (um)
+    comp.mechStds[mechIdxs.x[0]][0] = mechStd
+    
+    mechStd = new MechanismStandard("pas", 1)    // PARAMETER
+    mechStd.set("g_pas", 7.142857142857143e-05)    // (S/cm2)
+    mechStd.set("e_pas", -65.0)    // (mV)
+    comp.mechStds[mechIdxs.x[2]][0] = mechStd
+}
+
+// "Spine Neck"
+proc _addHomogenVarsInfoToBiophysComp4() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(3)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    
+    for idx = 0, 2 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+    
+    mechStd = new MechanismStandard("morphology", 1)    // PARAMETER
+    mechStd.set("diam", 0.5998328328132629)    // (um)
+    comp.mechStds[mechIdxs.x[0]][0] = mechStd
+    
+    mechStd = new MechanismStandard("pas", 1)    // PARAMETER
+    mechStd.set("g_pas", 7.142857142857143e-05)    // (S/cm2)
+    mechStd.set("e_pas", -65.0)    // (mV)
+    comp.mechStds[mechIdxs.x[2]][0] = mechStd
+}
+
+// "Spine Head"
+proc _addHomogenVarsInfoToBiophysComp5() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(3)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    
+    for idx = 0, 2 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+    
+    mechStd = new MechanismStandard("morphology", 1)    // PARAMETER
+    mechStd.set("diam", 0.599832832813263)    // (um)
+    comp.mechStds[mechIdxs.x[0]][0] = mechStd
+    
+    mechStd = new MechanismStandard("pas", 1)    // PARAMETER
+    mechStd.set("g_pas", 7.142857142857143e-05)    // (S/cm2)
+    mechStd.set("e_pas", -65.0)    // (mV)
+    comp.mechStds[mechIdxs.x[2]][0] = mechStd
+}
+
+// "Extra Cell #1"
+proc _addHomogenVarsInfoToBiophysComp6() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(5)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    mechIdxs.x[3] = mth.getMechIdx(0, "glu_ion")
+    mechIdxs.x[4] = mth.getMechIdx(0, "AMPARec")
+    
+    for idx = 0, 4 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+    
+    mechStd = new MechanismStandard("AMPARec", 1)    // PARAMETER
+    mechStd.set("gmax_AMPARec", 0.05)    // (S/cm2)
+    comp.mechStds[mechIdxs.x[4]][0] = mechStd
+}
+
+// "Extra Cell #2"
+proc _addHomogenVarsInfoToBiophysComp7() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(5)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    mechIdxs.x[3] = mth.getMechIdx(0, "glu_ion")
+    mechIdxs.x[4] = mth.getMechIdx(0, "GluUptake")
+    
+    for idx = 0, 4 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+}
+
+// "Extra Cell #3"
+proc _addHomogenVarsInfoToBiophysComp8() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(5)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    mechIdxs.x[3] = mth.getMechIdx(0, "glu_ion")
+    mechIdxs.x[4] = mth.getMechIdx(0, "GluUptake")
+    
+    for idx = 0, 4 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+}
+
+_comp = mmAllComps.o(0)
+_addHomogenVarsInfoToBiophysComp1(_comp)    // "Soma"
+
+_comp = mmAllComps.o(1)
+_addHomogenVarsInfoToBiophysComp2(_comp)    // "Dendrites"
+
+_comp = mmAllComps.o(2)
+_addHomogenVarsInfoToBiophysComp3(_comp)    // "Axon"
+
+_comp = mmAllComps.o(3)
+_addHomogenVarsInfoToBiophysComp4(_comp)    // "Spine Neck"
+
+_comp = mmAllComps.o(4)
+_addHomogenVarsInfoToBiophysComp5(_comp)    // "Spine Head"
+
+_comp = mmAllComps.o(5)
+_addHomogenVarsInfoToBiophysComp6(_comp)    // "Extra Cell #1"
+
+_comp = mmAllComps.o(6)
+_addHomogenVarsInfoToBiophysComp7(_comp)    // "Extra Cell #2"
+
+_comp = mmAllComps.o(7)
+_addHomogenVarsInfoToBiophysComp8(_comp)    // "Extra Cell #3"
+
+for eachItemInList(_comp, mmAllComps) {
+    _comp.initHomogenBiophysics()
+}
+
+//////////////////// Start of biophys: Homogen vars //////////////////////
+
+// "Soma"
+proc _addHomogenVarsInfoToBiophysComp1() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(5)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    mechIdxs.x[3] = mth.getMechIdx(0, "glu_ion")
+    mechIdxs.x[4] = mth.getMechIdx(0, "GluSrc")
+    
+    for idx = 0, 4 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+    
+    mechStd = new MechanismStandard("morphology", 1)    // PARAMETER
+    mechStd.set("diam", math.nan)
+    comp.mechStds[mechIdxs.x[0]][0] = mechStd
+    
+    mechStd = new MechanismStandard("capacitance", 1)    // PARAMETER
+    mechStd.set("cm", 0.8)    // (uF/cm2)
+    comp.mechStds[mechIdxs.x[1]][0] = mechStd
+    
+    mechStd = new MechanismStandard("pas", 1)    // PARAMETER
+    mechStd.set("g_pas", 8.968609865470852e-05)    // (S/cm2)
+    mechStd.set("e_pas", -85.0)    // (mV)
+    comp.mechStds[mechIdxs.x[2]][0] = mechStd
+    
+    mechStd = new MechanismStandard("GluSrc", 1)    // PARAMETER
+    mechStd.set("amplitude_GluSrc", math.nan)
+    comp.mechStds[mechIdxs.x[4]][0] = mechStd
+}
+
+// "Dendrites"
+proc _addHomogenVarsInfoToBiophysComp2() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(3)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    
+    for idx = 0, 2 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+    
+    mechStd = new MechanismStandard("morphology", 1)    // PARAMETER
+    mechStd.set("diam", 0.30000001192092896)    // (um)
+    comp.mechStds[mechIdxs.x[0]][0] = mechStd
+    
+    mechStd = new MechanismStandard("capacitance", 1)    // PARAMETER
+    mechStd.set("cm", 0.8)    // (uF/cm2)
+    comp.mechStds[mechIdxs.x[1]][0] = mechStd
+    
+    mechStd = new MechanismStandard("pas", 1)    // PARAMETER
+    mechStd.set("g_pas", 8.968609865470852e-05)    // (S/cm2)
+    mechStd.set("e_pas", -85.0)    // (mV)
+    comp.mechStds[mechIdxs.x[2]][0] = mechStd
+}
+
+// "Axon"
+proc _addHomogenVarsInfoToBiophysComp3() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(3)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    
+    for idx = 0, 2 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+    
+    mechStd = new MechanismStandard("morphology", 1)    // PARAMETER
+    mechStd.set("diam", 0.01)    // (um)
+    comp.mechStds[mechIdxs.x[0]][0] = mechStd
+    
+    mechStd = new MechanismStandard("pas", 1)    // PARAMETER
+    mechStd.set("g_pas", 7.142857142857143e-05)    // (S/cm2)
+    mechStd.set("e_pas", -65.0)    // (mV)
+    comp.mechStds[mechIdxs.x[2]][0] = mechStd
+}
+
+// "Spine Neck"
+proc _addHomogenVarsInfoToBiophysComp4() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(3)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    
+    for idx = 0, 2 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+    
+    mechStd = new MechanismStandard("morphology", 1)    // PARAMETER
+    mechStd.set("diam", 0.5998328328132629)    // (um)
+    comp.mechStds[mechIdxs.x[0]][0] = mechStd
+    
+    mechStd = new MechanismStandard("pas", 1)    // PARAMETER
+    mechStd.set("g_pas", 7.142857142857143e-05)    // (S/cm2)
+    mechStd.set("e_pas", -65.0)    // (mV)
+    comp.mechStds[mechIdxs.x[2]][0] = mechStd
+}
+
+// "Spine Head"
+proc _addHomogenVarsInfoToBiophysComp5() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(3)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    
+    for idx = 0, 2 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+    
+    mechStd = new MechanismStandard("morphology", 1)    // PARAMETER
+    mechStd.set("diam", 0.599832832813263)    // (um)
+    comp.mechStds[mechIdxs.x[0]][0] = mechStd
+    
+    mechStd = new MechanismStandard("pas", 1)    // PARAMETER
+    mechStd.set("g_pas", 7.142857142857143e-05)    // (S/cm2)
+    mechStd.set("e_pas", -65.0)    // (mV)
+    comp.mechStds[mechIdxs.x[2]][0] = mechStd
+}
+
+// "Extra Cell #1"
+proc _addHomogenVarsInfoToBiophysComp6() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(5)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    mechIdxs.x[3] = mth.getMechIdx(0, "glu_ion")
+    mechIdxs.x[4] = mth.getMechIdx(0, "AMPARec")
+    
+    for idx = 0, 4 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+    
+    mechStd = new MechanismStandard("AMPARec", 1)    // PARAMETER
+    mechStd.set("gmax_AMPARec", 0.05)    // (S/cm2)
+    comp.mechStds[mechIdxs.x[4]][0] = mechStd
+}
+
+// "Extra Cell #2"
+proc _addHomogenVarsInfoToBiophysComp7() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(5)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    mechIdxs.x[3] = mth.getMechIdx(0, "glu_ion")
+    mechIdxs.x[4] = mth.getMechIdx(0, "GluUptake")
+    
+    for idx = 0, 4 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+}
+
+// "Extra Cell #3"
+proc _addHomogenVarsInfoToBiophysComp8() { local idx localobj comp, mechIdxs, mechStd
+    comp = $o1
+    
+    mechIdxs = new Vector(5)
+    mechIdxs.x[0] = mth.getMechIdx(0, "morphology")
+    mechIdxs.x[1] = mth.getMechIdx(0, "capacitance")
+    mechIdxs.x[2] = mth.getMechIdx(0, "pas")
+    mechIdxs.x[3] = mth.getMechIdx(0, "glu_ion")
+    mechIdxs.x[4] = mth.getMechIdx(0, "GluUptake")
+    
+    for idx = 0, 4 {
+        comp.isMechInserted[mechIdxs.x[idx]] = 1
+    }
+}
+
+_comp = mmAllComps.o(0)
+_addHomogenVarsInfoToBiophysComp1(_comp)    // "Soma"
+
+_comp = mmAllComps.o(1)
+_addHomogenVarsInfoToBiophysComp2(_comp)    // "Dendrites"
+
+_comp = mmAllComps.o(2)
+_addHomogenVarsInfoToBiophysComp3(_comp)    // "Axon"
+
+_comp = mmAllComps.o(3)
+_addHomogenVarsInfoToBiophysComp4(_comp)    // "Spine Neck"
+
+_comp = mmAllComps.o(4)
+_addHomogenVarsInfoToBiophysComp5(_comp)    // "Spine Head"
+
+_comp = mmAllComps.o(5)
+_addHomogenVarsInfoToBiophysComp6(_comp)    // "Extra Cell #1"
+
+_comp = mmAllComps.o(6)
+_addHomogenVarsInfoToBiophysComp7(_comp)    // "Extra Cell #2"
+
+_comp = mmAllComps.o(7)
+_addHomogenVarsInfoToBiophysComp8(_comp)    // "Extra Cell #3"
+
+for eachItemInList(_comp, mmAllComps) {
+    _comp.initHomogenBiophysics()
+}
+
+//////////////////// End of biophys: Homogen vars ////////////////////////
+
+//////////////////// End of biophys: Homogen vars ////////////////////////
+
+//////////////////// Start of biophys: Inhom vars ////////////////////////
+
+_segmentationHelper = new ReducedSegmentationHelper()
+_segmentationHelper.segmentationMode = 1
+_segmentationHelper.total_nseg = 30
+_segmentationHelper.min_nseg = 5
+_distFuncHelper = new SimpleModelDistFuncHelper()
+_vecOfVals = new Vector()
+{ _vecOfVals.append(2.0) }
+{ _vecOfVals.append(0.0) }
+{ _vecOfVals.append(0.0) }
+{ _vecOfVals.append(0.05) }
+{ _vecOfVals.append(0.0) }
+{ _vecOfVals.append(0.0) }
+{ _vecOfVals.append(0.0) }
+_listOfStrs = new List()
+{ _distFuncHelper.importParams(_vecOfVals, _listOfStrs) }
+{ inhomAndStochLibrary.onInhomCreate(new VarLibId(0, -1, -1, 0, "GluSrc", 1, "amplitude_GluSrc", 0), _segmentationHelper, _distFuncHelper, 0, 2) }
+
+{ inhomAndStochLibrary.applyAllBiophysInhomModels() }
+
+//////////////////// End of biophys: Inhom vars //////////////////////////
+
+//////////////////// Start of templates for taps /////////////////////////
+
+begintemplate ReducedTapSet
+
+    public applyInhomogeneityIter, createNewPpAttachedToSection
+    
+    objref this
+    
+    
+    // Keep in sync with TapSet.applyInhomogeneityIter
+    iterator applyInhomogeneityIter() { local tapIdx localobj xmAllTaps, distFuncHelper, prevSec_ref, tap, nil
+        xmAllTaps = $o2
+        distFuncHelper = $o3
+        
+        distFuncHelper.onJustBeforeFirstSection()
+        {
+            prevSec_ref = nil
+            for tapIdx = 0, xmAllTaps.count() - 1 {
+                tap = xmAllTaps.o(tapIdx)
+                if (tap.sec_ref != prevSec_ref) {
+                    distFuncHelper.onJustBeforeNewSection()
+                }
+                $o1 = tap
+                iterator_statement
+                prevSec_ref = tap.sec_ref
+            }
+        }
+        distFuncHelper.onJustAfterLastSection()
+    }
+    
+    _x = -1
+    objref _tempPp
+    
+    // Keep in sync with MechTypeHelper.createNewPpAttachedToSection
+    obfunc createNewPpAttachedToSection() { localobj sec_ref, pp, nil
+        strdef mechName, hocCommand
+        
+        mechName = $s1
+        sec_ref = $o2
+        _x = $3
+        
+        sprint(hocCommand, "_tempPp = new %s(_x)", mechName)
+        sec_ref.sec {
+            execute(hocCommand, this)
+        }
+        
+        pp = _tempPp
+        _tempPp = nil
+        
+        return pp
+    }
+    
+endtemplate ReducedTapSet
+
+objref tapSet
+tapSet = new ReducedTapSet()
+
+begintemplate ReducedPPComp
+
+    public name, enumDmPpFk, enumPpRole, mechIdx, mechStds
+    
+    external mth
+    external stringEmpty
+    
+    strdef name
+    enumDmPpFk = -1
+    enumPpRole = -1
+    mechIdx = -1
+    objref mechStds[1][1]   // All nil-s except some col(s) of mechIdx row
+    
+    
+    proc init() { local isGapJuncOrSyn, numMechs localobj mechType
+        strdef mechName
+        
+        isGapJuncOrSyn = $1     // Just a placeholder
+        name = $s2
+        enumPpRole = $3
+        mechName = $s4
+        
+        if (!stringEmpty(mechName)) {
+            mechIdx = mth.getMechIdx(1, mechName)
+        } else {
+            mechIdx = -1
+        }
+        
+        enumDmPpFk = 1
+        
+        mechType = new MechanismType(1) // 1: "Point Processes"
+        numMechs = mechType.count
+        objref mechStds[numMechs][3]    // 0: "PARAMETER", 1: "ASSIGNED", 2: "STATE"
+    }
+    
+endtemplate ReducedPPComp
+
+begintemplate ReducedFakeComp
+
+    public enumDmPpFk, enumPpRole, mechStds
+    
+    enumDmPpFk = -1
+    enumPpRole = -1
+    objref mechStds[1][1]
+    
+    proc init() { local fixedMechIdx, numMechs
+        enumPpRole = $1
+        fixedMechIdx = $2
+        enumDmPpFk = 2
+        numMechs = fixedMechIdx + 1
+        objref mechStds[numMechs][1]
+    }
+    
+endtemplate ReducedFakeComp
+
+objref _allComps
+
+//////////////////// End of templates for taps ///////////////////////////
+
+//////////////////// Start of templates for gap juncs ////////////////////
+
+begintemplate EnumGapJuncCompIdxs
+    
+    public extGjPp, extGjExtValue, intGjPp
+    
+    // Keep in sync with hoc:GapJuncSet.init, py:GensForTaps.createReducedGapJuncComps and py:GensForTaps.initHomogenGapJuncVars
+    proc init() {
+        extGjPp = 0
+        extGjExtValue = 1
+        intGjPp = 2
+    }
+    
+endtemplate EnumGapJuncCompIdxs
+
+objref enumGapJuncCompIdxs
+enumGapJuncCompIdxs = new EnumGapJuncCompIdxs()
+
+
+// !! rename to EnumGapJuncParts
+begintemplate EnumGapJuncPpRoles
+    
+    public sngPp, ptrMarkerPp, extValue
+    
+    proc init() {
+        sngPp = 0           // For both ext and int GJs
+        ptrMarkerPp = 1     // For int GJs only
+        extValue = 2        // For ext GJs only
+    }
+    
+endtemplate EnumGapJuncPpRoles
+
+objref enumGapJuncPpRoles
+enumGapJuncPpRoles = new EnumGapJuncPpRoles()
+
+begintemplate GapJunction
+    
+    public sec_ref, connectionPoint, dist, otherSec_ref, otherConnectionPoint
+    public sngPp, ptrMarkerPp, extValue
+    public isExtOrInt, getPointProcess, changeLocation, changeStructure, calcAndCacheDist, deployPtrMarkerPp, destroyPtrMarkerPp
+    
+    external codeContractViolation
+    external enumGapJuncPpRoles
+    
+    // Gap junc PP location info
+    objref sec_ref
+    connectionPoint = -1
+    dist = -1
+    
+    // The pointer location info (for internal GJs only)
+    objref otherSec_ref
+    otherConnectionPoint = -1
+    
+    objref sngPp
+    objref ptrMarkerPp      // For internal GJs only
+    extValue = -1           // For external GJs only
+    
+    
+    proc init() { local numArg
+        numArg = numarg()
+        if (numArg == 2) {
+            sec_ref = $o1
+            connectionPoint = $2
+        } else if (numArg == 3) {
+            sngPp = $o1
+            sec_ref = $o2
+            connectionPoint = $3
+        } else if (numArg == 4) {
+            sec_ref = $o1
+            connectionPoint = $2
+            otherSec_ref = $o3
+            otherConnectionPoint = $4
+        } else if (numArg == 5) {
+            sngPp = $o1
+            sec_ref = $o2
+            connectionPoint = $3
+            otherSec_ref = $o4
+            otherConnectionPoint = $5
+        } else {
+            codeContractViolation()
+        }
+        calcAndCacheDist()
+        
+        // !! remove this assignment
+        // !! BUG: not in sync with FakeMechanismStandardForExtValue ctor
+        extValue = 12.34        // !! just for test
+    }
+    
+    func isExtOrInt() { localobj nil
+        return (otherSec_ref == nil)
+    }
+    
+    // !! rename to getGapJuncPart
+    obfunc getPointProcess() { local enumPpRole
+        enumPpRole = $1
+        if (enumPpRole == enumGapJuncPpRoles.sngPp) {
+            return sngPp
+        } else if (enumPpRole == enumGapJuncPpRoles.ptrMarkerPp) {
+            return ptrMarkerPp
+        } else if (enumPpRole == enumGapJuncPpRoles.extValue) {
+            return new Pointer(&extValue)
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    proc changeLocation() { local numArg localobj nil
+        numArg = numarg()
+        if (numArg != 2 && numArg != 4) {
+            codeContractViolation()
+        }
+        
+        sec_ref = $o1
+        connectionPoint = $2
+        if (numArg == 4) {
+            otherSec_ref = $o3
+            otherConnectionPoint = $4
+        } else {
+            otherSec_ref = nil
+            otherConnectionPoint = -1
+        }
+        
+        calcAndCacheDist()
+    }
+    
+    proc changeStructure() {
+        sngPp = $o1
+    }
+    
+    proc calcAndCacheDist() {
+        sec_ref.sec {
+            dist = distance(connectionPoint)
+        }
+    }
+    
+    proc deployPtrMarkerPp() { localobj nil
+        if (ptrMarkerPp != nil) {
+            codeContractViolation()
+        }
+        otherSec_ref.sec {
+            ptrMarkerPp = new PointProcessMark(otherConnectionPoint)
+        }
+    }
+    
+    proc destroyPtrMarkerPp() { localobj nil
+        if (ptrMarkerPp == nil) {
+            codeContractViolation()
+        }
+        ptrMarkerPp = nil
+    }
+    
+endtemplate GapJunction
+
+objref utils4FakeMech4GapJuncExtValue
+
+begintemplate ReducedSeedingDensityHelper
+    
+    public isUniform, minSeedingDistance, oneLinerPyDistFuncBody
+    
+    isUniform = -1
+    minSeedingDistance = -1
+    strdef oneLinerPyDistFuncBody
+    
+    proc init() {
+        isUniform = $1
+        minSeedingDistance = $2     // um
+        oneLinerPyDistFuncBody = $s3
+    }
+    
+endtemplate ReducedSeedingDensityHelper
+
+begintemplate ReducedGapJuncSet
+
+    public createGapJuncStruc, initAllHomogenVars
+    public allGapJuncs, allComps, isExtOrInt, isAllOrSomeSecsSeeded, selected_ref, maxNumGapJuncsPerSec, maxRadiusForIntGapJuncs, isCrissCrossForIntGapJuncs, seedingDensityHelper
+    
+    external mth, tapSet
+    external codeContractViolation
+    external enumGapJuncCompIdxs, enumGapJuncPpRoles
+    external eachItemInList
+    
+    objref allGapJuncs, allComps
+    isExtOrInt = -1
+    isAllOrSomeSecsSeeded = -1
+    objref selected_ref
+    maxNumGapJuncsPerSec = -1
+    maxRadiusForIntGapJuncs = -1
+    isCrissCrossForIntGapJuncs = -1
+    objref seedingDensityHelper
+    
+    objref this
+    
+    
+    proc init() {
+        allGapJuncs = $o1
+        allComps = $o2
+        isExtOrInt = $3
+        isAllOrSomeSecsSeeded = $4
+        selected_ref = $o5
+        maxNumGapJuncsPerSec = $6
+        maxRadiusForIntGapJuncs = $7
+        isCrissCrossForIntGapJuncs = $8
+        seedingDensityHelper = $o9
+    }
+    
+    objref _gapJunc
+    objref _sngPp
+    _otherConnectionPoint = -1  // For internal GJs only
+    
+    // Keep in sync with GapJuncSet.applyChangesToStrucIfNeeded
+    proc createGapJuncStruc() { local doesHavePtr localobj nil
+        strdef mechName, ppPtrName, dmVarNameWithIndex, hocCommand
+        
+        mechName = $s1
+        doesHavePtr = $2            // pyObj.ms_doesGapJuncHavePtr(mechName)
+        ppPtrName = $s3             // pyObj.ms_getGapJuncPtrName(mechName)
+        dmVarNameWithIndex = $s4    // pyObj.ms_getGapJuncExtVarNameWithIndex(mechName)
+        
+        if (allGapJuncs.count() == 0) {
+            return
+        }
+        
+        if (doesHavePtr) {
+            if (isExtOrInt) {
+                sprint(hocCommand, "setpointer _sngPp.%s, _gapJunc.extValue", ppPtrName)
+            } else {
+                sprint(hocCommand, "setpointer _sngPp.%s, %s(_otherConnectionPoint)", ppPtrName, dmVarNameWithIndex)
+            }
+        }
+        
+        for eachItemInList(_gapJunc, allGapJuncs) {
+            _sngPp = tapSet.createNewPpAttachedToSection(mechName, _gapJunc.sec_ref, _gapJunc.connectionPoint)
+            if (doesHavePtr) {
+                if (isExtOrInt) {
+                    execute(hocCommand, this)
+                } else {
+                    _otherConnectionPoint = _gapJunc.otherConnectionPoint
+                    _gapJunc.otherSec_ref {
+                        execute(hocCommand, this)
+                    }
+                }
+            }
+            _gapJunc.changeStructure(_sngPp)
+        }
+        
+        _gapJunc = nil
+        _sngPp = nil
+    }
+    
+    // Keep in sync with GapJuncSet.applyChangesToDirtyHomogenVars
+    proc initAllHomogenVars() { local mechIdx, fixedMechIdx
+        strdef mechName
+        
+        mechName = $s1
+        fixedMechIdx = $2   // utils4FakeMech4GapJuncExtValue.mechIdx
+        
+        mechIdx = mth.getMechIdx(1, mechName)
+        
+        if (isExtOrInt) {
+            initHomogenVars(enumGapJuncCompIdxs.extGjPp, mechIdx, enumGapJuncPpRoles.sngPp)
+            initHomogenVars(enumGapJuncCompIdxs.extGjExtValue, fixedMechIdx, enumGapJuncPpRoles.extValue)
+        } else {
+            initHomogenVars(enumGapJuncCompIdxs.intGjPp, mechIdx, enumGapJuncPpRoles.sngPp)
+        }
+    }
+    
+    // All next staff is private
+    
+    
+    // Keep in sync with GapJuncSet.ifMechDirtyThenApplyHomogenChanges
+    proc initHomogenVars() { local compIdx, mechIdx, enumPpRole, isPPorEV, maxVarType, varType, varTypeIdx localobj comp, gapJunc, ppOrExtVal, compMechStd, nil
+        
+        compIdx = $1
+        mechIdx = $2
+        enumPpRole = $3
+        
+        if (enumPpRole == enumGapJuncPpRoles.ptrMarkerPp) {
+            codeContractViolation()
+        }
+        
+        isPPorEV = (compIdx != enumGapJuncCompIdxs.extGjExtValue)
+        if (isPPorEV) {
+            maxVarType = 3
+        } else {
+            maxVarType = 1
+        }
+        
+        comp = allComps.o(compIdx)
+        
+        for eachItemInList(gapJunc, allGapJuncs) {
+            ppOrExtVal = gapJunc.getPointProcess(enumPpRole)
+            for varType = 1, maxVarType {   // 1: "PARAMETER", 2: "ASSIGNED", 3: "STATE"
+                varTypeIdx = varType - 1
+                compMechStd = comp.mechStds[mechIdx][varTypeIdx]
+                if (compMechStd != nil) {
+                    // Here we assign NaN values to inhom vars, but they will be overwritten shortly downstream
+                    compMechStd.out(ppOrExtVal)
+                }
+            }
+        }
+    }
+    
+endtemplate ReducedGapJuncSet
+
+gjmAllGapJuncSets = new List()
+
+objref _allGapJuncs, _sec_ref, _otherSec_ref, _selected_ref, _seedingDensityHelper, _gapJuncSet
+
+//////////////////// End of templates for gap juncs //////////////////////
+
+//////////////////// Start of GJ set #1: Locations ///////////////////////
+
+_allGapJuncs = new List()
+s1_0 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.25))
+s1_0 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.45))
+s1_0 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.55))
+s1_0 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.85))
+s1_2 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.15))
+s1_2 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.25))
+s1_2 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.35))
+s1_2 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.45))
+s1_2 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.55))
+s1_2 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.85))
+s1_3 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.15))
+s1_3 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.25))
+s1_3 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.45))
+s1_3 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.95))
+s1_4 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.05))
+s1_4 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.35))
+s1_4 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.65))
+s1_4 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.75))
+s1_4 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.95))
+s1_5 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.05))
+s1_5 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.65))
+s1_5 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.95))
+s1_6 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.15))
+s1_6 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.45))
+s1_6 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.75))
+s1_7 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.15))
+s1_7 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.25))
+s1_7 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.35))
+s1_7 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.55))
+s1_7 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.65))
+s1_7 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.95))
+d1 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.05))
+d1 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.15))
+d1 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.25))
+d1 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.35))
+d1 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.45))
+d1 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.55))
+d1 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.65))
+d1 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.75))
+d1 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.85))
+d1 _allGapJuncs.append(new GapJunction(new SectionRef(), 0.95))
+NeuronNanoBranch[0].spine_neck _allGapJuncs.append(new GapJunction(new SectionRef(), 0.05))
+NeuronNanoBranch[0].spine_neck _allGapJuncs.append(new GapJunction(new SectionRef(), 0.15))
+NeuronNanoBranch[0].spine_neck _allGapJuncs.append(new GapJunction(new SectionRef(), 0.25))
+NeuronNanoBranch[0].spine_neck _allGapJuncs.append(new GapJunction(new SectionRef(), 0.35))
+NeuronNanoBranch[0].spine_neck _allGapJuncs.append(new GapJunction(new SectionRef(), 0.45))
+NeuronNanoBranch[0].spine_neck _allGapJuncs.append(new GapJunction(new SectionRef(), 0.55))
+NeuronNanoBranch[0].spine_neck _allGapJuncs.append(new GapJunction(new SectionRef(), 0.75))
+NeuronNanoBranch[0].spine_neck _allGapJuncs.append(new GapJunction(new SectionRef(), 0.95))
+NeuronNanoBranch[0].spine_head _allGapJuncs.append(new GapJunction(new SectionRef(), 0.05))
+NeuronNanoBranch[0].spine_head _allGapJuncs.append(new GapJunction(new SectionRef(), 0.15))
+NeuronNanoBranch[0].spine_head _allGapJuncs.append(new GapJunction(new SectionRef(), 0.35))
+NeuronNanoBranch[0].spine_head _allGapJuncs.append(new GapJunction(new SectionRef(), 0.45))
+NeuronNanoBranch[0].spine_head _allGapJuncs.append(new GapJunction(new SectionRef(), 0.55))
+NeuronNanoBranch[0].spine_head _allGapJuncs.append(new GapJunction(new SectionRef(), 0.75))
+NeuronNanoBranch[0].spine_head _allGapJuncs.append(new GapJunction(new SectionRef(), 0.85))
+NeuronNanoBranch[0].spine_head _allGapJuncs.append(new GapJunction(new SectionRef(), 0.95))
+
+//////////////////// End of GJ set #1: Locations /////////////////////////
+
+//////////////////// Start of GJ set #1: Compartments ////////////////////
+
+_allComps = new List()
+{ _allComps.append(new ReducedPPComp(1, "External GJ", enumGapJuncPpRoles.sngPp, "Gap_neuron")) }
+{ _allComps.append(new ReducedFakeComp(enumGapJuncPpRoles.extValue, 0)) }
+{ _allComps.append(new ReducedPPComp(1, "Internal GJ", enumGapJuncPpRoles.sngPp, "")) }
+
+//////////////////// End of GJ set #1: Compartments //////////////////////
+
+//////////////////// Start of GJ set #1: Homogen vars ////////////////////
+
+// "External GJ"
+proc _addHomogenVarsInfoToGapJuncComp1() { local mechIdx localobj comp, mechStd
+    comp = $o1
+}
+
+// "External GJ"
+proc _addHomogenVarsInfoToGapJuncComp2() { local mechIdx localobj comp, mechStd
+    comp = $o1
+}
+
+// "Internal GJ"
+proc _addHomogenVarsInfoToGapJuncComp3() { local mechIdx localobj comp, mechStd
+    comp = $o1
+}
+
+_comp = _allComps.o(0)
+_addHomogenVarsInfoToGapJuncComp1(_comp)    // "External GJ"
+
+_comp = _allComps.o(1)
+_addHomogenVarsInfoToGapJuncComp2(_comp)    // "External GJ"
+
+_comp = _allComps.o(2)
+_addHomogenVarsInfoToGapJuncComp3(_comp)    // "Internal GJ"
+
+//////////////////// End of GJ set #1: Homogen vars //////////////////////
+
+//////////////////// Start of GJ set #1: "Import & Edit" measures ////////
+
+_selected_ref = nil
+
+_seedingDensityHelper = new ReducedSeedingDensityHelper(1, 0.05281023274622923, "1234.5 * exp(-x / 100)")
+
+//////////////////// End of GJ set #1: "Import & Edit" measures //////////
+
+//////////////////// Start of GJ set #1: Main part ///////////////////////
+
+_gapJuncSet = new ReducedGapJuncSet(_allGapJuncs, _allComps, 1, 1, _selected_ref, 10, 20.0, 0, _seedingDensityHelper)
+
+{ _gapJuncSet.createGapJuncStruc("Gap_neuron", 0, "", "") }
+{ _gapJuncSet.initAllHomogenVars("Gap_neuron", 0) }
+
+// Ext GJs: Electric / "Gap_neuron" (57 GJs)
+{ gjmAllGapJuncSets.append(_gapJuncSet) }
+
+//////////////////// End of GJ set #1: Main part /////////////////////////
+
+//////////////////// Start of templates for synapses /////////////////////
+
+begintemplate EnumSynCompIdxs
+    
+    public srcPp, netCon, trgPp, sngPp
+    
+    // Keep in sync with hoc:SynSet.init, py:GeneratorsForMainHocFile._analyzeUsedMechsInSynComps, py:GensForTaps.createReducedSynComps and py:GensForTaps.initHomogenSynVars
+    proc init() {
+        srcPp = 0
+        netCon = 1
+        trgPp = 2
+        sngPp = 3
+    }
+    
+endtemplate EnumSynCompIdxs
+
+objref enumSynCompIdxs
+enumSynCompIdxs = new EnumSynCompIdxs()
+
+
+// !! rename to EnumSynParts
+begintemplate EnumSynPpRoles
+    
+    public srcPp, netCon, trgPp, sngPp, trgPpOrSngPp
+    
+    proc init() {
+        srcPp = 0
+        netCon = 1
+        trgPp = 2
+        sngPp = 3
+        trgPpOrSngPp = 4
+    }
+    
+endtemplate EnumSynPpRoles
+
+objref enumSynPpRoles
+enumSynPpRoles = new EnumSynPpRoles()
+
+begintemplate Synapse
+
+    public sec_ref, connectionPoint, dist
+    public srcPp, netCon, trgPp, sngPp, sefwPp, sefwNetCon
+    public is3Or1Part, getPointProcess, changeLocation, changeStructure, calcAndCacheDist
+    
+    external codeContractViolation
+    external enumSynPpRoles
+    
+    // Synapse location info
+    objref sec_ref
+    connectionPoint = -1
+    dist = -1
+    
+    // Synapse structure and vars
+    objref srcPp, netCon, trgPp, sngPp, sefwPp, sefwNetCon
+    
+    
+    proc init() { local numArg
+        numArg = numarg()
+        if (numArg == 2) {
+            sec_ref = $o1
+            connectionPoint = $2
+        } else if (numArg == 3) {
+            sngPp = $o1
+            sec_ref = $o2
+            connectionPoint = $3
+        } else if (numArg == 5) {
+            srcPp = $o1
+            netCon = $o2
+            trgPp = $o3
+            sec_ref = $o4
+            connectionPoint = $5
+        } else {
+            codeContractViolation()
+        }
+        calcAndCacheDist()
+    }
+    
+    func is3Or1Part() { localobj nil
+        return (netCon != nil)
+    }
+    
+    // !! rename to getSynPart
+    obfunc getPointProcess() { local enumPpRoleExt localobj nil
+        enumPpRoleExt = $1
+        
+        if (enumPpRoleExt == enumSynPpRoles.srcPp) {
+            return srcPp
+        } else if (enumPpRoleExt == enumSynPpRoles.netCon) {
+            return netCon
+        } else if (enumPpRoleExt == enumSynPpRoles.trgPp) {
+            return trgPp
+        } else if (enumPpRoleExt == enumSynPpRoles.sngPp) {
+            return sngPp
+        } else if (enumPpRoleExt == enumSynPpRoles.trgPpOrSngPp) {
+            if (is3Or1Part()) {
+                return trgPp
+            } else {
+                return sngPp
+            }
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    proc changeLocation() {
+        sec_ref = $o1
+        connectionPoint = $2
+        calcAndCacheDist()
+    }
+    
+    proc changeStructure() { local numArg localobj nil
+        numArg = numarg()
+        if (numArg == 1) {
+            // sngPp -> Section
+            
+            netCon = nil        // Destroying old NetCon-s before all connected PPs
+            sefwNetCon = nil    //
+            
+            sngPp = $o1
+            
+            srcPp = nil
+            trgPp = nil
+            sefwPp = nil
+        } else if (numArg == 3) {
+            // srcPp -> netCon -> trgPp -> Section
+            
+            netCon = $o2        // Destroying old NetCon-s before all connected PPs
+            sefwNetCon = nil    //
+            
+            srcPp = $o1
+            trgPp = $o3
+            
+            sngPp = nil
+            sefwPp = nil
+        } else if (numArg == 5) {
+            // srcPp -> netCon -> sefwPp -> sefwNetCon -> trgPp -> Section
+            
+            netCon = $o2        // Destroying old NetCon-s before all connected PPs
+            sefwNetCon = $o4    //
+            
+            srcPp = $o1
+            sefwPp = $o3
+            trgPp = $o5
+            
+            sngPp = nil
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    proc calcAndCacheDist() {
+        sec_ref.sec {
+            dist = distance(connectionPoint)
+        }
+    }
+    
+endtemplate Synapse
+
+begintemplate ReducedManagersCommonUtils
+
+    public isMetaVar
+    
+    external stringStartsWith
+    
+    // Keep in sync with ManagersCommonUtils.isMetaVar
+    func isMetaVar() {
+        strdef varName
+        varName = $s1
+        return stringStartsWith(varName, "@")
+    }
+    
+endtemplate ReducedManagersCommonUtils
+
+objref mcu
+mcu = new ReducedManagersCommonUtils()
+
+begintemplate UtilsForFakeMechanismForNetCon
+
+    public getNumVars, getVarNameAndArraySize, getVarUnits, getNetConVar, setNetConVar
+    public mechIdx, mechName, numGlobalVars
+    public metaMechIdx, metaVarTypeIdx, metaVarName, metaArrayIndex, realMechName, realVarType, realVarName, realArrayIndex
+    
+    // !! external mth      // !! created only after we need to use it here
+    external pyObj
+    
+    mechIdx = -1
+    strdef mechName
+    numGlobalVars = -1
+    
+    metaMechIdx = -1        // Correspond to FakeMechanism*ForNetCon
+    metaVarTypeIdx = -1     //
+    strdef metaVarName      //
+    metaArrayIndex = -1     //
+    
+    strdef realMechName     // Correspond to SynEventsFilterWatcher
+    realVarType = -1        //
+    strdef realVarName      //
+    realArrayIndex = -1     //
+    
+    objref _pyUnitsDict, _tempNetCon, this
+    _tempValue = -1
+    
+    
+    proc init() { local metaVarType
+        strdef pyCommand
+        
+        mechIdx = 1             // !! keep in sync with ReducedMechTypeHelper.getMechIdx and .createMechStd
+        mechName = "NetCon"     //
+        numGlobalVars = 0
+        
+        realMechName = "SynEventsFilterWatcher"     // Keep in sync with proc SynEventsHelper.createNewSynEventsFilterWatcherButTryToInherit
+        realVarType = 1
+        realVarName = "release_probability"
+        realArrayIndex = 0
+        
+        metaMechIdx = 0
+        metaVarType = 1
+        metaVarTypeIdx = 0  // !! mth.convertVarTypeToVarTypeIdx(metaVarType)
+        sprint(metaVarName, "@%s", realVarName)
+        metaArrayIndex = 0
+        
+        sprint(pyCommand, "{'threshold': 'mV', 'delay': 'ms', 'weight': '', '%s': ''}", metaVarName)
+        _pyUnitsDict = pyObj.ev(pyCommand)
+    }
+    
+    func getNumVars() {
+        pyObj.pyValuesDict = $o1
+        return pyObj.ev("len(pyValuesDict)")
+    }
+    
+    func getVarNameAndArraySize() {
+        pyObj.pyValuesDict = $o1
+        pyObj.varIdx = $2
+        $s3 = pyObj.ev("list(pyValuesDict.keys())[int(varIdx)]")
+        return 1
+    }
+    
+    proc getVarUnits() {
+        strdef varName
+        varName = $s1
+        $s2 = _pyUnitsDict.__getitem__(varName)
+    }
+    
+    func getNetConVar() { localobj nil
+        strdef varNameWithIndex, hocCommand
+        
+        _tempNetCon = $o1
+        varNameWithIndex = $s2
+        
+        sprint(hocCommand, "_tempValue = _tempNetCon.%s", varNameWithIndex)
+        execute(hocCommand, this)
+        
+        _tempNetCon = nil
+        
+        return _tempValue
+    }
+    
+    proc setNetConVar() { localobj nil
+        strdef varNameWithIndex, hocCommand
+        
+        _tempNetCon = $o1
+        varNameWithIndex = $s2
+        _tempValue = $3
+        
+        sprint(hocCommand, "_tempNetCon.%s = _tempValue", varNameWithIndex)
+        execute(hocCommand, this)
+        
+        _tempNetCon = nil
+    }
+    
+endtemplate UtilsForFakeMechanismForNetCon
+
+
+objref utils4FakeMech4SynNetCon
+utils4FakeMech4SynNetCon = new UtilsForFakeMechanismForNetCon()
+
+begintemplate FakeMechanismStandardForNetCon
+
+    public count, name, get, set, in, out
+    
+    external pyObj
+    external mth, mcu
+    external utils4FakeMech4SynNetCon
+    external codeContractViolation
+    
+    objref pyValuesDict
+    
+    
+    proc init() {
+        strdef pyCommand
+        sprint(pyCommand, "{'threshold': 10.0, 'delay': 1.0, 'weight': 0.0, '%s': 1.0}", utils4FakeMech4SynNetCon.metaVarName)
+        // These default values are consistent with a newly created NetCon
+        pyValuesDict = pyObj.ev(pyCommand)
+        // !! think about encapsulating "release_probability" into a new (non-standard) varType, e.g. varType == 4 named "Meta"
+    }
+    
+    func count() {
+        return utils4FakeMech4SynNetCon.getNumVars(pyValuesDict)
+    }
+    
+    func name() { local numArg, varIdx
+        numArg = numarg()
+        
+        if (numArg == 1) {
+            $s1 = utils4FakeMech4SynNetCon.mechName
+            return 0
+        } else if (numArg == 2) {
+            varIdx = $2
+            return utils4FakeMech4SynNetCon.getVarNameAndArraySize(pyValuesDict, varIdx, $s1)
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    func get() { local numArg, arrayIndex
+        strdef varName
+        
+        numArg = numarg()
+        if (numArg == 0 || numArg > 2) {
+            codeContractViolation()
+        }
+        
+        varName = $s1
+        
+        if (numArg == 2) {
+            arrayIndex = $2     // Just a placeholder
+            if (arrayIndex != 0) {
+                codeContractViolation()
+            }
+        }
+        
+        return pyValuesDict.__getitem__(varName)
+    }
+    
+    proc set() { local numArg, value, arrayIndex
+        strdef varName
+        
+        numArg = numarg()
+        if (numArg < 2 || numArg > 3) {
+            codeContractViolation()
+        }
+        
+        varName = $s1
+        value = $2
+        
+        if (numArg == 3) {
+            arrayIndex = $3     // Just a placeholder
+            if (arrayIndex != 0) {
+                codeContractViolation()
+            }
+        }
+        
+        pyValuesDict.__setitem__(varName, value)
+    }
+    
+    proc in() { local varIdx, arraySize, arrayIndex, value localobj netCon
+        strdef varName, varNameWithIndex
+        netCon = $o1
+        for varIdx = 0, count() - 1 {
+            arraySize = name(varName, varIdx)
+            if (mcu.isMetaVar(varName)) {
+                continue
+            }
+            for arrayIndex = 0, arraySize - 1 {
+                mth.getVarNameWithIndex(varName, arraySize, arrayIndex, varNameWithIndex)
+                value = utils4FakeMech4SynNetCon.getNetConVar(netCon, varNameWithIndex)
+                set(varName, value, arrayIndex)
+            }
+        }
+    }
+    
+    proc out() { local varIdx, arraySize, arrayIndex, value localobj netCon
+        strdef varName, varNameWithIndex
+        netCon = $o1
+        for varIdx = 0, count() - 1 {
+            arraySize = name(varName, varIdx)
+            if (mcu.isMetaVar(varName)) {
+                continue
+            }
+            for arrayIndex = 0, arraySize - 1 {
+                value = get(varName, arrayIndex)
+                mth.getVarNameWithIndex(varName, arraySize, arrayIndex, varNameWithIndex)
+                utils4FakeMech4SynNetCon.setNetConVar(netCon, varNameWithIndex, value)
+            }
+        }
+    }
+    
+endtemplate FakeMechanismStandardForNetCon
+
+begintemplate SynEventsHelper
+
+    public ifMetaVarThenUpdateStatus, createNewSynEventsFilterWatcherButTryToInherit, isSefwEnabled
+    public isMinRPlt1
+    
+    external mcu, enumSynCompIdxs
+    external inhomAndStochLibrary
+    external utils4FakeMech4SynNetCon
+    
+    objref allComps
+    
+    isMinRPlt1 = -1
+    
+    objref this
+    
+    
+    proc init() {
+        allComps = $o1
+    }
+    
+    proc ifMetaVarThenUpdateStatus() { local minValue
+        strdef varName
+        varName = $s1
+        minValue = $2
+        if (mcu.isMetaVar(varName)) {
+            isMinRPlt1 = (minValue < 1)
+        }
+    }
+    
+    objref _mechStd
+    
+    proc createNewSynEventsFilterWatcherButTryToInherit() { local wasSefwPresentBefore, is3Or1PartInSynStruc_old, release_probability localobj syn, trgPp, sefwPp, sefwNetCon, nil
+    
+        syn = $o1
+        wasSefwPresentBefore = $2
+        is3Or1PartInSynStruc_old = $3
+        trgPp = $o4
+        
+        // Prepare the output point process
+        if (wasSefwPresentBefore) {
+            sefwPp = syn.sefwPp
+        } else {
+            _mechStd = allComps.o(enumSynCompIdxs.netCon).mechStds[utils4FakeMech4SynNetCon.metaMechIdx][utils4FakeMech4SynNetCon.metaVarTypeIdx]
+            
+            if (_mechStd != nil) {
+                // This equals NaN if the var was made inhomogen earlier,
+                // but we'll restore all inhomogeneities shortly downstream calling inhomAndStochLibrary.onSynStrucChange
+                release_probability = _mechStd.get(utils4FakeMech4SynNetCon.metaVarName, utils4FakeMech4SynNetCon.metaArrayIndex)
+            } else {
+                // We are in the exported nano HOC file, and all NetCon params are default (so its mechStd is nil)
+                release_probability = 1
+            }
+            
+            sefwPp = new SynEventsFilterWatcher()     // Keep the name in sync with UtilsForFakeMechanismForNetCon ctor
+            sefwPp.release_probability = release_probability
+            // The "seed" will be set shortly downstream (once per rank)
+        }
+        
+        // Prepare the output NetCon
+        sefwNetCon = new NetCon(sefwPp, trgPp)
+        if (wasSefwPresentBefore) {
+            createNewFakeMechStdForNetConAndInFrom(syn.sefwNetCon)
+        } else {
+            if (is3Or1PartInSynStruc_old) {
+                createNewFakeMechStdForNetConAndInFrom(syn.netCon)
+            } else {
+                // We'll use the _mechStd defined above
+            }
+        }
+        if (_mechStd != nil) {
+            // This inserts NaN-s for inhomogen vars,
+            // but we'll restore all inhomogeneities shortly downstream calling inhomAndStochLibrary.onSynStrucChange
+            _mechStd.out(sefwNetCon)
+        }
+        // The second NetCon has no delay
+        sefwNetCon.delay = 0
+        
+        $o5 = sefwPp
+        $o6 = sefwNetCon
+        
+        _mechStd = nil
+    }
+    
+    func isSefwEnabled() {
+        if (isMinRPlt1) {
+            return 1
+        }
+        return inhomAndStochLibrary.isAnyStochVarsForSynsInTheSet(this)     // Do not move to the IF OR for higher performance
+    }
+    
+    // All next staff is private
+    
+    
+    proc createNewFakeMechStdForNetConAndInFrom() { localobj srcNetCon
+        srcNetCon = $o1
+        execute("_mechStd = new FakeMechanismStandardForNetCon()", this)        // The template is loaded after this file
+        _mechStd.in(srcNetCon)
+    }
+    
+endtemplate SynEventsHelper
+
+begintemplate ReducedSpineNeckDiamCache
+
+    public getCachedDiam
+    public diamsVec
+    
+    external isAstrocyteOrNeuron
+    external codeContractViolation
+    
+    objref diamsVec
+    
+    
+    proc init() {
+        diamsVec = $o1
+        
+        if (isAstrocyteOrNeuron) {
+            codeContractViolation()
+        }
+    }
+    
+    func getCachedDiam() { local spineIdx
+        spineIdx = $1
+        return diamsVec.x(spineIdx)
+    }
+    
+endtemplate ReducedSpineNeckDiamCache
+
+begintemplate ReducedSynSet
+
+    public createSynStruc, initAllHomogenVars
+    public allSyns, allComps, enumSynLoc, randomSynLocP, spineNecks_ref, spineHeads_ref, spineNeckDiamCache, idxForSynSet
+    public seh
+    
+    external tapSet, utils4FakeMech4SynNetCon
+    external mth, rngUtils
+    external enumSynCompIdxs, enumSynPpRoles
+    external eachItemInList
+    
+    objref allSyns, allComps
+    enumSynLoc = -1
+    randomSynLocP = -1
+    objref spineNecks_ref, spineHeads_ref
+    objref spineNeckDiamCache
+    idxForSynSet = -1
+    
+    objref seh
+    isSefwEnabled = -1
+    
+    objref this
+    
+    
+    proc init() { local isMinRPlt1
+        allSyns = $o1
+        allComps = $o2
+        enumSynLoc = $3
+        randomSynLocP = $4
+        spineNecks_ref = $o5
+        spineHeads_ref = $o6
+        spineNeckDiamCache = $o7
+        idxForSynSet = $8
+        isMinRPlt1 = $9
+        isSefwEnabled = $10     // We don't call seh.isSefwEnabled() in ReducedSynSet because all stoch models will be applied only downstream
+        
+        if (isSefwEnabled) {
+            execute("seh = new SynEventsHelper(allComps)", this)    // The template is not exported if all syn sets are NetCon-less
+            seh.isMinRPlt1 = isMinRPlt1
+        }
+    }
+    
+    // Keep in sync with SynSet.applyChangesToStrucIfNeeded
+    proc createSynStruc() { local is3Or1PartInSynStruc, srcMechIdx, seed localobj syn, srcPp, trgPp, netCon, sefwPp, sefwNetCon, sngPp
+        strdef srcMechName, trgMechName, sngMechName
+        
+        is3Or1PartInSynStruc = $1
+        srcMechName = $s2
+        trgMechName = $s3
+        sngMechName = $s4
+        
+        if (is3Or1PartInSynStruc) {
+            srcMechIdx = mth.getMechIdx(1, srcMechName)
+            for eachItemInList(syn, allSyns) {
+                srcPp = createNewSrcPp(syn, srcMechIdx, srcMechName)
+                trgPp = tapSet.createNewPpAttachedToSection(trgMechName, syn.sec_ref, syn.connectionPoint)
+                if (!isSefwEnabled) {
+                    netCon = new NetCon(srcPp, trgPp)
+                    syn.changeStructure(srcPp, netCon, trgPp)
+                } else {
+                    seh.createNewSynEventsFilterWatcherButTryToInherit(syn, 0, 0, trgPp, sefwPp, sefwNetCon)
+                    netCon = new NetCon(srcPp, sefwPp)
+                    syn.changeStructure(srcPp, netCon, sefwPp, sefwNetCon, trgPp)
+                }
+            }
+            if (isSefwEnabled) {
+                // It's enough to set the seed only once per rank (for the last sefwPp in our case)
+                seed = rngUtils.getSeedFor_SEFW()
+                sefwPp.setSeed(seed)
+            }
+        } else {
+            for eachItemInList(syn, allSyns) {
+                sngPp = tapSet.createNewPpAttachedToSection(sngMechName, syn.sec_ref, syn.connectionPoint)
+                syn.changeStructure(sngPp)
+            }
+        }
+    }
+    
+    // Keep in sync with SynSet.applyChangesToDirtyHomogenVars
+    proc initAllHomogenVars() { local is3Or1PartInSynStruc, srcMechIdx, trgMechIdx, sngMechIdx
+        strdef srcMechName, trgMechName, sngMechName
+        
+        is3Or1PartInSynStruc = $1
+        srcMechName = $s2
+        trgMechName = $s3
+        sngMechName = $s4
+        
+        if (is3Or1PartInSynStruc) {
+            srcMechIdx = mth.getMechIdx(1, srcMechName)
+            trgMechIdx = mth.getMechIdx(1, trgMechName)
+            initHomogenVars(enumSynCompIdxs.srcPp, srcMechIdx, enumSynPpRoles.srcPp)
+            initHomogenVars(enumSynCompIdxs.netCon, utils4FakeMech4SynNetCon.mechIdx, enumSynPpRoles.netCon)
+            initHomogenVars(enumSynCompIdxs.trgPp, trgMechIdx, enumSynPpRoles.trgPp)
+        } else {
+            sngMechIdx = mth.getMechIdx(1, sngMechName)
+            initHomogenVars(enumSynCompIdxs.sngPp, sngMechIdx, enumSynPpRoles.sngPp)
+        }
+    }
+    
+    // All next staff is private
+    
+    
+    // Keep in sync with SynSet.createNewSrcPpButTryToInherit
+    obfunc createNewSrcPp() { local mechIdx, doesSrcPpRequireSection localobj syn, mechType, pp
+        strdef mechName
+        
+        syn = $o1
+        mechIdx = $2
+        mechName = $s3
+        
+        mechType = new MechanismType(1)     // 1: "Point Processes"
+        
+        doesSrcPpRequireSection = !mechType.is_artificial(mechIdx)
+        
+        if (!doesSrcPpRequireSection) {
+            mechType.select(mechName)
+            mechType.make(pp)   // Not located in any section
+            return pp
+        } else {
+            return tapSet.createNewPpAttachedToSection(mechName, syn.sec_ref, syn.connectionPoint)
+        }
+    }
+    
+    // Keep in sync with SynSet.ifMechDirtyThenApplyHomogenChanges
+    proc initHomogenVars() { local compIdx, mechIdx, enumPpRole, isPPorNC, maxVarType, varType, varTypeIdx localobj comp, syn, sefwPpOrNil, sefwNetConOrNil, ppOrNetCon, compMechStd, nil
+        
+        compIdx = $1
+        mechIdx = $2
+        enumPpRole = $3
+        
+        comp = allComps.o(compIdx)
+        
+        isPPorNC = (compIdx != enumSynCompIdxs.netCon)
+        
+        for eachItemInList(syn, allSyns) {
+            sefwPpOrNil = nil
+            sefwNetConOrNil = nil
+            ppOrNetCon = syn.getPointProcess(enumPpRole)
+            if (isPPorNC) {
+                maxVarType = 3
+            } else {
+                if (isSefwEnabled) {
+                    sefwPpOrNil = syn.sefwPp
+                    sefwNetConOrNil = syn.sefwNetCon
+                }
+                maxVarType = 1
+            }
+            for varType = 1, maxVarType {   // 1: "PARAMETER", 2: "ASSIGNED", 3: "STATE"
+                varTypeIdx = varType - 1
+                compMechStd = comp.mechStds[mechIdx][varTypeIdx]
+                if (compMechStd != nil) {
+                    // Here we assign NaN values to inhom vars, but they will be overwritten shortly downstream
+                    compMechStd.out(ppOrNetCon)
+                }
+            }
+            if (sefwPpOrNil != nil) {
+                if (compMechStd != nil) {
+                    // The same comment regarding NaN values
+                    sefwPpOrNil.release_probability = compMechStd.get(utils4FakeMech4SynNetCon.metaVarName)
+                } else {
+                    // We get here when all NetCon params are default (so its mechStd is nil), but stochasticity is enabled
+                    sefwPpOrNil.release_probability = 1
+                }
+            }
+            if (sefwNetConOrNil != nil) {
+                if (compMechStd != nil) {
+                    // The same comment regarding NaN values
+                    compMechStd.out(sefwNetConOrNil)
+                }
+                sefwNetConOrNil.delay = 0
+            }
+        }
+    }
+    
+endtemplate ReducedSynSet
+
+smAllSynSets = new List()
+
+objref _allSyns, _spineNecks_ref, _spineHeads_ref, _diamsVec, _spineNeckDiamCache, _synSet
+
+//////////////////// End of templates for synapses ///////////////////////
+
+//////////////////// Start of syn set #1: Locations //////////////////////
+
+_allSyns = new List()
+NeuronNanoBranch[0].spine_head _allSyns.append(new Synapse(new SectionRef(), 0.5))
+
+//////////////////// End of syn set #1: Locations ////////////////////////
+
+//////////////////// Start of syn set #1: Compartments ///////////////////
+
+_allComps = new List()
+{ _allComps.append(new ReducedPPComp(0, "Source PP", enumSynPpRoles.srcPp, "NetStim")) }
+{ _allComps.append(new ReducedFakeComp(enumSynPpRoles.netCon, 1)) }
+{ _allComps.append(new ReducedPPComp(0, "Target PP", enumSynPpRoles.trgPp, "Exp2Syn")) }
+{ _allComps.append(new ReducedPPComp(0, "Single PP", enumSynPpRoles.sngPp, "")) }
+
+//////////////////// End of syn set #1: Compartments /////////////////////
+
+//////////////////// Start of syn set #1: Homogen vars ///////////////////
+
+isMinRPlt1 = 0
+
+// "Source PP"
+proc _addHomogenVarsInfoToSynComp1() { local mechIdx localobj comp, mechStd
+    comp = $o1
+    
+    mechIdx = mth.getMechIdx(1, "NetStim")
+    
+    mechStd = new MechanismStandard("NetStim", 1)    // PARAMETER
+    mechStd.set("interval", 100.0)    // (ms)
+    mechStd.set("number", 1000.0)
+    mechStd.set("start", 2.0)    // (ms)
+    mechStd.set("noise", 1.0)
+    comp.mechStds[mechIdx][0] = mechStd
+}
+
+// "NetCon"
+proc _addHomogenVarsInfoToSynComp2() { local mechIdx localobj comp, mechStd
+    comp = $o1
+    
+    mechIdx = mth.getMechIdx(2, "NetCon")
+    
+    mechStd = new FakeMechanismStandardForNetCon()
+    mechStd.set("threshold", 0.0)    // (mV)
+    mechStd.set("delay", 0.0)    // (ms)
+    comp.mechStds[mechIdx][0] = mechStd
+}
+
+// "Target PP"
+proc _addHomogenVarsInfoToSynComp3() { local mechIdx localobj comp, mechStd
+    comp = $o1
+}
+
+// "Single PP"
+proc _addHomogenVarsInfoToSynComp4() { local mechIdx localobj comp, mechStd
+    comp = $o1
+}
+
+_comp = _allComps.o(0)
+_addHomogenVarsInfoToSynComp1(_comp)    // "Source PP"
+
+_comp = _allComps.o(1)
+_addHomogenVarsInfoToSynComp2(_comp)    // "NetCon"
+
+_comp = _allComps.o(2)
+_addHomogenVarsInfoToSynComp3(_comp)    // "Target PP"
+
+_comp = _allComps.o(3)
+_addHomogenVarsInfoToSynComp4(_comp)    // "Single PP"
+
+//////////////////// End of syn set #1: Homogen vars /////////////////////
+
+//////////////////// Start of syn set #1: "Import & Edit" measures ///////
+
+_spineNecks_ref = new List()
+NeuronNanoBranch[0].spine_neck _spineNecks_ref.append(new SectionRef())
+
+_spineHeads_ref = new List()
+NeuronNanoBranch[0].spine_head _spineHeads_ref.append(new SectionRef())
+
+_diamsVec = new Vector(1)
+_diamsVec.x(0) = 0.5998328328132629
+
+_spineNeckDiamCache = new ReducedSpineNeckDiamCache(_diamsVec)
+
+//////////////////// End of syn set #1: "Import & Edit" measures /////////
+
+//////////////////// Start of syn set #1: Main part //////////////////////
+
+_synSet = new ReducedSynSet(_allSyns, _allComps, 0, 0.5, _spineNecks_ref, _spineHeads_ref, _spineNeckDiamCache, 1, isMinRPlt1, 0)
+
+{ _synSet.createSynStruc(1, "NetStim", "Exp2Syn", "") }
+{ _synSet.initAllHomogenVars(1, "NetStim", "Exp2Syn", "") }
+
+// Set #1: NetStim -> NetCon -> Exp2Syn -> Section (1 syn)
+{ smAllSynSets.append(_synSet) }
+
+//////////////////// End of syn set #1: Main part ////////////////////////
+
+//////////////////// Start of cleanup ////////////////////////////////////
+
+_comp = nil
+
+_vecOfVals = nil
+_listOfStrs = nil
+
+_segmentationHelper = nil
+_distFuncHelper = nil
+
+_allComps = nil
+
+_allGapJuncs = nil
+_sec_ref = nil
+_otherSec_ref = nil
+_selected_ref = nil
+_seedingDensityHelper = nil
+_gapJuncSet = nil
+
+_allSyns = nil
+_spineNecks_ref = nil
+_spineHeads_ref = nil
+_diamsVec = nil
+_spineNeckDiamCache = nil
+_synSet = nil
+
+//////////////////// End of cleanup //////////////////////////////////////
+
+//////////////////// Start of APCount-s //////////////////////////////////
+
+objref apCounts[1]
+
+s1_0 apCounts[0] = new APCount(0.5)
+apCounts[0].thresh = 0.0    // (mV)
+
+//////////////////// End of APCount-s ////////////////////////////////////
+
+access soma_ref.o(0).sec

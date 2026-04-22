@@ -1,0 +1,133 @@
+
+begintemplate ReducedGapJuncSet
+
+    public createGapJuncStruc, initAllHomogenVars
+    public allGapJuncs, allComps, isExtOrInt, isAllOrSomeSecsSeeded, selected_ref, maxNumGapJuncsPerSec, maxRadiusForIntGapJuncs, isCrissCrossForIntGapJuncs, seedingDensityHelper
+    
+    external mth, tapSet
+    external codeContractViolation
+    external enumGapJuncCompIdxs, enumGapJuncPpRoles
+    external eachItemInList
+    
+    objref allGapJuncs, allComps
+    isExtOrInt = -1
+    isAllOrSomeSecsSeeded = -1
+    objref selected_ref
+    maxNumGapJuncsPerSec = -1
+    maxRadiusForIntGapJuncs = -1
+    isCrissCrossForIntGapJuncs = -1
+    objref seedingDensityHelper
+    
+    objref this
+    
+    
+    proc init() {
+        allGapJuncs = $o1
+        allComps = $o2
+        isExtOrInt = $3
+        isAllOrSomeSecsSeeded = $4
+        selected_ref = $o5
+        maxNumGapJuncsPerSec = $6
+        maxRadiusForIntGapJuncs = $7
+        isCrissCrossForIntGapJuncs = $8
+        seedingDensityHelper = $o9
+    }
+    
+    objref _gapJunc
+    objref _sngPp
+    _otherConnectionPoint = -1  // For internal GJs only
+    
+    // Keep in sync with GapJuncSet.applyChangesToStrucIfNeeded
+    proc createGapJuncStruc() { local doesHavePtr localobj nil
+        strdef mechName, ppPtrName, dmVarNameWithIndex, hocCommand
+        
+        mechName = $s1
+        doesHavePtr = $2            // pyObj.ms_doesGapJuncHavePtr(mechName)
+        ppPtrName = $s3             // pyObj.ms_getGapJuncPtrName(mechName)
+        dmVarNameWithIndex = $s4    // pyObj.ms_getGapJuncExtVarNameWithIndex(mechName)
+        
+        if (allGapJuncs.count() == 0) {
+            return
+        }
+        
+        if (doesHavePtr) {
+            if (isExtOrInt) {
+                sprint(hocCommand, "setpointer _sngPp.%s, _gapJunc.extValue", ppPtrName)
+            } else {
+                sprint(hocCommand, "setpointer _sngPp.%s, %s(_otherConnectionPoint)", ppPtrName, dmVarNameWithIndex)
+            }
+        }
+        
+        for eachItemInList(_gapJunc, allGapJuncs) {
+            _sngPp = tapSet.createNewPpAttachedToSection(mechName, _gapJunc.sec_ref, _gapJunc.connectionPoint)
+            if (doesHavePtr) {
+                if (isExtOrInt) {
+                    execute(hocCommand, this)
+                } else {
+                    _otherConnectionPoint = _gapJunc.otherConnectionPoint
+                    _gapJunc.otherSec_ref {
+                        execute(hocCommand, this)
+                    }
+                }
+            }
+            _gapJunc.changeStructure(_sngPp)
+        }
+        
+        _gapJunc = nil
+        _sngPp = nil
+    }
+    
+    // Keep in sync with GapJuncSet.applyChangesToDirtyHomogenVars
+    proc initAllHomogenVars() { local mechIdx, fixedMechIdx
+        strdef mechName
+        
+        mechName = $s1
+        fixedMechIdx = $2   // utils4FakeMech4GapJuncExtValue.mechIdx
+        
+        mechIdx = mth.getMechIdx(1, mechName)
+        
+        if (isExtOrInt) {
+            initHomogenVars(enumGapJuncCompIdxs.extGjPp, mechIdx, enumGapJuncPpRoles.sngPp)
+            initHomogenVars(enumGapJuncCompIdxs.extGjExtValue, fixedMechIdx, enumGapJuncPpRoles.extValue)
+        } else {
+            initHomogenVars(enumGapJuncCompIdxs.intGjPp, mechIdx, enumGapJuncPpRoles.sngPp)
+        }
+    }
+    
+    // All next staff is private
+    
+    
+    // Keep in sync with GapJuncSet.ifMechDirtyThenApplyHomogenChanges
+    proc initHomogenVars() { local compIdx, mechIdx, enumPpRole, isPPorEV, maxVarType, varType, varTypeIdx localobj comp, gapJunc, ppOrExtVal, compMechStd, nil
+        
+        compIdx = $1
+        mechIdx = $2
+        enumPpRole = $3
+        
+        if (enumPpRole == enumGapJuncPpRoles.ptrMarkerPp) {
+            codeContractViolation()
+        }
+        
+        isPPorEV = (compIdx != enumGapJuncCompIdxs.extGjExtValue)
+        if (isPPorEV) {
+            maxVarType = 3
+        } else {
+            maxVarType = 1
+        }
+        
+        comp = allComps.o(compIdx)
+        
+        for eachItemInList(gapJunc, allGapJuncs) {
+            ppOrExtVal = gapJunc.getPointProcess(enumPpRole)
+            for varType = 1, maxVarType {   // 1: "PARAMETER", 2: "ASSIGNED", 3: "STATE"
+                varTypeIdx = varType - 1
+                compMechStd = comp.mechStds[mechIdx][varTypeIdx]
+                if (compMechStd != nil) {
+                    // Here we assign NaN values to inhom vars, but they will be overwritten shortly downstream
+                    compMechStd.out(ppOrExtVal)
+                }
+            }
+        }
+    }
+    
+endtemplate ReducedGapJuncSet

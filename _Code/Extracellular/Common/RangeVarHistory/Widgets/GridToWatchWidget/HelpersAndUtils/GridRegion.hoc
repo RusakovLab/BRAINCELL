@@ -1,0 +1,467 @@
+
+// !! think about deploying a grid of temp artificial cells rather than temp sections
+
+begintemplate GridRegion
+
+    // !! instead of exposing these 2-based nx, ny, nz, add 3 funcs to get real 1-based n-s (and reuse it in GridOfSections.initForRegularGrid)
+    public is3dOr2dGrid, twoDimGridPlaneIdx, paddingOrMinus1, nx, ny, nz, xyzCentre, xyzRange
+    public onJustBeforeShow, showEdgesAndAnchorPoints, onPaddingChanged, numPtsChangedHandler, onMousePress, onMouseDrag
+    public deployGrid
+    public getNumPts, getLetter
+    
+    external gridOfSections
+    external destroyTempSects
+    external codeContractViolation
+    external cbbUtils, geomMath, math, mwh
+    external enumAnchorPointTypes, enumAnchorPointLocations, enumColours
+    external pyObj
+    
+    is3dOr2dGrid = -1
+    twoDimGridPlaneIdx = -1     // 0: XY, 1: ZY, 2: XZ
+    paddingOrMinus1 = -2
+    nx = -1     // !! would it make sense to use double[3] instead of these 3 and get rid of func getNumPts?
+    ny = -1     //
+    nz = -1     //
+    
+    objref xyzCentre, xyzRange
+    objref apsList
+    
+    objref viewDirIdx_to_xScreenIdx, viewDirIdx_to_yScreenIdx, gridPlaneAndViewDir_to_branchIdx
+    
+    edgeColourIdx = -1
+    edgeBrushIdx = -1
+    
+    apColourIdx = -1
+    strdef apMarker
+    apSize = -1
+    apBrushIdx = -1
+    
+    isFirstShow = -1
+    
+    
+    proc init() { local inf
+        
+        // Defaults (part 1)
+        is3dOr2dGrid = 1        // !!
+        twoDimGridPlaneIdx = 0      // 0: XY
+        paddingOrMinus1 = 5         // %
+        
+        viewDirIdx_to_xScreenIdx = new Vector(3)
+        viewDirIdx_to_xScreenIdx.x[0] = 0   // XY
+        viewDirIdx_to_xScreenIdx.x[1] = 2   // ZY
+        viewDirIdx_to_xScreenIdx.x[2] = 0   // XZ
+        
+        viewDirIdx_to_yScreenIdx = new Vector(3)
+        viewDirIdx_to_yScreenIdx.x[0] = 1   // XY
+        viewDirIdx_to_yScreenIdx.x[1] = 1   // ZY
+        viewDirIdx_to_yScreenIdx.x[2] = 2   // XZ
+        
+        gridPlaneAndViewDir_to_branchIdx = new Matrix(3, 3)
+        gridPlaneAndViewDir_to_branchIdx.x[0][0] = 0
+        gridPlaneAndViewDir_to_branchIdx.x[1][1] = 0
+        gridPlaneAndViewDir_to_branchIdx.x[2][2] = 0
+        gridPlaneAndViewDir_to_branchIdx.x[0][2] = 1
+        gridPlaneAndViewDir_to_branchIdx.x[2][0] = 1
+        gridPlaneAndViewDir_to_branchIdx.x[0][1] = 2
+        gridPlaneAndViewDir_to_branchIdx.x[1][0] = 2
+        gridPlaneAndViewDir_to_branchIdx.x[1][2] = 2
+        gridPlaneAndViewDir_to_branchIdx.x[2][1] = 1
+        
+        apsList = new List()
+        
+        // Visual style for Edges
+        edgeColourIdx = enumColours.blue
+        edgeBrushIdx = 0
+        
+        // Visual style for Anchor points
+        apColourIdx = enumColours.red
+        apMarker = "s"
+        apSize = 5
+        apBrushIdx = 0
+        
+        isFirstShow = 1
+        
+        xyzCentre = new Vector(3)
+        xyzRange = new Vector(3)
+        
+        inf = math.inf
+        variable_domain(&paddingOrMinus1, -1, inf)
+        variable_domain(&nx, 2, inf)
+        variable_domain(&ny, 2, inf)
+        variable_domain(&nz, 2, inf)
+        
+        units(&paddingOrMinus1, "%")
+        
+        // Note: we don't assign variable domains and units to elements of "xyzRange" and "xyzCentre" because
+        //       this would have a global effect for all elements of all Vector-s (NEURON restriction), particularly, affecting VarsEditorWidget
+        //       idea 1: try to use double[] instead of Vector
+        //       idea 2: assign them before each "xpvalue" call and reset after
+    }
+    
+    proc onJustBeforeShow() { local xMin, yMin, zMin, xMax, yMax, zMax, Dx, Dy, Dz, D, n
+        
+        if (!isFirstShow) {
+            return
+        }
+        
+        // !! for outside-in diffusion, maybe take ECSs into account
+        D = cbbUtils.analyzeCellBoundingBox(&xMin, &yMin, &zMin, &xMax, &yMax, &zMax, &Dx, &Dy, &Dz)
+        
+        // Defaults (part 2)
+        initCentreAndRange(xMin, yMin, zMin, xMax, yMax, zMax)
+        
+        // !! just some heuristic to avoid denser grids along thinner cell dimensions
+        n = 20      // The idea is to have "n" for the cube / square
+        nx = math.max(1, math.round(n * Dx / D))
+        ny = math.max(1, math.round(n * Dy / D))
+        nz = math.max(1, math.round(n * Dz / D))
+        
+        isFirstShow = 0
+    }
+    
+    objref _shape
+    
+    proc showEdgesAndAnchorPoints() { local viewDirIdx, xCnt_sc, yCnt_sc, xMin_sc, xMax_sc, yMin_sc, yMax_sc, branchIdx localobj enum1, enum2, nil
+        
+        _shape = $o1
+        viewDirIdx = $2
+        
+        worldToScreenTransform(viewDirIdx, &xCnt_sc, &yCnt_sc, &xMin_sc, &xMax_sc, &yMin_sc, &yMax_sc)
+        
+        if (is3dOr2dGrid) {
+            branchIdx = 0
+        } else {
+            branchIdx = gridPlaneAndViewDir_to_branchIdx.x[twoDimGridPlaneIdx][viewDirIdx]
+        }
+        
+        _shape.beginline("Grid Region", edgeColourIdx, edgeBrushIdx)
+        
+        apsList.remove_all()
+        
+        enum1 = enumAnchorPointTypes
+        enum2 = enumAnchorPointLocations
+        
+        if (branchIdx == 0) {
+            // Edges and Anchor points: Vertices
+            addEdgeAndAnchorPoint(xMin_sc, yMin_sc, enum1.vertex, enum2.min, enum2.min)
+            addEdgeAndAnchorPoint(xMin_sc, yMax_sc, enum1.vertex, enum2.min, enum2.max)
+            addEdgeAndAnchorPoint(xMax_sc, yMax_sc, enum1.vertex, enum2.max, enum2.max)
+            addEdgeAndAnchorPoint(xMax_sc, yMin_sc, enum1.vertex, enum2.max, enum2.min)
+            _shape.line(xMin_sc, yMin_sc)
+            
+            // Anchor points: Edge centres
+            addAnchorPoint(xMin_sc, yCnt_sc, enum1.edgeCentre, enum2.min, enum2.cnt)
+            addAnchorPoint(xCnt_sc, yMax_sc, enum1.edgeCentre, enum2.cnt, enum2.max)
+            addAnchorPoint(xMax_sc, yCnt_sc, enum1.edgeCentre, enum2.max, enum2.cnt)
+            addAnchorPoint(xCnt_sc, yMin_sc, enum1.edgeCentre, enum2.cnt, enum2.min)
+            
+            // Anchor points: Rectangle centre
+            addAnchorPoint(xCnt_sc, yCnt_sc, enum1.rectCentre, enum2.cnt, enum2.cnt)
+            
+        } else if (branchIdx == 1) {
+            // Edge and Anchor points: Vertices
+            addEdgeAndAnchorPoint(xMin_sc, yCnt_sc, enum1.vertex, enum2.min, enum2.cnt)
+            addEdgeAndAnchorPoint(xMax_sc, yCnt_sc, enum1.vertex, enum2.max, enum2.cnt)
+            
+            // Anchor point: Edge centre
+            addAnchorPoint(xCnt_sc, yCnt_sc, enum1.edgeCentre, enum2.cnt, enum2.cnt)
+            
+        } else if (branchIdx == 2) {
+            // Edge and Anchor points: Vertices
+            addEdgeAndAnchorPoint(xCnt_sc, yMin_sc, enum1.vertex, enum2.cnt, enum2.min)
+            addEdgeAndAnchorPoint(xCnt_sc, yMax_sc, enum1.vertex, enum2.cnt, enum2.max)
+            
+            // Anchor point: Edge centre
+            addAnchorPoint(xCnt_sc, yCnt_sc, enum1.edgeCentre, enum2.cnt, enum2.cnt)
+            
+        } else {
+            codeContractViolation()
+        }
+        
+        _shape = nil
+    }
+    
+    proc onPaddingChanged() {
+        if (paddingOrMinus1 < 0) {
+            paddingOrMinus1 = -1
+        } else {
+            initCentreAndRange()
+        }
+    }
+    
+    proc numPtsChangedHandler() { local enumXYZ, n
+        strdef letter, Letter, msg
+        
+        enumXYZ = $1
+        
+        n = getNumPts(enumXYZ)
+        
+        if (n > 1 && xyzRange.x[enumXYZ] == 0) {
+            getLetter(enumXYZ, letter)
+            Letter = pyObj.str.upper(letter)    // !! we already have stringCapitalize in intermodular utils
+            sprint(msg, "Cannot use N%s > 1 because the cell is flat in %s dimension.", letter, Letter)
+            mwh.showWarningBox(msg)
+            
+            n = 1
+            
+            if (enumXYZ == 0) {
+                nx = n
+            } else if (enumXYZ == 1) {
+                ny = n
+            } else {
+                nz = n
+            }
+        }
+    }
+    
+    _selApIdx = -1
+    
+    proc onMousePress() { local x_sc, y_sc, numPts, apIdx, distSq localobj distSqVec, anchorPoint
+        x_sc = $1
+        y_sc = $2
+        
+        numPts = apsList.count()
+        
+        distSqVec = new Vector(numPts)
+        for apIdx = 0, numPts - 1 {
+            anchorPoint = apsList.o(apIdx)
+            distSq = geomMath.dist2D_PtToPt_squared(x_sc, y_sc, anchorPoint.x_sc, anchorPoint.y_sc)
+            distSqVec.x[apIdx] = distSq
+        }
+        
+        _selApIdx = cbbUtils.getNearestAnchorPointIdxOrMinus1(distSqVec)
+    }
+    
+    func onMouseDrag() { local x_sc, y_sc, viewDirIdx, apType, xLoc, yLoc, xCnt_sc, yCnt_sc, xMin_sc, xMax_sc, yMin_sc, yMax_sc localobj anchorPoint, enum1, enum2
+        
+        x_sc = $1
+        y_sc = $2
+        viewDirIdx = $3
+        
+        if (_selApIdx == -1) {
+            return 0
+        }
+        
+        paddingOrMinus1 = -1
+        
+        anchorPoint = apsList.o(_selApIdx)
+        apType = anchorPoint.apType
+        xLoc = anchorPoint.xLoc
+        yLoc = anchorPoint.yLoc
+        
+        enum1 = enumAnchorPointTypes
+        enum2 = enumAnchorPointLocations
+        
+        worldToScreenTransform(viewDirIdx, &xCnt_sc, &yCnt_sc, &xMin_sc, &xMax_sc, &yMin_sc, &yMax_sc)
+        
+        if (apType == enum1.vertex) {
+            if (xLoc == enum2.min) {
+                xMin_sc = x_sc
+            } else if (xLoc == enum2.max) {
+                xMax_sc = x_sc
+            }
+            if (yLoc == enum2.min) {
+                yMin_sc = y_sc
+            } else if (yLoc == enum2.max) {
+                yMax_sc = y_sc
+            }
+            xCnt_sc = (xMin_sc + xMax_sc) / 2
+            yCnt_sc = (yMin_sc + yMax_sc) / 2
+        } else if (apType == enum1.edgeCentre) {
+            if (xLoc == enum2.cnt) {
+                if (yLoc == enum2.min) {
+                    yMin_sc = y_sc
+                    yCnt_sc = (yMin_sc + yMax_sc) / 2
+                } else if (yLoc == enum2.cnt) {
+                    yCnt_sc = y_sc
+                    // We don't update yMin_sc and yMax_sc here because only their difference will be used
+                    // in screenToWorldTransform, but the difference is unchanged
+                } else if (yLoc == enum2.max) {
+                    yMax_sc = y_sc
+                    yCnt_sc = (yMin_sc + yMax_sc) / 2
+                } else {
+                    codeContractViolation()
+                }
+            }
+            if (yLoc == enum2.cnt) {
+                if (xLoc == enum2.min) {
+                    xMin_sc = x_sc
+                    xCnt_sc = (xMin_sc + xMax_sc) / 2
+                } else if (xLoc == enum2.cnt) {
+                    xCnt_sc = x_sc
+                    // We don't update xMin_sc and xMax_sc here because only their difference will be used
+                    // in screenToWorldTransform, but the difference is unchanged
+                } else if (xLoc == enum2.max) {
+                    xMax_sc = x_sc
+                    xCnt_sc = (xMin_sc + xMax_sc) / 2
+                } else {
+                    codeContractViolation()
+                }
+            }
+        } else if (apType == enum1.rectCentre) {
+            if (xLoc == enum2.cnt && yLoc == enum2.cnt) {
+                xCnt_sc = x_sc
+                yCnt_sc = y_sc
+            } else {
+                codeContractViolation()
+            }
+            // We don't update xMin_sc and xMax_sc here because only their difference will be used
+            // in screenToWorldTransform, but the difference is unchanged;
+            // The same comment for yMin_sc and yMax_sc
+        } else {
+            codeContractViolation()
+        }
+        
+        screenToWorldTransform(viewDirIdx, xCnt_sc, yCnt_sc, xMin_sc, xMax_sc, yMin_sc, yMax_sc)
+        
+        return 1
+    }
+    
+    proc deployGrid() { localobj nil
+        if (gridOfSections != nil) {
+            destroyTempSects()
+        }
+        
+        mwh.showPleaseWaitBox("Deploying the grid.")
+        {
+            gridOfSections = new GridOfSections(is3dOr2dGrid, twoDimGridPlaneIdx, xyzCentre, xyzRange, nx, ny, nz)
+        }
+        mwh.hidePleaseWaitBox()
+    }
+    
+    func getNumPts() { local enumXYZ
+        enumXYZ = $1
+        if (enumXYZ == 0) {
+            n = nx
+        } else if (enumXYZ == 1) {
+            n = ny
+        } else if (enumXYZ == 2) {
+            n = nz
+        } else {
+            codeContractViolation()
+        }
+        return n
+    }
+    
+    proc getLetter() { local enumXYZ
+        strdef letter
+        enumXYZ = $1
+        if (enumXYZ == 0) {
+            letter = "x"
+        } else if (enumXYZ == 1) {
+            letter = "y"
+        } else if (enumXYZ == 2) {
+            letter = "z"
+        } else {
+            codeContractViolation()
+        }
+        $s2 = letter
+    }
+    
+    // All next staff is private
+    
+    
+    proc initCentreAndRange() { local numArgs, xMin, yMin, zMin, xMax, yMax, zMax, paddingFactor
+        
+        numArgs = numarg()
+        
+        if (numArgs == 0) {
+            // !! for outside-in diffusion, maybe take ECSs into account
+            cbbUtils.analyzeCellBoundingBox(&xMin, &yMin, &zMin, &xMax, &yMax, &zMax)
+        } else if (numArgs == 6) {
+            xMin = $1
+            yMin = $2
+            zMin = $3
+            xMax = $4
+            yMax = $5
+            zMax = $6
+        } else {
+            codeContractViolation()
+        }
+        
+        xyzCentre.x[0] = (xMin + xMax) / 2
+        xyzCentre.x[1] = (yMin + yMax) / 2
+        xyzCentre.x[2] = (zMin + zMax) / 2
+        
+        if (paddingOrMinus1 == -1) {
+            paddingFactor = 1
+        } else {
+            paddingFactor = 1 + paddingOrMinus1 / 50    // Converting one-sided paddingOrMinus1 to two-sided paddingFactor
+        }
+        xyzRange.x[0] = (xMax - xMin) * paddingFactor
+        xyzRange.x[1] = (yMax - yMin) * paddingFactor
+        xyzRange.x[2] = (zMax - zMin) * paddingFactor
+        
+        
+        // !! BUG: these values correspond to a bit smaller range compared to the limits in GridSlicerWidget
+        // print xMin
+        // print xMax
+        // print yMin
+        // print yMax
+        // print zMin
+        // print zMax
+        
+    }
+    
+    proc worldToScreenTransform() { local viewDirIdx, xScrIdx, yScrIdx, xCnt_sc, yCnt_sc
+        
+        viewDirIdx = $1
+        
+        xScrIdx = viewDirIdx_to_xScreenIdx.x[viewDirIdx]
+        yScrIdx = viewDirIdx_to_yScreenIdx.x[viewDirIdx]
+        
+        xCnt_sc = xyzCentre.x[xScrIdx]
+        yCnt_sc = xyzCentre.x[yScrIdx]
+        
+        $&2 = xCnt_sc                               // xCnt_sc
+        $&3 = yCnt_sc                               // yCnt_sc
+        $&4 = xCnt_sc - xyzRange.x[xScrIdx] / 2     // xMin_sc
+        $&5 = xCnt_sc + xyzRange.x[xScrIdx] / 2     // xMax_sc
+        $&6 = yCnt_sc - xyzRange.x[yScrIdx] / 2     // yMin_sc
+        $&7 = yCnt_sc + xyzRange.x[yScrIdx] / 2     // yMax_sc
+    }
+    
+    proc screenToWorldTransform() { local viewDirIdx, xCnt_sc, yCnt_sc, xMin_sc, xMax_sc, yMin_sc, yMax_sc, xScrIdx, yScrIdx
+        
+        viewDirIdx = $1
+        xCnt_sc = $2
+        yCnt_sc = $3
+        xMin_sc = $4
+        xMax_sc = $5
+        yMin_sc = $6
+        yMax_sc = $7
+        
+        xScrIdx = viewDirIdx_to_xScreenIdx.x[viewDirIdx]
+        yScrIdx = viewDirIdx_to_yScreenIdx.x[viewDirIdx]
+        
+        xyzCentre.x[xScrIdx] = xCnt_sc
+        xyzCentre.x[yScrIdx] = yCnt_sc
+        xyzRange.x[xScrIdx] = xMax_sc - xMin_sc
+        xyzRange.x[yScrIdx] = yMax_sc - yMin_sc
+    }
+    
+    proc addEdgeAndAnchorPoint() { local x_sc, y_sc, apType, xLoc, yLoc
+        x_sc = $1
+        y_sc = $2
+        apType = $3
+        xLoc = $4
+        yLoc = $5
+        
+        _shape.line(x_sc, y_sc)
+        
+        addAnchorPoint(x_sc, y_sc, apType, xLoc, yLoc)
+    }
+    
+    proc addAnchorPoint() { local x_sc, y_sc, apType, xLoc, yLoc
+        x_sc = $1
+        y_sc = $2
+        apType = $3
+        xLoc = $4
+        yLoc = $5
+        
+        _shape.mark(x_sc, y_sc, apMarker, apSize, apColourIdx, apBrushIdx)
+        
+        apsList.append(new AnchorPoint(x_sc, y_sc, apType, xLoc, yLoc))
+    }
+    
+endtemplate GridRegion

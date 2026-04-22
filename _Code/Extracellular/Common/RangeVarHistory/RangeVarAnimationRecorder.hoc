@@ -1,0 +1,154 @@
+
+begintemplate RangeVarAnimationRecorder
+    
+    public createDtEditBoxAndHint, setDefaultDt, validateDt
+    public onJustBeforeRun, onStep
+    public DtOrMinus1, list_ref
+    
+    external getRecSectsListAndNumSegms, getGraphedOrPointedVarUnits
+    external createRecordingPeriodHint, stringEmpty, codeContractViolation
+    external mwh, altRunControlWidget
+    external eachSegmInSecList
+    external cvode
+    external setdt
+    external tstop
+    
+    objref record
+    
+    DtOrMinus1 = -1
+    
+    objref list_ref
+    strdef readRangeVarInSegmHocCommand
+    timeVecSize_old = -1
+    
+    _x = -1
+    _value = -1
+    
+    objref this
+    
+    
+    proc init() {
+        strdef unitsStr
+        
+        record = $o1
+        
+        sprint(unitsStr, "in model time, %s", units(&dt))
+        units(&DtOrMinus1, unitsStr)
+    }
+    
+    proc createDtEditBoxAndHint() {
+        xpvalue("Recording period, Dt", &DtOrMinus1, 1, "DtChangedHandler()")
+        createRecordingPeriodHint()
+    }
+    
+    proc setDefaultDt() { local factor
+        factor = $1
+        
+        if (!cvode.active()) {
+            DtOrMinus1 = factor * dt
+        } else {
+            DtOrMinus1 = -1
+        }
+    }
+    
+    func validateDt() { local isCancel
+        isCancel = (!cvode.active() && DtOrMinus1 != -1 && DtOrMinus1 < dt)
+        if (isCancel) {
+            // Just to prevent codeContractViolation in RangeVarAnimationRecord.checkDataConsistency
+            mwh.showNotImplementedWarning("Cannot use \"Dt < dt\" with the fixed time step integration method.")
+        }
+        return isCancel
+    }
+    
+    // !! keep in sync with RunnerHocWatchedVarsUtils.hoc -> setUpVarVecsForRecording
+    proc onJustBeforeRun() { local isRecordTime, isFixedTimeStep, numRecsOr0, numSegms
+        strdef watchedRangeVarNameWithIndex, unitsStr
+        
+        watchedRangeVarNameWithIndex = $s1
+        isRecordTime = $2
+        
+        getGraphedOrPointedVarUnits(watchedRangeVarNameWithIndex, unitsStr)
+        if (!stringEmpty(unitsStr)) {
+            sprint(record.varNameWithIndexAndUnits, "%s (%s)", watchedRangeVarNameWithIndex, unitsStr)
+        } else {
+            record.varNameWithIndexAndUnits = watchedRangeVarNameWithIndex
+        }
+        
+        isFixedTimeStep = !cvode.active()
+        
+        // Estimate the number of records
+        if (DtOrMinus1 != -1) {
+            numRecsOr0 = int(tstop / DtOrMinus1 + 1) + 1
+        } else if (isFixedTimeStep) {
+            // Letting NEURON change "dt" now rather than on start of the simulation
+            setdt()
+            numRecsOr0 = int(tstop / dt + 1) + 1
+        } else {
+            numRecsOr0 = 0      // No estimate
+        }
+        
+        if (isRecordTime) {
+            // This will be resized by NEURON to 0 size just after "run()", here we just allocate memory as they recommend
+            record.timeVec = new Vector(numRecsOr0)
+            record.timeVec.resize(0)    // !! not sure that the memory remains allocated after this
+            if (DtOrMinus1 == -1 || (isFixedTimeStep && DtOrMinus1 == dt)) {
+                record.timeVec.record(&t)
+            } else {
+                // We don't use this branch when (isFixedTimeStep && DtOrMinus1 == dt) due to strange NEURON behaviour:
+                // sometimes our "proc onStep" (below) is called two times in a row with the same record.timeVec.size()
+                // and after number of iterations it's called with the size incremented by 2 instead of 1
+                record.timeVec.record(&t, DtOrMinus1)
+            }
+        } else {
+            record.timeVec = new Vector()
+        }
+        
+        // Prepare the list of recorded sections and count the number of segments
+        list_ref = getRecSectsListAndNumSegms(record.binFileType, &numSegms)
+        
+        record.rangeVarVec = new Vector(numRecsOr0 * numSegms)
+        record.rangeVarVec.resize(0)    // !! not sure that the memory remains allocated after this
+        
+        sprint(readRangeVarInSegmHocCommand, "_value = %s(_x)", watchedRangeVarNameWithIndex)
+        
+        // We don't use Vector.record for record.rangeVarVec, so have to make one record for t = 0 now
+        recordRangeVarNow()
+        
+        timeVecSize_old = 1
+    }
+    
+    proc onStep() { local numArg, time, timeVecSize_new
+        numArg = numarg()
+        if (numArg == 1) {
+            time = $1
+            // !! it's weird that we prevent recording time, and then write exactly the same values "by hand"
+            record.timeVec.append(time)
+        } else if (numArg != 0) {
+            codeContractViolation()
+        }
+        timeVecSize_new = record.timeVec.size()
+        if (timeVecSize_new == timeVecSize_old) {
+            return
+        }
+        recordRangeVarNow()
+        timeVecSize_old = timeVecSize_new
+    }
+    
+    // All next staff is private
+    
+    
+    proc DtChangedHandler() {
+        if (DtOrMinus1 <= 0) {
+            DtOrMinus1 = -1
+        }
+        altRunControlWidget.isInited = 0
+    }
+    
+    proc recordRangeVarNow() {
+        for eachSegmInSecList(&_x, list_ref) {
+            execute(readRangeVarInSegmHocCommand, this)
+            record.rangeVarVec.append(_value)
+        }
+    }
+    
+endtemplate RangeVarAnimationRecorder

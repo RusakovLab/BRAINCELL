@@ -1,0 +1,100 @@
+
+begintemplate UtilsForFakeMechanismForNetCon
+
+    public getNumVars, getVarNameAndArraySize, getVarUnits, getNetConVar, setNetConVar
+    public mechIdx, mechName, numGlobalVars
+    public metaMechIdx, metaVarTypeIdx, metaVarName, metaArrayIndex, realMechName, realVarType, realVarName, realArrayIndex
+    
+    // !! external mth      // !! created only after we need to use it here
+    external pyObj
+    
+    mechIdx = -1
+    strdef mechName
+    numGlobalVars = -1
+    
+    metaMechIdx = -1        // Correspond to FakeMechanism*ForNetCon
+    metaVarTypeIdx = -1     //
+    strdef metaVarName      //
+    metaArrayIndex = -1     //
+    
+    strdef realMechName     // Correspond to SynEventsFilterWatcher
+    realVarType = -1        //
+    strdef realVarName      //
+    realArrayIndex = -1     //
+    
+    objref _pyUnitsDict, _tempNetCon, this
+    _tempValue = -1
+    
+    
+    proc init() { local metaVarType
+        strdef pyCommand
+        
+        mechIdx = 1             // !! keep in sync with ReducedMechTypeHelper.getMechIdx and .createMechStd
+        mechName = "NetCon"     //
+        numGlobalVars = 0
+        
+        realMechName = "SynEventsFilterWatcher"     // Keep in sync with proc SynEventsHelper.createNewSynEventsFilterWatcherButTryToInherit
+        realVarType = 1
+        realVarName = "release_probability"
+        realArrayIndex = 0
+        
+        metaMechIdx = 0
+        metaVarType = 1
+        metaVarTypeIdx = 0  // !! mth.convertVarTypeToVarTypeIdx(metaVarType)
+        sprint(metaVarName, "@%s", realVarName)
+        metaArrayIndex = 0
+        
+        sprint(pyCommand, "{'threshold': 'mV', 'delay': 'ms', 'weight': '', '%s': ''}", metaVarName)
+        _pyUnitsDict = pyObj.ev(pyCommand)
+    }
+    
+    func getNumVars() {
+        pyObj.pyValuesDict = $o1
+        return pyObj.ev("len(pyValuesDict)")
+    }
+    
+    func getVarNameAndArraySize() {
+        pyObj.pyValuesDict = $o1
+        pyObj.varIdx = $2
+        $s3 = pyObj.ev("list(pyValuesDict.keys())[int(varIdx)]")
+        return 1
+    }
+    
+    proc getVarUnits() {
+        strdef varName
+        varName = $s1
+        $s2 = _pyUnitsDict.__getitem__(varName)
+    }
+    
+    func getNetConVar() { localobj nil
+        strdef varNameWithIndex, hocCommand
+        
+        _tempNetCon = $o1
+        varNameWithIndex = $s2
+        
+        sprint(hocCommand, "_tempValue = _tempNetCon.%s", varNameWithIndex)
+        execute(hocCommand, this)
+        
+        _tempNetCon = nil
+        
+        return _tempValue
+    }
+    
+    proc setNetConVar() { localobj nil
+        strdef varNameWithIndex, hocCommand
+        
+        _tempNetCon = $o1
+        varNameWithIndex = $s2
+        _tempValue = $3
+        
+        sprint(hocCommand, "_tempNetCon.%s = _tempValue", varNameWithIndex)
+        execute(hocCommand, this)
+        
+        _tempNetCon = nil
+    }
+    
+endtemplate UtilsForFakeMechanismForNetCon
+
+
+objref utils4FakeMech4SynNetCon
+utils4FakeMech4SynNetCon = new UtilsForFakeMechanismForNetCon()

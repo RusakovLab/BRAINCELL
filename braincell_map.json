@@ -1,0 +1,7365 @@
+{
+  "mod": [
+    {
+      "file": "External simulations\\Neuron\\boosting\\AMPASyn.mod",
+      "title": "Ampa synapse",
+      "suffix": "",
+      "point_process": "AmpaSynapse",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\cadifus.mod",
+      "title": "",
+      "suffix": "cadifus",
+      "point_process": "",
+      "ions": [
+        "ip3",
+        "ca",
+        "ip3"
+      ],
+      "states": [
+        "\n    : ca[0] is equivalent to cai\n    : ca[] are very small, so specify absolute tolerance\n    : let it be ~1.5 - 2 orders of magnitude smaller than baseline level\n    ca[Nannuli]       (mM) <1e-7>\n    bufs[Nannuli]    (mM) <1e-3>\n    cabufs[Nannuli]  (mM) <1e-7>\n    bufm[Nannuli]    (mM) <1e-4>\n    cabufm[Nannuli]  (mM) <1e-8>\n    hc[Nannuli]\n    ho[Nannuli]\n\tip3i (mM) <1e-10>\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\CAl.mod",
+      "title": "",
+      "suffix": "CAl",
+      "point_process": "",
+      "ions": [
+        "ca"
+      ],
+      "states": [
+        "\n    m\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\capump.mod",
+      "title": "decay of submembrane calcium concentration",
+      "suffix": "cad",
+      "point_process": "",
+      "ions": [
+        "ca"
+      ],
+      "states": [
+        "\n\tcai\t\t(mM) \n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\distr.mod",
+      "title": "...just to store peak membrane voltage",
+      "suffix": "ds",
+      "point_process": "",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\FRAP.mod",
+      "title": "",
+      "suffix": "FRAP",
+      "point_process": "",
+      "ions": [
+        "frapion"
+      ],
+      "states": [
+        "\n    frapion[NANN]\t(mM) : frapion[0] is equivalent to frapioni\n    frapionBuffer[NANN]  (mM)\n    Buffer[NANN]    (mM)\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\GABA_tonic.mod",
+      "title": "GABA tonic passive membrane channel",
+      "suffix": "GABA_tonic",
+      "point_process": "",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\gap.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\gap40tau.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap40",
+      "ions": [],
+      "states": [
+        " G "
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\gap43tau.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap43",
+      "ions": [],
+      "states": [
+        " G "
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\gap45tau.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap45",
+      "ions": [],
+      "states": [
+        " G "
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\gap_neuron.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap_neuron",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\GluTrans.mod",
+      "title": "",
+      "suffix": "GluTrans",
+      "point_process": "",
+      "ions": [
+        "glu",
+        "na",
+        "k"
+      ],
+      "states": [
+        "\n    : Transporter  states (all fractions)\n            : \n    C1\t(/cm2)\t:  \n    C2\t(/cm2)\t:  \n    C3\t(/cm2)\t: \n    C4\t(/cm2)\t: \n    C5\t(/cm2)\t: \n    C6  (/cm2)\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\h.mod",
+      "title": "I-h channel from Magee 1998 for distal dendrites",
+      "suffix": "hd",
+      "point_process": "",
+      "ions": [],
+      "states": [
+        "\n        l\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\IPotassium.mod",
+      "title": "passive membrane channel with Glu conductance",
+      "suffix": "IKa",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\Isin.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "IClampSin",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\kadist.mod",
+      "title": "K-A channel from Klee Ficker and Heinemann",
+      "suffix": "kad",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n        n\n        l\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\kaprox.mod",
+      "title": "K-A channel from Klee Ficker and Heinemann",
+      "suffix": "kap",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n\tn\n        l\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\kdrca1.mod",
+      "title": "K-DR channel",
+      "suffix": "kdr",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n\tn\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\Kir4.mod",
+      "title": "inward rectifier potassium (Kir4) channel",
+      "suffix": "kir4",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\kpump.mod",
+      "title": "kpump",
+      "suffix": "kpump",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\leak.mod",
+      "title": "the leak current",
+      "suffix": "leak",
+      "point_process": "",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\na3.mod",
+      "title": "na3",
+      "suffix": "na3",
+      "point_process": "",
+      "ions": [
+        "na"
+      ],
+      "states": [
+        " m h s"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\nadifl.mod",
+      "title": "",
+      "suffix": "nadifl",
+      "point_process": "",
+      "ions": [
+        "na"
+      ],
+      "states": [
+        "\n\tnai (mM)\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\nax.mod",
+      "title": "na3",
+      "suffix": "nax",
+      "point_process": "",
+      "ions": [
+        "na"
+      ],
+      "states": [
+        " m h"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\nethhwbm.mod",
+      "title": "nethhwbm.mod   interneuron sodium, potassium, and leak channels",
+      "suffix": "hh_wbm",
+      "point_process": "",
+      "ions": [
+        "removed"
+      ],
+      "states": [
+        "\n        m h n\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\netstimm.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "NetStimm",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\nkpump.mod",
+      "title": "sodium potassium pump",
+      "suffix": "NaKpump",
+      "point_process": "",
+      "ions": [
+        "k",
+        "na"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\NoiseIClamp.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "IClampNoise",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\potassiumd.mod",
+      "title": "",
+      "suffix": "kdifl",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n\tka (mM)\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\spike.mod",
+      "title": "HH style channels for spiking retinal ganglion cells",
+      "suffix": "spike",
+      "point_process": "",
+      "ions": [
+        "na",
+        "k",
+        "ca"
+      ],
+      "states": [
+        "\n\tm h n p q c \n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\_i2fc.mod",
+      "title": "",
+      "suffix": "i2fc",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\_iksine.mod",
+      "title": "",
+      "suffix": "iksine",
+      "point_process": "",
+      "ions": [
+        "k",
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\_InsideOutDiffHelper.mod",
+      "title": "",
+      "suffix": "InsideOutDiffHelper",
+      "point_process": "",
+      "ions": [
+        "na",
+        "k",
+        "ca",
+        "cl",
+        "ach",
+        "glu",
+        "gaba",
+        "frapion",
+        "ip3",
+        "extra1",
+        "extra2"
+      ],
+      "states": [
+        "\n    specieso (mM)       : Concentration in the near-membrane layer\n    species_ext (mM)    : Concentration in the external space\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\_OutsideInDiffHelper.mod",
+      "title": "",
+      "suffix": "OutsideInDiffHelper",
+      "point_process": "",
+      "ions": [
+        "na",
+        "k",
+        "ca",
+        "cl",
+        "ach",
+        "glu",
+        "gaba",
+        "frapion",
+        "ip3",
+        "extra1",
+        "extra2"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\_OutsideInDiffSeriesHelper.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "which",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\_SynEventsFilterWatcher.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\AMPASyn.mod",
+      "title": "Ampa synapse",
+      "suffix": "",
+      "point_process": "AmpaSynapse",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\cacumm.mod",
+      "title": "",
+      "suffix": "cacum",
+      "point_process": "",
+      "ions": [
+        "ca"
+      ],
+      "states": [
+        "\n\tcai (mM)\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\cadifus.mod",
+      "title": "",
+      "suffix": "cadifus",
+      "point_process": "",
+      "ions": [
+        "ip3",
+        "ca",
+        "ip3"
+      ],
+      "states": [
+        "\n    : ca[0] is equivalent to cai\n    : ca[] are very small, so specify absolute tolerance\n    : let it be ~1.5 - 2 orders of magnitude smaller than baseline level\n    ca[Nannuli]       (mM) <1e-7>\n    bufs[Nannuli]    (mM) <1e-3>\n    cabufs[Nannuli]  (mM) <1e-7>\n    bufm[Nannuli]    (mM) <1e-4>\n    cabufm[Nannuli]  (mM) <1e-8>\n    hc[Nannuli]\n    ho[Nannuli]\n\tip3i (mM) <1e-10>\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\cagk.mod",
+      "title": "CaGk",
+      "suffix": "cagk",
+      "point_process": "",
+      "ions": [
+        "ca",
+        "k"
+      ],
+      "states": [
+        "\to "
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\CAl.mod",
+      "title": "",
+      "suffix": "CAl",
+      "point_process": "",
+      "ions": [
+        "ca"
+      ],
+      "states": [
+        "\n    m\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\cal2.mod",
+      "title": "l-calcium channel",
+      "suffix": "cal",
+      "point_process": "",
+      "ions": [
+        "ca"
+      ],
+      "states": [
+        "\n\tm\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\can2.mod",
+      "title": "n-calcium channel",
+      "suffix": "can",
+      "point_process": "",
+      "ions": [
+        "ca"
+      ],
+      "states": [
+        "\n\tm h \n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\capump.mod",
+      "title": "decay of submembrane calcium concentration",
+      "suffix": "cad",
+      "point_process": "",
+      "ions": [
+        "ca"
+      ],
+      "states": [
+        "\n\tcai\t\t(mM) \n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\cat.mod",
+      "title": "T-calcium channel",
+      "suffix": "cat",
+      "point_process": "",
+      "ions": [
+        "ca"
+      ],
+      "states": [
+        "\n\tm h \n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\distr.mod",
+      "title": "...just to store peak membrane voltage",
+      "suffix": "ds",
+      "point_process": "",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\FRAP.mod",
+      "title": "",
+      "suffix": "FRAP",
+      "point_process": "",
+      "ions": [
+        "frapion"
+      ],
+      "states": [
+        "\n    frapion[NANN]\t(mM) : frapion[0] is equivalent to frapioni\n    frapionBuffer[NANN]  (mM)\n    Buffer[NANN]    (mM)\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\GABA_tonic.mod",
+      "title": "GABA tonic passive membrane channel",
+      "suffix": "GABA_tonic",
+      "point_process": "",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\gap.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\gap40tau.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap40",
+      "ions": [],
+      "states": [
+        " G "
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\gap43tau.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap43",
+      "ions": [],
+      "states": [
+        " G "
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\gap45tau.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap45",
+      "ions": [],
+      "states": [
+        " G "
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\gap_neuron.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap_neuron",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\GluTrans.mod",
+      "title": "",
+      "suffix": "GluTrans",
+      "point_process": "",
+      "ions": [
+        "glu",
+        "na",
+        "k"
+      ],
+      "states": [
+        "\n    : Transporter  states (all fractions)\n            : \n    C1\t(/cm2)\t:  \n    C2\t(/cm2)\t:  \n    C3\t(/cm2)\t: \n    C4\t(/cm2)\t: \n    C5\t(/cm2)\t: \n    C6  (/cm2)\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\h.mod",
+      "title": "I-h channel from Magee 1998 for distal dendrites",
+      "suffix": "hd",
+      "point_process": "",
+      "ions": [],
+      "states": [
+        "\n        l\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\h_pas.mod",
+      "title": "I-h channel from Magee 1998 for distal dendrites",
+      "suffix": "hdpas",
+      "point_process": "",
+      "ions": [],
+      "states": [
+        "\n        l\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\IPotassium.mod",
+      "title": "passive membrane channel with Glu conductance",
+      "suffix": "IKa",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\Isin.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "IClampSin",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\kadist.mod",
+      "title": "K-A channel from Klee Ficker and Heinemann",
+      "suffix": "kad",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n        n\n        l\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\kaprox.mod",
+      "title": "K-A channel from Klee Ficker and Heinemann",
+      "suffix": "kap",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n\tn\n        l\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\kca.mod",
+      "title": "Slow Ca-dependent potassium current",
+      "suffix": "kca",
+      "point_process": "",
+      "ions": [
+        "k",
+        "ca"
+      ],
+      "states": [
+        "m"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\kdb.mod",
+      "title": "K-D channel",
+      "suffix": "kdb",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n\tn\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\kdbm.mod",
+      "title": "K-D channel",
+      "suffix": "kdbm",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n\tn\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\kdrbca1.mod",
+      "title": "K-DR channel",
+      "suffix": "kdrb",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n\tn\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\kdrca1.mod",
+      "title": "K-DR channel",
+      "suffix": "kdr",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n\tn\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\Kir4.mod",
+      "title": "inward rectifier potassium (Kir4) channel",
+      "suffix": "kir4",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\kmb.mod",
+      "title": "CA1 KM channel from Mala Shah",
+      "suffix": "kmb",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n        m\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\kpump.mod",
+      "title": "kpump",
+      "suffix": "kpump",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\leak.mod",
+      "title": "the leak current",
+      "suffix": "leak",
+      "point_process": "",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\na3.mod",
+      "title": "na3",
+      "suffix": "na3",
+      "point_process": "",
+      "ions": [
+        "na"
+      ],
+      "states": [
+        " m h s"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\nadifl.mod",
+      "title": "",
+      "suffix": "nadifl",
+      "point_process": "",
+      "ions": [
+        "na"
+      ],
+      "states": [
+        "\n\tnai (mM)\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\nax.mod",
+      "title": "na3",
+      "suffix": "nax",
+      "point_process": "",
+      "ions": [
+        "na"
+      ],
+      "states": [
+        " m h"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\nethhwbm.mod",
+      "title": "nethhwbm.mod   interneuron sodium, potassium, and leak channels",
+      "suffix": "hh_wbm",
+      "point_process": "",
+      "ions": [
+        "removed"
+      ],
+      "states": [
+        "\n        m h n\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\netstimm.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "NetStimm",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\nkpump.mod",
+      "title": "sodium potassium pump",
+      "suffix": "NaKpump",
+      "point_process": "",
+      "ions": [
+        "k",
+        "na"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\NoiseIClamp.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "IClampNoise",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\potassiumd.mod",
+      "title": "",
+      "suffix": "kdifl",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n\tka (mM)\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\spike.mod",
+      "title": "HH style channels for spiking retinal ganglion cells",
+      "suffix": "spike",
+      "point_process": "",
+      "ions": [
+        "na",
+        "k",
+        "ca"
+      ],
+      "states": [
+        "\n\tm h n p q c \n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\_i2fc.mod",
+      "title": "",
+      "suffix": "i2fc",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\_iksine.mod",
+      "title": "",
+      "suffix": "iksine",
+      "point_process": "",
+      "ions": [
+        "k",
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\_InsideOutDiffHelper.mod",
+      "title": "",
+      "suffix": "InsideOutDiffHelper",
+      "point_process": "",
+      "ions": [
+        "na",
+        "k",
+        "ca",
+        "cl",
+        "ach",
+        "glu",
+        "gaba",
+        "frapion",
+        "ip3",
+        "extra1",
+        "extra2"
+      ],
+      "states": [
+        "\n    specieso (mM)       : Concentration in the near-membrane layer\n    species_ext (mM)    : Concentration in the external space\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\_OutsideInDiffHelper.mod",
+      "title": "",
+      "suffix": "OutsideInDiffHelper",
+      "point_process": "",
+      "ions": [
+        "na",
+        "k",
+        "ca",
+        "cl",
+        "ach",
+        "glu",
+        "gaba",
+        "frapion",
+        "ip3",
+        "extra1",
+        "extra2"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\_OutsideInDiffSeriesHelper.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "which",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\_SynEventsFilterWatcher.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Astrocyte\\MOD_files\\gapCa.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "GapCa",
+      "ions": [
+        "ca"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Astrocyte"
+    },
+    {
+      "file": "Mechanisms\\Astrocyte\\MOD_files\\gapCaExtr.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "GapCaExtr",
+      "ions": [
+        "ca"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Astrocyte"
+    },
+    {
+      "file": "Mechanisms\\Astrocyte\\MOD_files\\gapCaSt.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "GapCaSt",
+      "ions": [
+        "ca"
+      ],
+      "states": [
+        "\n    ACa\n    BCa\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Astrocyte"
+    },
+    {
+      "file": "Mechanisms\\Astrocyte\\MOD_files\\gapFRAP.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "GapFRAP",
+      "ions": [
+        "frapion"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Astrocyte"
+    },
+    {
+      "file": "Mechanisms\\Astrocyte\\MOD_files\\GAT1_Bicho.mod",
+      "title": "GAT1",
+      "suffix": "GAT1_Bicho",
+      "point_process": "",
+      "ions": [],
+      "states": [
+        "\n\t A AN AN2 AN2G BN2G B BC AC\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Astrocyte"
+    },
+    {
+      "file": "Mechanisms\\Astrocyte\\MOD_files\\GAT1_current.mod",
+      "title": "",
+      "suffix": "GAT1_current",
+      "point_process": "",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Astrocyte"
+    },
+    {
+      "file": "Mechanisms\\Astrocyte\\MOD_files\\kdrglia.mod",
+      "title": "kdrglia",
+      "suffix": "kdrglia",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        " n c qk "
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Astrocyte"
+    },
+    {
+      "file": "Mechanisms\\Astrocyte\\MOD_files\\Kir.mod",
+      "title": "inward rectifier potassium (Kir) channel",
+      "suffix": "kir",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n    l\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Astrocyte"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\AMPARec.mod",
+      "title": "AMPA receptor (concentration-gated, 3-state)",
+      "suffix": "AMPARec",
+      "point_process": "",
+      "ions": [
+        "glu",
+        "declaration",
+        "glu"
+      ],
+      "states": [
+        "\n    C          : closed (unbound)\n    O          : open   (conducting)\n    D          : desensitised\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\cadifus.mod",
+      "title": "",
+      "suffix": "cadifus",
+      "point_process": "",
+      "ions": [
+        "ip3",
+        "ca",
+        "ip3"
+      ],
+      "states": [
+        "\n    : ca[0] is equivalent to cai\n    : ca[] are very small, so specify absolute tolerance\n    : let it be ~1.5 - 2 orders of magnitude smaller than baseline level\n    ca[Nannuli]       (mM) <1e-7>\n    bufs[Nannuli]    (mM) <1e-3>\n    cabufs[Nannuli]  (mM) <1e-7>\n    bufm[Nannuli]    (mM) <1e-4>\n    cabufm[Nannuli]  (mM) <1e-8>\n    hc[Nannuli]\n    ho[Nannuli]\n\tip3i (mM) <1e-10>\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\CAl.mod",
+      "title": "",
+      "suffix": "CAl",
+      "point_process": "",
+      "ions": [
+        "ca"
+      ],
+      "states": [
+        "\n    m\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\capump.mod",
+      "title": "decay of submembrane calcium concentration",
+      "suffix": "cad",
+      "point_process": "",
+      "ions": [
+        "ca"
+      ],
+      "states": [
+        "\n\tcai\t\t(mM) \n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\FRAP.mod",
+      "title": "",
+      "suffix": "FRAP",
+      "point_process": "",
+      "ions": [
+        "frapion"
+      ],
+      "states": [
+        "\n    frapion[NANN]\t(mM) : frapion[0] is equivalent to frapioni\n    frapionBuffer[NANN]  (mM)\n    Buffer[NANN]    (mM)\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\GabaUpdate.mod",
+      "title": "",
+      "suffix": "gabaacum",
+      "point_process": "",
+      "ions": [
+        "gaba"
+      ],
+      "states": [
+        "\n        gabao (mM)\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\gap.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\gap40tau.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap40",
+      "ions": [],
+      "states": [
+        " G "
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\gap43tau.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap43",
+      "ions": [],
+      "states": [
+        " G "
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\gap45tau.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap45",
+      "ions": [],
+      "states": [
+        " G "
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\GluSrc.mod",
+      "title": "Glutamate source (alpha-function pulse train)",
+      "suffix": "GluSrc",
+      "point_process": "",
+      "ions": [
+        "glu",
+        "glu"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\GluTrans.mod",
+      "title": "",
+      "suffix": "GluTrans",
+      "point_process": "",
+      "ions": [
+        "glu",
+        "na",
+        "k"
+      ],
+      "states": [
+        "\n    : Transporter  states (all fractions)\n            : \n    C1\t(/cm2)\t:  \n    C2\t(/cm2)\t:  \n    C3\t(/cm2)\t: \n    C4\t(/cm2)\t: \n    C5\t(/cm2)\t: \n    C6  (/cm2)\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\GluUptake.mod",
+      "title": "Linear glutamate uptake",
+      "suffix": "GluUptake",
+      "point_process": "",
+      "ions": [
+        "glu"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\IPotassium.mod",
+      "title": "passive membrane channel with Glu conductance",
+      "suffix": "IKa",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\Isin.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "IClampSin",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\Kir4.mod",
+      "title": "inward rectifier potassium (Kir4) channel",
+      "suffix": "kir4",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\kpump.mod",
+      "title": "kpump",
+      "suffix": "kpump",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\nadifl.mod",
+      "title": "",
+      "suffix": "nadifl",
+      "point_process": "",
+      "ions": [
+        "na"
+      ],
+      "states": [
+        "\n\tnai (mM)\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\NoiseIClamp.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "IClampNoise",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\potassiumd.mod",
+      "title": "",
+      "suffix": "kdifl",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n\tka (mM)\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\_InsideOutDiffHelper.mod",
+      "title": "",
+      "suffix": "InsideOutDiffHelper",
+      "point_process": "",
+      "ions": [
+        "na",
+        "k",
+        "ca",
+        "cl",
+        "ach",
+        "glu",
+        "gaba",
+        "frapion",
+        "ip3",
+        "extra1",
+        "extra2"
+      ],
+      "states": [
+        "\n    specieso (mM)       : Concentration in the near-membrane layer\n    species_ext (mM)    : Concentration in the external space\n"
+      ],
+      "has_kinetics": true,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\_OutsideInDiffHelper.mod",
+      "title": "",
+      "suffix": "OutsideInDiffHelper",
+      "point_process": "",
+      "ions": [
+        "na",
+        "k",
+        "ca",
+        "cl",
+        "ach",
+        "glu",
+        "gaba",
+        "frapion",
+        "ip3",
+        "extra1",
+        "extra2"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Common\\MOD_files\\_OutsideInDiffSeriesHelper.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "which",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Common"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\AMPASyn.mod",
+      "title": "Ampa synapse",
+      "suffix": "",
+      "point_process": "AmpaSynapse",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\distr.mod",
+      "title": "...just to store peak membrane voltage",
+      "suffix": "ds",
+      "point_process": "",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\GABA_tonic.mod",
+      "title": "GABA tonic passive membrane channel",
+      "suffix": "GABA_tonic",
+      "point_process": "",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\gap_neuron.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "Gap_neuron",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\h.mod",
+      "title": "I-h channel from Magee 1998 for distal dendrites",
+      "suffix": "hd",
+      "point_process": "",
+      "ions": [],
+      "states": [
+        "\n        l\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\kadist.mod",
+      "title": "K-A channel from Klee Ficker and Heinemann",
+      "suffix": "kad",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n        n\n        l\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\kaprox.mod",
+      "title": "K-A channel from Klee Ficker and Heinemann",
+      "suffix": "kap",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n\tn\n        l\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\kdrca1.mod",
+      "title": "K-DR channel",
+      "suffix": "kdr",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [
+        "\n\tn\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\leak.mod",
+      "title": "the leak current",
+      "suffix": "leak",
+      "point_process": "",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\na3n.mod",
+      "title": "na3",
+      "suffix": "na3",
+      "point_process": "",
+      "ions": [
+        "na"
+      ],
+      "states": [
+        " m h s"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\naxn.mod",
+      "title": "nax",
+      "suffix": "nax",
+      "point_process": "",
+      "ions": [
+        "na"
+      ],
+      "states": [
+        " m h"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\nethhwbm.mod",
+      "title": "nethhwbm.mod   interneuron sodium, potassium, and leak channels",
+      "suffix": "hh_wbm",
+      "point_process": "",
+      "ions": [
+        "removed"
+      ],
+      "states": [
+        "\n        m h n\n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\netstimm.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "NetStimm",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\nkpump.mod",
+      "title": "sodium potassium pump",
+      "suffix": "NaKpump",
+      "point_process": "",
+      "ions": [
+        "k",
+        "na"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\spike.mod",
+      "title": "HH style channels for spiking retinal ganglion cells",
+      "suffix": "spike",
+      "point_process": "",
+      "ions": [
+        "na",
+        "k",
+        "ca"
+      ],
+      "states": [
+        "\n\tm h n p q c \n"
+      ],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\_i2fc.mod",
+      "title": "",
+      "suffix": "i2fc",
+      "point_process": "",
+      "ions": [
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\_iksine.mod",
+      "title": "",
+      "suffix": "iksine",
+      "point_process": "",
+      "ions": [
+        "k",
+        "k"
+      ],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    },
+    {
+      "file": "Mechanisms\\Neuron\\MOD_files\\_SynEventsFilterWatcher.mod",
+      "title": "",
+      "suffix": "",
+      "point_process": "",
+      "ions": [],
+      "states": [],
+      "has_kinetics": false,
+      "has_reaction": false,
+      "category": "Neuron"
+    }
+  ],
+  "hoc": [
+    {
+      "file": "init.hoc",
+      "loads": [
+        "_Code/InterModular/InterModularLoads.hoc",
+        "_Code/MainUI/MainProgram.hoc",
+        "_Code/MainUI/Utils.hoc",
+        "_Code/Import/ImportBaseGeometry/Import.hoc",
+        "_Code/Prologue/Astrocyte/initAstrocyte.hoc",
+        "_Code/Prologue/Neuron/initNeuron.hoc",
+        "_Code/Import/CommonUtils.hoc",
+        "_Code/RoadmapWidget.hoc",
+        "_Code/Export/ExportCoreLoads.hoc"
+      ],
+      "procs": [
+        "prologueCompleteHandler",
+        "roadmapChosenHandler",
+        "showRoadmapWidget",
+        "theEntryPoint"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2968
+    },
+    {
+      "file": "Distance functions\\example.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [
+        "myDistFunc"
+      ],
+      "obfuncs": [],
+      "size": 106
+    },
+    {
+      "file": "Examples\\01_CA1_SingleNeuron\\demo_init.hoc",
+      "loads": [
+        "_Testing/init_SimManager.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 43
+    },
+    {
+      "file": "Examples\\02_init_InsideOutDiffManager\\demo_init.hoc",
+      "loads": [
+        "_Testing/init_InsideOutDiffManager.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 53
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\fig6.hoc",
+      "loads": [
+        "nrngui.hoc"
+      ],
+      "procs": [
+        "init",
+        "step",
+        "run",
+        "runc"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3681
+    },
+    {
+      "file": "External simulations\\Neuron\\boosting\\mosinit.hoc",
+      "loads": [
+        "fig6.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 23
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\cell_seed2_0.hoc",
+      "loads": [
+        "stdrun.hoc",
+        "import3d.hoc"
+      ],
+      "procs": [
+        "check_parameter",
+        "check_simulator",
+        "init",
+        "load_morphology",
+        "distribute_distance",
+        "geom_nseg",
+        "insertChannel",
+        "biophys",
+        "geom_nseg_fixed",
+        "geom_nsec",
+        "re_init_rng"
+      ],
+      "funcs": [
+        "sec_count",
+        "hash_str"
+      ],
+      "obfuncs": [],
+      "size": 9520
+    },
+    {
+      "file": "External simulations\\Neuron\\modeldb_ventralAD\\mosinit.hoc",
+      "loads": [
+        "nrngui.hoc",
+        "cell_seed2_0.hoc",
+        "ses.ses"
+      ],
+      "procs": [
+        "distribute_distance",
+        "run_N",
+        "value",
+        "def",
+        "init",
+        "biophysint",
+        "rest",
+        "run_N_rev",
+        "print_cond",
+        "print_cond_table",
+        "WT23_0p25",
+        "WT23_0p5",
+        "TG23_0p25",
+        "TG23_0p5",
+        "WT68_0p2",
+        "WT68_0p25",
+        "TG68_0p2",
+        "TG68_0p25"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 13058
+    },
+    {
+      "file": "Geometry\\Astrocyte\\New Style\\AstrocyteBasicGeometry.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 25219
+    },
+    {
+      "file": "Geometry\\Astrocyte\\New Style\\GliaForm185-1-3dk.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 77937
+    },
+    {
+      "file": "Geometry\\Astrocyte\\New Style\\GliaFormp12_DEV176.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 8367
+    },
+    {
+      "file": "Geometry\\Astrocyte\\New Style\\GliaFormP12_DEV185.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 21235
+    },
+    {
+      "file": "Geometry\\Astrocyte\\New Style\\GliaFormP32_DEV136.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 24262
+    },
+    {
+      "file": "Geometry\\Astrocyte\\New Style\\GliaFormP9-DEV309.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 12568
+    },
+    {
+      "file": "Geometry\\Astrocyte\\New Style\\RealAstrocyteSkeleton1_scaledv1.hoc",
+      "loads": [],
+      "procs": [
+        "celldef",
+        "topol",
+        "shape3d_1",
+        "shape3d_2",
+        "shape3d_3",
+        "shape3d_4",
+        "basic_shape"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 36224
+    },
+    {
+      "file": "Geometry\\Astrocyte\\New Style\\RealAstrocyteSkeleton2e_scaledv1.hoc",
+      "loads": [],
+      "procs": [
+        "celldef",
+        "topol",
+        "shape3d_1",
+        "shape3d_2",
+        "shape3d_3",
+        "basic_shape"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 27570
+    },
+    {
+      "file": "Geometry\\Astrocyte\\New Style\\SimpleAstrocyte.hoc",
+      "loads": [],
+      "procs": [
+        "set_process_geometry"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1274
+    },
+    {
+      "file": "Geometry\\Astrocyte\\New Style\\Control\\shapeInit.hoc",
+      "loads": [],
+      "procs": [
+        "celldef",
+        "topol",
+        "shape3d_1",
+        "shape3d_2",
+        "shape3d_3",
+        "basic_shape"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 24825
+    },
+    {
+      "file": "Geometry\\Astrocyte\\Old Style\\AstrocyteBasicGeometry.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 25436
+    },
+    {
+      "file": "Geometry\\Astrocyte\\Old Style\\GliaForm185-1-3dk.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 78196
+    },
+    {
+      "file": "Geometry\\Astrocyte\\Old Style\\GliaFormp12_DEV176.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 8625
+    },
+    {
+      "file": "Geometry\\Astrocyte\\Old Style\\GliaFormP12_DEV185.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 21494
+    },
+    {
+      "file": "Geometry\\Astrocyte\\Old Style\\GliaFormP32_DEV136.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 24520
+    },
+    {
+      "file": "Geometry\\Astrocyte\\Old Style\\GliaFormP9-DEV309.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 12827
+    },
+    {
+      "file": "Geometry\\Astrocyte\\Old Style\\RealAstrocyteSkeleton1_scaledv1.hoc",
+      "loads": [],
+      "procs": [
+        "celldef",
+        "topol",
+        "shape3d_1",
+        "shape3d_2",
+        "shape3d_3",
+        "shape3d_4",
+        "basic_shape"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 36224
+    },
+    {
+      "file": "Geometry\\Astrocyte\\Old Style\\RealAstrocyteSkeleton2e_scaledv1.hoc",
+      "loads": [],
+      "procs": [
+        "celldef",
+        "topol",
+        "shape3d_1",
+        "shape3d_2",
+        "shape3d_3",
+        "basic_shape"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 27570
+    },
+    {
+      "file": "Geometry\\Astrocyte\\Old Style\\[inconsistent] GeometryAstrocyteCA1.hoc",
+      "loads": [],
+      "procs": [
+        "celldef",
+        "topol",
+        "topol_1",
+        "topol_2",
+        "shape3d_1",
+        "shape3d_2",
+        "shape3d_3",
+        "shape3d_4",
+        "shape3d_5",
+        "shape3d_6",
+        "shape3d_7",
+        "shape3d_8",
+        "shape3d_9",
+        "shape3d_10",
+        "shape3d_11",
+        "shape3d_12",
+        "shape3d_13",
+        "shape3d_14",
+        "shape3d_15",
+        "shape3d_16",
+        "shape3d_17",
+        "shape3d_18",
+        "shape3d_19",
+        "shape3d_20",
+        "shape3d_21",
+        "shape3d_22",
+        "shape3d_23",
+        "shape3d_24",
+        "shape3d_25",
+        "shape3d_26",
+        "shape3d_27",
+        "shape3d_28",
+        "shape3d_29",
+        "shape3d_30",
+        "shape3d_31",
+        "shape3d_32",
+        "shape3d_33",
+        "shape3d_34",
+        "shape3d_35",
+        "shape3d_36",
+        "shape3d_37",
+        "shape3d_38",
+        "shape3d_39",
+        "shape3d_40",
+        "shape3d_41",
+        "shape3d_42",
+        "shape3d_43",
+        "shape3d_44",
+        "shape3d_45",
+        "shape3d_46",
+        "shape3d_47",
+        "shape3d_48",
+        "shape3d_49",
+        "shape3d_50",
+        "shape3d_51",
+        "shape3d_52",
+        "shape3d_53",
+        "shape3d_54",
+        "shape3d_55",
+        "shape3d_56",
+        "shape3d_57",
+        "shape3d_58",
+        "shape3d_59",
+        "shape3d_60",
+        "shape3d_61",
+        "shape3d_62",
+        "shape3d_63",
+        "shape3d_64",
+        "shape3d_65",
+        "shape3d_66",
+        "shape3d_67",
+        "shape3d_68",
+        "shape3d_69",
+        "shape3d_70",
+        "shape3d_71",
+        "shape3d_72",
+        "shape3d_73",
+        "shape3d_74",
+        "shape3d_75",
+        "shape3d_76",
+        "shape3d_77",
+        "shape3d_78",
+        "shape3d_79",
+        "shape3d_80",
+        "shape3d_81",
+        "shape3d_82",
+        "shape3d_83",
+        "shape3d_84",
+        "shape3d_85",
+        "shape3d_86",
+        "shape3d_87",
+        "shape3d_88",
+        "shape3d_89",
+        "shape3d_90",
+        "shape3d_91",
+        "shape3d_92",
+        "shape3d_93",
+        "shape3d_94",
+        "shape3d_95",
+        "shape3d_96",
+        "shape3d_97",
+        "shape3d_98",
+        "shape3d_99",
+        "shape3d_100",
+        "shape3d_101",
+        "shape3d_102",
+        "shape3d_103",
+        "shape3d_104",
+        "shape3d_105",
+        "shape3d_106",
+        "shape3d_107",
+        "shape3d_108",
+        "shape3d_109",
+        "shape3d_110",
+        "shape3d_111",
+        "shape3d_112",
+        "shape3d_113",
+        "shape3d_114",
+        "shape3d_115",
+        "shape3d_116",
+        "shape3d_117",
+        "shape3d_118",
+        "shape3d_119",
+        "shape3d_120",
+        "shape3d_121",
+        "shape3d_122",
+        "shape3d_123",
+        "shape3d_124",
+        "shape3d_125",
+        "shape3d_126",
+        "shape3d_127",
+        "shape3d_128",
+        "shape3d_129",
+        "shape3d_130",
+        "shape3d_131",
+        "shape3d_132",
+        "shape3d_133",
+        "shape3d_134",
+        "shape3d_135",
+        "shape3d_136",
+        "shape3d_137",
+        "shape3d_138",
+        "shape3d_139",
+        "shape3d_140",
+        "shape3d_141",
+        "shape3d_142",
+        "shape3d_143",
+        "shape3d_144",
+        "shape3d_145",
+        "shape3d_146",
+        "shape3d_147",
+        "shape3d_148",
+        "shape3d_149",
+        "shape3d_150",
+        "shape3d_151",
+        "shape3d_152",
+        "shape3d_153",
+        "shape3d_154",
+        "shape3d_155",
+        "shape3d_156",
+        "shape3d_157",
+        "shape3d_158",
+        "shape3d_159",
+        "shape3d_160",
+        "shape3d_161",
+        "shape3d_162",
+        "shape3d_163",
+        "shape3d_164",
+        "shape3d_165",
+        "shape3d_166",
+        "shape3d_167",
+        "shape3d_168",
+        "shape3d_169",
+        "shape3d_170",
+        "shape3d_171",
+        "shape3d_172",
+        "shape3d_173",
+        "shape3d_174",
+        "shape3d_175",
+        "shape3d_176",
+        "shape3d_177",
+        "shape3d_178",
+        "shape3d_179",
+        "shape3d_180",
+        "shape3d_181",
+        "shape3d_182",
+        "shape3d_183",
+        "shape3d_184",
+        "shape3d_185",
+        "shape3d_186",
+        "shape3d_187",
+        "shape3d_188",
+        "shape3d_189",
+        "shape3d_190",
+        "shape3d_191",
+        "shape3d_192",
+        "shape3d_193",
+        "shape3d_194",
+        "shape3d_195",
+        "shape3d_196",
+        "shape3d_197",
+        "shape3d_198",
+        "shape3d_199",
+        "shape3d_200",
+        "shape3d_201",
+        "shape3d_202",
+        "shape3d_203",
+        "shape3d_204",
+        "shape3d_205",
+        "shape3d_206",
+        "shape3d_207",
+        "shape3d_208",
+        "shape3d_209",
+        "shape3d_210",
+        "shape3d_211",
+        "shape3d_212",
+        "shape3d_213",
+        "shape3d_214",
+        "shape3d_215",
+        "shape3d_216",
+        "shape3d_217",
+        "shape3d_218",
+        "shape3d_219",
+        "shape3d_220",
+        "shape3d_221",
+        "shape3d_222",
+        "shape3d_223",
+        "shape3d_224",
+        "shape3d_225",
+        "shape3d_226",
+        "shape3d_227",
+        "shape3d_228",
+        "shape3d_229",
+        "shape3d_230",
+        "shape3d_231",
+        "shape3d_232",
+        "shape3d_233",
+        "shape3d_234",
+        "shape3d_235",
+        "shape3d_236",
+        "shape3d_237",
+        "shape3d_238",
+        "shape3d_239",
+        "shape3d_240",
+        "shape3d_241",
+        "shape3d_242",
+        "shape3d_243",
+        "shape3d_244",
+        "shape3d_245",
+        "shape3d_246",
+        "shape3d_247",
+        "shape3d_248",
+        "shape3d_249",
+        "shape3d_250",
+        "shape3d_251",
+        "shape3d_252",
+        "shape3d_253",
+        "shape3d_254",
+        "shape3d_255",
+        "shape3d_256",
+        "shape3d_257",
+        "shape3d_258",
+        "shape3d_259",
+        "shape3d_260",
+        "shape3d_261",
+        "shape3d_262",
+        "shape3d_263",
+        "shape3d_264",
+        "shape3d_265",
+        "shape3d_266",
+        "shape3d_267",
+        "shape3d_268",
+        "shape3d_269",
+        "shape3d_270",
+        "shape3d_271",
+        "shape3d_272",
+        "shape3d_273",
+        "shape3d_274",
+        "shape3d_275",
+        "shape3d_276",
+        "shape3d_277",
+        "shape3d_278",
+        "shape3d_279",
+        "shape3d_280",
+        "shape3d_281",
+        "shape3d_282",
+        "shape3d_283",
+        "shape3d_284",
+        "shape3d_285",
+        "shape3d_286",
+        "shape3d_287",
+        "shape3d_288",
+        "shape3d_289",
+        "shape3d_290",
+        "shape3d_291",
+        "shape3d_292",
+        "shape3d_293",
+        "shape3d_294",
+        "shape3d_295",
+        "shape3d_296",
+        "shape3d_297",
+        "shape3d_298",
+        "shape3d_299",
+        "shape3d_300",
+        "shape3d_301",
+        "shape3d_302",
+        "shape3d_303",
+        "shape3d_304",
+        "shape3d_305",
+        "shape3d_306",
+        "shape3d_307",
+        "shape3d_308",
+        "shape3d_309",
+        "shape3d_310",
+        "shape3d_311",
+        "shape3d_312",
+        "shape3d_313",
+        "shape3d_314",
+        "shape3d_315",
+        "shape3d_316",
+        "shape3d_317",
+        "shape3d_318",
+        "shape3d_319",
+        "shape3d_320",
+        "shape3d_321",
+        "shape3d_322",
+        "shape3d_323",
+        "shape3d_324",
+        "shape3d_325",
+        "shape3d_326",
+        "shape3d_327",
+        "shape3d_328",
+        "shape3d_329",
+        "shape3d_330",
+        "shape3d_331",
+        "shape3d_332",
+        "shape3d_333",
+        "shape3d_334",
+        "shape3d_335",
+        "shape3d_336",
+        "shape3d_337",
+        "shape3d_338",
+        "shape3d_339",
+        "basic_shape",
+        "basic_shape_1",
+        "basic_shape_2",
+        "basic_shape_3"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3729493
+    },
+    {
+      "file": "Geometry\\Astrocyte\\Old Style\\Control\\shapeInit.hoc",
+      "loads": [],
+      "procs": [
+        "celldef",
+        "topol",
+        "shape3d_1",
+        "shape3d_2",
+        "shape3d_3",
+        "basic_shape"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 25040
+    },
+    {
+      "file": "Geometry\\Astrocyte\\Old Style\\Control\\[duplicate] shape1.hoc",
+      "loads": [],
+      "procs": [
+        "celldef",
+        "topol",
+        "shape3d_1",
+        "shape3d_2",
+        "shape3d_3",
+        "basic_shape"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 24825
+    },
+    {
+      "file": "Geometry\\Neuron\\cellmorphology.hoc",
+      "loads": [],
+      "procs": [
+        "correctsoma"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 242338
+    },
+    {
+      "file": "Geometry\\Neuron\\GluSrcCell.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 363
+    },
+    {
+      "file": "Geometry\\Neuron\\SimpleNeuron.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1813
+    },
+    {
+      "file": "Geometry\\Neuron\\test.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 28224
+    },
+    {
+      "file": "Geometry\\Neuron\\Axonated\\Fast Spiking Basket cells Somogyi_1.hoc",
+      "loads": [],
+      "procs": [
+        "celldef",
+        "topol_1",
+        "topol_2",
+        "topol_3",
+        "topol_4",
+        "topol_5",
+        "topol",
+        "shape3d_1",
+        "shape3d_2",
+        "shape3d_3",
+        "shape3d_4",
+        "shape3d_5",
+        "shape3d_6",
+        "shape3d_7",
+        "shape3d_8",
+        "shape3d_9",
+        "shape3d_10",
+        "shape3d_11",
+        "shape3d_12",
+        "shape3d_13",
+        "shape3d_14",
+        "shape3d_15",
+        "shape3d_16",
+        "shape3d_17",
+        "shape3d_18",
+        "shape3d_19",
+        "shape3d_20",
+        "shape3d_21",
+        "shape3d_22",
+        "shape3d_23",
+        "shape3d_24",
+        "shape3d_25",
+        "shape3d_26",
+        "shape3d_27",
+        "shape3d_28",
+        "shape3d_29",
+        "shape3d_30",
+        "shape3d_31",
+        "shape3d_32",
+        "shape3d_33",
+        "shape3d_34",
+        "shape3d_35",
+        "shape3d_36",
+        "shape3d_37",
+        "shape3d_38",
+        "shape3d_39",
+        "shape3d_40",
+        "shape3d_41",
+        "shape3d_42",
+        "shape3d_43",
+        "shape3d_44",
+        "shape3d_45",
+        "shape3d_46",
+        "shape3d_47",
+        "shape3d_48",
+        "shape3d_49",
+        "shape3d_50",
+        "shape3d_51",
+        "shape3d_52",
+        "shape3d_53",
+        "shape3d_54",
+        "shape3d_55",
+        "shape3d_56",
+        "shape3d_57",
+        "shape3d_58",
+        "shape3d_59",
+        "shape3d_60",
+        "shape3d_61",
+        "shape3d_62",
+        "shape3d_63",
+        "shape3d_64",
+        "shape3d_65",
+        "shape3d_66",
+        "shape3d_67",
+        "shape3d_68",
+        "shape3d_69",
+        "shape3d_70",
+        "shape3d_71",
+        "shape3d_72",
+        "shape3d_73",
+        "shape3d_74",
+        "shape3d_75",
+        "shape3d_76",
+        "shape3d_77",
+        "shape3d_78",
+        "shape3d_79",
+        "shape3d_80",
+        "shape3d_81",
+        "shape3d_82",
+        "shape3d_83",
+        "shape3d_84",
+        "shape3d_85",
+        "shape3d_86",
+        "shape3d_87",
+        "shape3d_88",
+        "shape3d_89",
+        "shape3d_90",
+        "shape3d_91",
+        "shape3d_92",
+        "shape3d_93",
+        "shape3d_94",
+        "shape3d_95",
+        "shape3d_96",
+        "shape3d_97",
+        "shape3d_98",
+        "shape3d_99",
+        "shape3d_100",
+        "basic_shape",
+        "subsets",
+        "geom",
+        "geom_nseg",
+        "biophys"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1107371
+    },
+    {
+      "file": "Geometry\\Zoo\\neuron_NEURON_HOC.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 48295
+    },
+    {
+      "file": "Nanogeometry\\load_and_shift_x400 (1).hoc",
+      "loads": [
+        "stdrun.hoc",
+        "import3d.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1479
+    },
+    {
+      "file": "Nanogeometry\\Astrocyte\\AstrocyteBasicGeometry+nano.hoc",
+      "loads": [
+        "stdrun.hoc"
+      ],
+      "procs": [
+        "printMsgAndRaiseError",
+        "printNotImplementedMsgAndRaiseError",
+        "codeContractViolation",
+        "createRefsForNanoGeometry_deprecated",
+        "_addHomogenVarsInfoToBiophysComp1",
+        "_addHomogenVarsInfoToBiophysComp2",
+        "_addHomogenVarsInfoToBiophysComp3",
+        "_addHomogenVarsInfoToBiophysComp4",
+        "_addHomogenVarsInfoToGapJuncComp1",
+        "_addHomogenVarsInfoToGapJuncComp2",
+        "_addHomogenVarsInfoToGapJuncComp3"
+      ],
+      "funcs": [
+        "stringEmpty",
+        "stringsEqual",
+        "makeSureDeclared"
+      ],
+      "obfuncs": [
+        "createListOfSectionRefs",
+        "_getListOfSecRefsForComp1",
+        "_getListOfSecRefsForComp2",
+        "_getListOfSecRefsForComp3",
+        "_getListOfSecRefsForComp4"
+      ],
+      "size": 8318842
+    },
+    {
+      "file": "Nanogeometry\\Astrocyte\\RealAstrocyteSkeleton1+nano.hoc",
+      "loads": [
+        "stdrun.hoc"
+      ],
+      "procs": [
+        "printMsgAndRaiseError",
+        "printNotImplementedMsgAndRaiseError",
+        "codeContractViolation",
+        "createRefsForNanoGeometry_deprecated",
+        "_addHomogenVarsInfoToBiophysComp1",
+        "_addHomogenVarsInfoToBiophysComp2",
+        "_addHomogenVarsInfoToBiophysComp3",
+        "_addHomogenVarsInfoToBiophysComp4",
+        "_addHomogenVarsInfoToGapJuncComp1",
+        "_addHomogenVarsInfoToGapJuncComp2",
+        "_addHomogenVarsInfoToGapJuncComp3"
+      ],
+      "funcs": [
+        "stringEmpty",
+        "stringsEqual",
+        "makeSureDeclared"
+      ],
+      "obfuncs": [
+        "createListOfSectionRefs",
+        "_getListOfSecRefsForComp1",
+        "_getListOfSecRefsForComp2",
+        "_getListOfSecRefsForComp3",
+        "_getListOfSecRefsForComp4"
+      ],
+      "size": 14556373
+    },
+    {
+      "file": "Nanogeometry\\Astrocyte\\SimpleAstrocyte+nano.hoc",
+      "loads": [
+        "stdrun.hoc"
+      ],
+      "procs": [
+        "printMsgAndRaiseError",
+        "printNotImplementedMsgAndRaiseError",
+        "codeContractViolation",
+        "createRefsForNanoGeometry_deprecated",
+        "_addHomogenVarsInfoToBiophysComp1",
+        "_addHomogenVarsInfoToBiophysComp2",
+        "_addHomogenVarsInfoToBiophysComp3",
+        "_addHomogenVarsInfoToBiophysComp4",
+        "_addHomogenVarsInfoToGapJuncComp1",
+        "_addHomogenVarsInfoToGapJuncComp2",
+        "_addHomogenVarsInfoToGapJuncComp3"
+      ],
+      "funcs": [
+        "stringEmpty",
+        "stringsEqual",
+        "makeSureDeclared"
+      ],
+      "obfuncs": [
+        "createListOfSectionRefs",
+        "_getListOfSecRefsForComp1",
+        "_getListOfSecRefsForComp2",
+        "_getListOfSecRefsForComp3",
+        "_getListOfSecRefsForComp4"
+      ],
+      "size": 570750
+    },
+    {
+      "file": "Nanogeometry\\Neuron\\CA1Basic.hoc",
+      "loads": [
+        "stdrun.hoc"
+      ],
+      "procs": [
+        "printMsgAndRaiseError",
+        "printNotImplementedMsgAndRaiseError",
+        "codeContractViolation",
+        "_callPythonStringFunc",
+        "createRefsForNanoGeometry_deprecated",
+        "_addHomogenVarsInfoToBiophysComp1",
+        "_addHomogenVarsInfoToBiophysComp2",
+        "_addHomogenVarsInfoToBiophysComp3",
+        "_addHomogenVarsInfoToBiophysComp4",
+        "_addHomogenVarsInfoToBiophysComp5",
+        "_addHomogenVarsInfoToBiophysComp6",
+        "_addHomogenVarsInfoToGapJuncComp1",
+        "_addHomogenVarsInfoToGapJuncComp2",
+        "_addHomogenVarsInfoToGapJuncComp3",
+        "_addHomogenVarsInfoToSynComp1",
+        "_addHomogenVarsInfoToSynComp2",
+        "_addHomogenVarsInfoToSynComp3",
+        "_addHomogenVarsInfoToSynComp4"
+      ],
+      "funcs": [
+        "stringEmpty",
+        "stringsEqual",
+        "makeSureDeclared",
+        "stringStartsWith"
+      ],
+      "obfuncs": [
+        "createListOfSectionRefs",
+        "_getListOfSecRefsForComp1",
+        "_getListOfSecRefsForComp2",
+        "_getListOfSecRefsForComp3",
+        "_getListOfSecRefsForComp4",
+        "_getListOfSecRefsForComp5",
+        "_getListOfSecRefsForComp6"
+      ],
+      "size": 2425376
+    },
+    {
+      "file": "Nanogeometry\\Neuron\\cellmorphology+nano.hoc",
+      "loads": [
+        "stdrun.hoc"
+      ],
+      "procs": [
+        "printMsgAndRaiseError",
+        "printNotImplementedMsgAndRaiseError",
+        "codeContractViolation",
+        "_callPythonStringFunc",
+        "createRefsForNanoGeometry_deprecated",
+        "_addHomogenVarsInfoToBiophysComp1",
+        "_addHomogenVarsInfoToBiophysComp2",
+        "_addHomogenVarsInfoToBiophysComp3",
+        "_addHomogenVarsInfoToBiophysComp4",
+        "_addHomogenVarsInfoToBiophysComp5",
+        "_addHomogenVarsInfoToGapJuncComp1",
+        "_addHomogenVarsInfoToGapJuncComp2",
+        "_addHomogenVarsInfoToGapJuncComp3",
+        "_addHomogenVarsInfoToSynComp1",
+        "_addHomogenVarsInfoToSynComp2",
+        "_addHomogenVarsInfoToSynComp3",
+        "_addHomogenVarsInfoToSynComp4"
+      ],
+      "funcs": [
+        "stringEmpty",
+        "stringsEqual",
+        "makeSureDeclared",
+        "stringStartsWith"
+      ],
+      "obfuncs": [
+        "createListOfSectionRefs",
+        "_getListOfSecRefsForComp1",
+        "_getListOfSecRefsForComp2",
+        "_getListOfSecRefsForComp3",
+        "_getListOfSecRefsForComp4",
+        "_getListOfSecRefsForComp5"
+      ],
+      "size": 2416564
+    },
+    {
+      "file": "Nanogeometry\\Neuron\\SimpleNeuron+nano.hoc",
+      "loads": [
+        "stdrun.hoc"
+      ],
+      "procs": [
+        "printMsgAndRaiseError",
+        "printNotImplementedMsgAndRaiseError",
+        "codeContractViolation",
+        "_callPythonStringFunc",
+        "createRefsForNanoGeometry_deprecated",
+        "_addHomogenVarsInfoToBiophysComp1",
+        "_addHomogenVarsInfoToBiophysComp2",
+        "_addHomogenVarsInfoToBiophysComp3",
+        "_addHomogenVarsInfoToBiophysComp4",
+        "_addHomogenVarsInfoToBiophysComp5",
+        "_addHomogenVarsInfoToGapJuncComp1",
+        "_addHomogenVarsInfoToGapJuncComp2",
+        "_addHomogenVarsInfoToGapJuncComp3",
+        "_addHomogenVarsInfoToSynComp1",
+        "_addHomogenVarsInfoToSynComp2",
+        "_addHomogenVarsInfoToSynComp3",
+        "_addHomogenVarsInfoToSynComp4"
+      ],
+      "funcs": [
+        "stringEmpty",
+        "stringsEqual",
+        "makeSureDeclared",
+        "stringStartsWith"
+      ],
+      "obfuncs": [
+        "createListOfSectionRefs",
+        "_getListOfSecRefsForComp1",
+        "_getListOfSecRefsForComp2",
+        "_getListOfSecRefsForComp3",
+        "_getListOfSecRefsForComp4",
+        "_getListOfSecRefsForComp5"
+      ],
+      "size": 103995
+    },
+    {
+      "file": "Nanogeometry\\Neuron\\test+nano.hoc",
+      "loads": [
+        "stdrun.hoc"
+      ],
+      "procs": [
+        "printMsgAndRaiseError",
+        "printNotImplementedMsgAndRaiseError",
+        "codeContractViolation",
+        "_callPythonStringFunc",
+        "createRefsForNanoGeometry_deprecated",
+        "_addHomogenVarsInfoToBiophysComp1",
+        "_addHomogenVarsInfoToBiophysComp2",
+        "_addHomogenVarsInfoToBiophysComp3",
+        "_addHomogenVarsInfoToBiophysComp4",
+        "_addHomogenVarsInfoToBiophysComp5",
+        "_addHomogenVarsInfoToGapJuncComp1",
+        "_addHomogenVarsInfoToGapJuncComp2",
+        "_addHomogenVarsInfoToGapJuncComp3",
+        "_addHomogenVarsInfoToSynComp1",
+        "_addHomogenVarsInfoToSynComp2",
+        "_addHomogenVarsInfoToSynComp3",
+        "_addHomogenVarsInfoToSynComp4"
+      ],
+      "funcs": [
+        "stringEmpty",
+        "stringsEqual",
+        "makeSureDeclared",
+        "stringStartsWith"
+      ],
+      "obfuncs": [
+        "createListOfSectionRefs",
+        "_getListOfSecRefsForComp1",
+        "_getListOfSecRefsForComp2",
+        "_getListOfSecRefsForComp3",
+        "_getListOfSecRefsForComp4",
+        "_getListOfSecRefsForComp5"
+      ],
+      "size": 840623
+    },
+    {
+      "file": "Text results\\PlotFRAPRoundSpot.hoc",
+      "loads": [
+        "nrngui.hoc"
+      ],
+      "procs": [
+        "read_data",
+        "plot_data",
+        "add_labels"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2772
+    },
+    {
+      "file": "_Code\\RoadmapWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 6339
+    },
+    {
+      "file": "_Code\\AltRunControl\\Exported\\AltRunControlWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 11301
+    },
+    {
+      "file": "_Code\\AltRunControl\\Exported\\alt_stdrun.hoc",
+      "loads": [],
+      "procs": [
+        "alt_stdinit",
+        "alt_run",
+        "alt_continuerun",
+        "alt_steprun"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1816
+    },
+    {
+      "file": "_Code\\Clamps\\IClampHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1919
+    },
+    {
+      "file": "_Code\\Clamps\\IClampPointProcessGroupManager.hoc",
+      "loads": [
+        "pointgrp.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 630
+    },
+    {
+      "file": "_Code\\Clamps\\IClampPointProcessGroupManager_deprecated.hoc",
+      "loads": [
+        "pointgrp.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 811
+    },
+    {
+      "file": "_Code\\Clamps\\SEClampHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1940
+    },
+    {
+      "file": "_Code\\Clamps\\SEClampPointProcessGroupManager.hoc",
+      "loads": [
+        "pointgrp.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 801
+    },
+    {
+      "file": "_Code\\Export\\ExportCoreLoads.hoc",
+      "loads": [
+        "Utils/PythonUtilsForExport.hoc",
+        "LoadNanoHocFile.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 86
+    },
+    {
+      "file": "_Code\\Export\\LoadNanoHocFile.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [
+        "loadNanoHocFile"
+      ],
+      "obfuncs": [],
+      "size": 1450
+    },
+    {
+      "file": "_Code\\Export\\SaveNanoHocFile.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [
+        "saveNanoHocFile"
+      ],
+      "obfuncs": [],
+      "size": 3170
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\PythonCheck.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 135
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\MainHocSweptVarsUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [
+        "getSweptVarValue"
+      ],
+      "obfuncs": [],
+      "size": 506
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\ReducedFakeComp1.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 384
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\ReducedManagersCommonUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 374
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\ReducedMechTypeHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 7143
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\ReducedPPComp1.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 929
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\ReducedPPComp2.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2074
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\ReducedTapSet.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1432
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\GapJuncManager\\ReducedGapJuncExtValueComp2.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1458
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\GapJuncManager\\ReducedGapJuncSet.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4565
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\GapJuncManager\\ReducedSeedingDensityHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 375
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\InhomAndStochLibrary\\ReducedInhomAndStochLibrary.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3412
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\InhomAndStochLibrary\\ReducedInhomAndStochTarget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 14514
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\InterModular\\ReducedBasicMath.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 445
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\InterModular\\ReducedRNGUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1608
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\MechManager\\ReducedMechComp1.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 579
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\MechManager\\ReducedMechComp2.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2030
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\MechManager\\ReducedSegmentationHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 193
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\SynManager\\ReducedSpineNeckDiamCache.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 486
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\SynManager\\ReducedSynNCComp2.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2307
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\MainHocUtils\\ReducedVersions\\SynManager\\ReducedSynSet.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 6713
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\RunnerHocUtils\\RunnerHocCreateUtils.hoc",
+      "loads": [],
+      "procs": [
+        "createTempHocFileWithoutTemplatesAndOutputFolder"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1998
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\RunnerHocUtils\\RunnerHocDeleteUtils.hoc",
+      "loads": [],
+      "procs": [
+        "deleteTempFolder"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 319
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\RunnerHocUtils\\RunnerHocRepeatAndWatchAPCountsUtils.hoc",
+      "loads": [],
+      "procs": [
+        "appendOneDataRowToAPCountsRepSummaryFile"
+      ],
+      "funcs": [],
+      "obfuncs": [
+        "createAPCountsRepSummaryFileWithHeaders"
+      ],
+      "size": 3004
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\RunnerHocUtils\\RunnerHocSweepAndWatchAPCountsUtils.hoc",
+      "loads": [],
+      "procs": [
+        "createAPCountsSweepSummaryFileWithHeaders",
+        "appendOneDataRowToAPCountsSweepSummaryFile",
+        "createSweptVarHeaderColumns"
+      ],
+      "funcs": [],
+      "obfuncs": [
+        "createSweptVarValueColumns"
+      ],
+      "size": 3647
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\RunnerHocUtils\\RunnerHocSweepAndWatchUtils.hoc",
+      "loads": [],
+      "procs": [
+        "getSweptVarNameAndValue",
+        "getSweptVarComment",
+        "dumpSweptVarsToFileHeader"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1279
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\RunnerHocUtils\\RunnerHocTempUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 225
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\RunnerHocUtils\\RunnerHocWatchedAPCountsUtils.hoc",
+      "loads": [],
+      "procs": [
+        "setUpVecsForRecordingFromAPCounts",
+        "saveRecordedVecsFromAPCounts",
+        "getAPCountLocationHint",
+        "getAPCountThresholdHint",
+        "getAPCountSpikeCounterHint"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3665
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\RunnerHocUtils\\RunnerHocWatchedUtils.hoc",
+      "loads": [],
+      "procs": [
+        "oneValueToString",
+        "writeOneLineToFile"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 789
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\RunnerHocUtils\\RunnerHocWatchedVarsPrereqs.hoc",
+      "loads": [],
+      "procs": [
+        "checkCVodePrerequisites"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 640
+    },
+    {
+      "file": "_Code\\Export\\OutHocFileStructures\\RunnerHocUtils\\RunnerHocWatchedVarsUtils.hoc",
+      "loads": [],
+      "procs": [
+        "setUpVarVecsForRecording",
+        "saveRecordedVarVecs"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3966
+    },
+    {
+      "file": "_Code\\Export\\Utils\\PythonUtilsForExport.hoc",
+      "loads": [],
+      "procs": [
+        "sourcePythonCodeForExport",
+        "callPythonExportCore"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 610
+    },
+    {
+      "file": "_Code\\Export\\Widgets\\AddOneInputVarWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 20296
+    },
+    {
+      "file": "_Code\\Export\\Widgets\\CreateListOfInputVarsWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 7824
+    },
+    {
+      "file": "_Code\\Export\\Widgets\\DefineGridForInputVarWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2764
+    },
+    {
+      "file": "_Code\\Export\\Widgets\\ExportManagerMainWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 14948
+    },
+    {
+      "file": "_Code\\Export\\Widgets\\ExportWidgetsLoads.hoc",
+      "loads": [
+        "Helpers/ExposedOrSweptInputVar.hoc",
+        "Helpers/WatchedOutputVar.hoc",
+        "Helpers/SweptInputVarGridInfo.hoc",
+        "Helpers/ExportOptions.hoc",
+        "AddOneInputVarWidget.hoc",
+        "DefineGridForInputVarWidget.hoc",
+        "CreateListOfInputVarsWidget.hoc",
+        "WatchedVarsAndRecorderSettingsWidget.hoc",
+        "RepeatForStatsWidget.hoc",
+        "../SaveNanoHocFile.hoc",
+        "ExportManagerMainWidget.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 519
+    },
+    {
+      "file": "_Code\\Export\\Widgets\\RepeatForStatsWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2228
+    },
+    {
+      "file": "_Code\\Export\\Widgets\\WatchedVarsAndRecorderSettingsWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 5063
+    },
+    {
+      "file": "_Code\\Export\\Widgets\\Helpers\\ExportOptions.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 21456
+    },
+    {
+      "file": "_Code\\Export\\Widgets\\Helpers\\ExposedOrSweptInputVar.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 8642
+    },
+    {
+      "file": "_Code\\Export\\Widgets\\Helpers\\SweptInputVarGridInfo.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1513
+    },
+    {
+      "file": "_Code\\Export\\Widgets\\Helpers\\WatchedOutputVar.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 399
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\RangeVarAnimationRecord.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 11965
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\RangeVarAnimationRecorder.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 5256
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\RangeVarHistoryLoads.hoc",
+      "loads": [
+        "Utils/RangeVarAnimationSectionUtils.hoc",
+        "Widgets/GridToWatchWidget/GridToWatchWidget.hoc",
+        "Widgets/NeuronPlayerWidget.hoc",
+        "Widgets/GridSlicerWidget.hoc",
+        "Widgets/AnimationSettingsWidget.hoc",
+        "RangeVarAnimationRecord.hoc",
+        "RangeVarAnimationRecorder.hoc"
+      ],
+      "procs": [
+        "sourcePythonCodeForRangeVarHistory"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 720
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\Utils\\RangeVarAnimationSectionUtils.hoc",
+      "loads": [],
+      "procs": [
+        "getCellAndGridSectsLists",
+        "assignRangeVarFromRecord",
+        "destroyTempSects",
+        "_getRecSectsListAndNumSegmsForGrid",
+        "_getIsSkipNanoSects"
+      ],
+      "funcs": [],
+      "obfuncs": [
+        "getRecSectsListAndNumSegms"
+      ],
+      "size": 4240
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\Widgets\\AnimationSettingsWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 8100
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\Widgets\\GridSlicerWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 8921
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\Widgets\\NeuronPlayerWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 18777
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\Widgets\\GridToWatchWidget\\GridToWatchWidget.hoc",
+      "loads": [
+        "HelpersAndUtils/GridOfSections.hoc",
+        "HelpersAndUtils/AnchorPointHelpers.hoc",
+        "HelpersAndUtils/GridRegion.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 18681
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\Widgets\\GridToWatchWidget\\HelpersAndUtils\\AnchorPointHelpers.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 908
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\Widgets\\GridToWatchWidget\\HelpersAndUtils\\GridOfSections.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 7541
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\Widgets\\GridToWatchWidget\\HelpersAndUtils\\GridRegion.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 16124
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\Species\\SpeciesLibrary\\SpeciesCategory.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1124
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\Species\\SpeciesLibrary\\SpeciesInfo.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1897
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\Species\\SpeciesLibrary\\SpeciesLibrary.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 9186
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\Species\\SpeciesLibrary\\SpeciesLibraryLoads.hoc",
+      "loads": [
+        "../Utils/SpeciesListItem.hoc",
+        "SpeciesInfo.hoc",
+        "SpeciesCategory.hoc",
+        "SpeciesLibrary.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 198
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\Species\\Utils\\SpeciesListItem.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2621
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\InsideOutDiffManager.hoc",
+      "loads": [
+        "InsideOutDiffManagerLoads.hoc"
+      ],
+      "procs": [
+        "showInsideOutDiffManagerBaseWidget"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 314
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\InsideOutDiffManagerLoads.hoc",
+      "loads": [
+        "../Common/Species/SpeciesLibrary/SpeciesLibraryLoads.hoc",
+        "../Common/RangeVarHistory/RangeVarHistoryLoads.hoc",
+        "Utils/Utils.hoc",
+        "MiniSimManager/MiniSimManagerForInsideOutDiffusion.hoc",
+        "Widgets/GeneralSettingsWidget.hoc",
+        "Widgets/InsideOutDiffManagerMainWidget.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 418
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\MiniSimManager\\MiniSimManagerForInsideOutDiffusion.hoc",
+      "loads": [
+        "Sims/SimInsideOutDiffOnTheFly.hoc",
+        "Sims/SimInsideOutDiffDeferred.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2433
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\MiniSimManager\\Sims\\SimInsideOutDiffDeferred.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 617
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\MiniSimManager\\Sims\\SimInsideOutDiffOnTheFly.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 617
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\Utils\\Utils.hoc",
+      "loads": [],
+      "procs": [
+        "insertThisIonIntoTheseSectsAndOptionallySetBaseConc",
+        "insertThisMechOrIonIntoTheseSectsAndOptionallySetBaseConc",
+        "setLayerParamsForInsideOutDiffHelperMech",
+        "uninsertInsideOutDiffHelperMechEverywhere",
+        "createGraphsForAllOPs"
+      ],
+      "funcs": [
+        "getBaseConcValue"
+      ],
+      "obfuncs": [],
+      "size": 2671
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\Widgets\\GeneralSettingsWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 11793
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\Widgets\\InsideOutDiffManagerMainWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 42435
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\ExtracellularManager.hoc",
+      "loads": [
+        "ExtracellularManagerLoads.hoc"
+      ],
+      "procs": [
+        "showExtracellularManagerBaseWidget"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 314
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\ExtracellularManagerLoads.hoc",
+      "loads": [
+        "../Common/Species/SpeciesLibrary/SpeciesLibraryLoads.hoc",
+        "Utils/ExtracellularApplicatorUtils_Exported.hoc",
+        "Utils/ExtracellularApplicatorUtils.hoc",
+        "Utils/ECSsShowHelper.hoc",
+        "ExtracellularSourcesLibrary/CreateDefaultECSs.hoc",
+        "Widgets/NetStimParamsWidget.hoc",
+        "Widgets/OneExtracellularSourceWidget.hoc",
+        "Widgets/GenerateRandomInSphereWidget.hoc",
+        "Widgets/ExtracellularManagerMainWidget.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1434
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\ExtracellularSourcesLibrary\\CreateDefaultECSs.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3036
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\ExtracellularSourcesLibrary\\Exported\\ECLDeploymentCache.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2107
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\ExtracellularSourcesLibrary\\Exported\\ECSCapacityInfo.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2988
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\ExtracellularSourcesLibrary\\Exported\\ECSSeriesInfo.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1603
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\ExtracellularSourcesLibrary\\Exported\\ECSSpatialInfo.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2746
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\ExtracellularSourcesLibrary\\Exported\\ECSTemporalInfo.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2622
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\ExtracellularSourcesLibrary\\Exported\\ExtracellularSource.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3994
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\ExtracellularSourcesLibrary\\Exported\\ExtracellularSourcesLibrary.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2569
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\Utils\\ECSsShowHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 6103
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\Utils\\ExtracellularApplicatorUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [
+        "applyExtracellularSourcesWithWaitBoxAndUpdateMainUiDiffStatusIndication",
+        "disableExtracellularSourcesAndUpdateMainUiDiffStatusIndication"
+      ],
+      "obfuncs": [],
+      "size": 1287
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\Utils\\ExtracellularApplicatorUtils_Exported.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [
+        "applyExtracellularSources",
+        "disableExtracellularSources",
+        "getExtracellularSourcesStatus",
+        "_getDistBetweenTwo3DPoints"
+      ],
+      "obfuncs": [
+        "_prepareSegm3DSpecificDataMatrix"
+      ],
+      "size": 6308
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\Widgets\\ExtracellularManagerMainWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 10675
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\Widgets\\GenerateRandomInSphereWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3528
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\Widgets\\NetStimParamsWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2650
+    },
+    {
+      "file": "_Code\\Extracellular\\OutsideInDiffusion\\Widgets\\OneExtracellularSourceWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 47406
+    },
+    {
+      "file": "_Code\\Import\\CommonUtils.hoc",
+      "loads": [],
+      "procs": [
+        "printImportFailedMsgAndRaiseError",
+        "checkNLMorphologyConverterPrereqs",
+        "createOrCleanUpTempFolderForImport",
+        "importSwcFileFromZipArchive_prologue",
+        "_unzipArchiveAndRenameInputFile",
+        "_copyAndRenameFirstSwcFile"
+      ],
+      "funcs": [
+        "runSysOrPyCommandWithWaitBox"
+      ],
+      "obfuncs": [],
+      "size": 5350
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\BatchUtils.hoc",
+      "loads": [],
+      "procs": [
+        "createReportFileWithNLMorphologyConverter",
+        "convertFileToHocWithNLMorphologyConverter"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2970
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\CheckUtils.hoc",
+      "loads": [],
+      "procs": [
+        "checkIfSomaDendriteOrAxonIsMissingInThisGeometryFile"
+      ],
+      "funcs": [
+        "checkIfThisHocFileIsOfAstroOldStyle"
+      ],
+      "obfuncs": [],
+      "size": 3695
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\DefaultSelectionUtils.hoc",
+      "loads": [],
+      "procs": [
+        "searchCycle"
+      ],
+      "funcs": [
+        "chooseDefaultSelectedNamesForCompartments"
+      ],
+      "obfuncs": [],
+      "size": 6182
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\Import.hoc",
+      "loads": [
+        "../CommonUtils.hoc",
+        "TopLevelVars.hoc",
+        "ListCopyUtils.hoc",
+        "BatchUtils.hoc",
+        "CheckUtils.hoc",
+        "DefaultSelectionUtils.hoc",
+        "SectionUtils.hoc",
+        "SectionRefUtils.hoc",
+        "PreviewUtils.hoc",
+        "OtherUtils.hoc",
+        "PythonUtilsForImport.hoc",
+        "Widgets_layer2.hoc",
+        "Import_layer2.hoc",
+        "Widgets_layer1.hoc",
+        "Import_layer1.hoc"
+      ],
+      "procs": [
+        "importHocOrSwcOrZipOrOtherFile"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2913
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\Import_layer1.hoc",
+      "loads": [],
+      "procs": [
+        "importSwcFileFromZipArchive_layer1",
+        "importSwcOrOtherFile_layer1",
+        "importHocFile_layer1"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 6871
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\Import_layer2.hoc",
+      "loads": [],
+      "procs": [
+        "importHocFile_layer2"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4221
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\ListCopyUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [
+        "makeDeepCopyForListOfStringsLowerCase"
+      ],
+      "size": 459
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\OtherUtils.hoc",
+      "loads": [],
+      "procs": [
+        "getFileExtLowerCase",
+        "loadHocFile",
+        "showImportedGeometry",
+        "hideImportedGeometry",
+        "chooseOutLocationAndExportHocFile",
+        "cleanupBeforeNextImport"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3311
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\PreviewUtils.hoc",
+      "loads": [],
+      "procs": [
+        "showImportedGeometry_importer"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 686
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\PythonUtilsForImport.hoc",
+      "loads": [],
+      "procs": [
+        "copyHocFile"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 794
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\SectionRefUtils.hoc",
+      "loads": [],
+      "procs": [
+        "createCompartmentReferences",
+        "deleteAllSectionRefs"
+      ],
+      "funcs": [],
+      "obfuncs": [
+        "createReferencesToTheseNames"
+      ],
+      "size": 2348
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\SectionUtils.hoc",
+      "loads": [],
+      "procs": [
+        "deleteExtraDendrites"
+      ],
+      "funcs": [
+        "getNumberOfDendrites",
+        "createDefaultSomaAndConnectAllRootSectionsToIt",
+        "createDefaultAxonAndConnectToFirstSomaSection"
+      ],
+      "obfuncs": [
+        "getNamesOfAllTopologicalRoots"
+      ],
+      "size": 7085
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\TopLevelVars.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 835
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\Widgets_layer1.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 11178
+    },
+    {
+      "file": "_Code\\Import\\ImportBaseGeometry\\Widgets_layer2.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 7747
+    },
+    {
+      "file": "_Code\\Import\\ImportExtraCells\\BatchUtils.hoc",
+      "loads": [],
+      "procs": [
+        "convertFileToSwcWithNLMorphologyConverter"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1696
+    },
+    {
+      "file": "_Code\\Import\\ImportExtraCells\\ExtraCellListItem.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 5825
+    },
+    {
+      "file": "_Code\\Import\\ImportExtraCells\\ExtraCellsManagerWidget.hoc",
+      "loads": [
+        "ExtraCellListItem.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 14135
+    },
+    {
+      "file": "_Code\\Import\\ImportExtraCells\\PythonCode\\Separated\\wrapper1.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 42
+    },
+    {
+      "file": "_Code\\InterModular\\InterModularLoads.hoc",
+      "loads": [
+        "UtilsAndHelpers/InterModularErrWarnUtils.hoc",
+        "UtilsAndHelpers/PrerequisitesCheck.hoc",
+        "UtilsAndHelpers/InterModularBasicMath.hoc",
+        "UtilsAndHelpers/InterModularPythonUtils.hoc",
+        "UtilsAndHelpers/InterModularGeomMath.hoc",
+        "UtilsAndHelpers/InterModularCreateVecListUtils.hoc",
+        "UtilsAndHelpers/InterModularListUtils.hoc",
+        "UtilsAndHelpers/InterModularSectionUtils.hoc",
+        "UtilsAndHelpers/InterModularMechSettings.hoc",
+        "UtilsAndHelpers/InterModularCellTypeUtils.hoc",
+        "UtilsAndHelpers/InterModularCellBoundingBoxUtils.hoc",
+        "UtilsAndHelpers/InterModularEnums.hoc",
+        "Widgets/MessageWarningHelper.hoc",
+        "UtilsAndHelpers/InterModularMechsDllUtils.hoc",
+        "UtilsAndHelpers/InterModularStringUtils.hoc",
+        "UtilsAndHelpers/InterModularUniqueNameUtils.hoc",
+        "UtilsAndHelpers/InterModularUniqueListItemUtils.hoc",
+        "UtilsAndHelpers/InterModularRNGUtils.hoc",
+        "UtilsAndHelpers/InterModularCompUtils.hoc",
+        "UtilsAndHelpers/InterModularUnitsUtils.hoc",
+        "UtilsAndHelpers/InterModularGraphUtils.hoc",
+        "UtilsAndHelpers/InterModularPlotShapeUtils.hoc",
+        "UtilsAndHelpers/InterModularWidgetUtils.hoc",
+        "UtilsAndHelpers/InterModularOtherUtils.hoc",
+        "Widgets/FileBrowserHelper.hoc",
+        "Widgets/SectionsSelectorWidget/PluginsForSectionsSelectorWidget.hoc",
+        "Widgets/SectionsSelectorWidget/SectionsSelectorWidget.hoc",
+        "Widgets/GlobalsEditorWidget.hoc",
+        "Widgets/SeedingDensityWidget.hoc",
+        "Widgets/PointsToWatchWidget/ObservationPoint.hoc",
+        "Widgets/PointsToWatchWidget/OPsShowHelper.hoc",
+        "Widgets/PointsToWatchWidget/PointsToWatchWidget.hoc"
+      ],
+      "procs": [
+        "makeSureGapJuncSetsCreatedOrImported",
+        "makeSureSynSetsCreatedOrImported"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2805
+    },
+    {
+      "file": "_Code\\InterModular\\Exported\\InterModularErrWarnUtilsPart1_Exported.hoc",
+      "loads": [],
+      "procs": [
+        "printMsgAndRaiseError"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 186
+    },
+    {
+      "file": "_Code\\InterModular\\Exported\\InterModularErrWarnUtilsPart2_Exported.hoc",
+      "loads": [],
+      "procs": [
+        "printNotImplementedMsgAndRaiseError",
+        "codeContractViolation"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 561
+    },
+    {
+      "file": "_Code\\InterModular\\Exported\\InterModularListUtils_Exported.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1207
+    },
+    {
+      "file": "_Code\\InterModular\\Exported\\InterModularOtherUtils_Exported.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [
+        "makeSureDeclared"
+      ],
+      "obfuncs": [],
+      "size": 865
+    },
+    {
+      "file": "_Code\\InterModular\\Exported\\InterModularPythonUtils_Exported.hoc",
+      "loads": [],
+      "procs": [
+        "_callPythonStringFunc"
+      ],
+      "funcs": [
+        "stringStartsWith"
+      ],
+      "obfuncs": [],
+      "size": 793
+    },
+    {
+      "file": "_Code\\InterModular\\Exported\\InterModularSectionUtilsPart1_Exported.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [
+        "createListOfSectionRefs"
+      ],
+      "size": 2398
+    },
+    {
+      "file": "_Code\\InterModular\\Exported\\InterModularSectionUtilsPart2_Exported.hoc",
+      "loads": [],
+      "procs": [
+        "interpEachSegmCentreCoordsFromSec3DPointCoords"
+      ],
+      "funcs": [
+        "getTotalNumSegms"
+      ],
+      "obfuncs": [],
+      "size": 1090
+    },
+    {
+      "file": "_Code\\InterModular\\Exported\\InterModularStringUtils_Exported.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [
+        "stringEmpty",
+        "stringsEqual"
+      ],
+      "obfuncs": [],
+      "size": 358
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularBasicMath.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2047
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularCellBoundingBoxUtils.hoc",
+      "loads": [],
+      "procs": [
+        "_getCellBoundingBox",
+        "_getCellBoundingBox"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 5183
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularCellTypeUtils.hoc",
+      "loads": [],
+      "procs": [
+        "getCellTypeName"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 127
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularCompUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4314
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularCreateVecListUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [
+        "createVecOfVals",
+        "createListOfStrs"
+      ],
+      "size": 590
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularEnums.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1970
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularErrWarnUtils.hoc",
+      "loads": [
+        "../Exported/InterModularErrWarnUtilsPart1_Exported.hoc",
+        "../Exported/InterModularErrWarnUtilsPart2_Exported.hoc"
+      ],
+      "procs": [
+        "getNotImplementedLines",
+        "printWasNotExportedSoWeWillCreateDefaultWarning",
+        "printPythonErrMsgAndStop",
+        "some_name"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1185
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularGeomMath.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1920
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularGraphUtils.hoc",
+      "loads": [],
+      "procs": [
+        "addVarToGraph"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 9530
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularListUtils.hoc",
+      "loads": [
+        "../Exported/InterModularListUtils_Exported.hoc"
+      ],
+      "procs": [
+        "concatenateTwoLists",
+        "replaceItemInList",
+        "removeItemFromList",
+        "deleteSelectedItemFromBrowsedList"
+      ],
+      "funcs": [
+        "findItemInListByString",
+        "findItemInListByStringAndSelect"
+      ],
+      "obfuncs": [],
+      "size": 3318
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularMechsDllUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4400
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularMechSettings.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 5534
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularOtherUtils.hoc",
+      "loads": [
+        "../Exported/InterModularOtherUtils_Exported.hoc"
+      ],
+      "procs": [
+        "closeFileAndShowCompleteMsg",
+        "loadIfNotDeclared",
+        "makeSureDeclaredButCheck",
+        "deployDefaultProcAdvance",
+        "deployCustomProcAdvance",
+        "setPanelScrollIvocStyle",
+        "restoreDefaultPanelScrollIvocStyle",
+        "getBrainCellVersionStr"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4114
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularPlotShapeUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3375
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularPythonUtils.hoc",
+      "loads": [
+        "../Exported/InterModularPythonUtils_Exported.hoc"
+      ],
+      "procs": [
+        "sourcePythonCode",
+        "stringToLowerCase",
+        "stringCapitalize",
+        "stringTruncate"
+      ],
+      "funcs": [
+        "stringEndsWith",
+        "isValidSecName",
+        "checkIfFileMissing"
+      ],
+      "obfuncs": [],
+      "size": 2344
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularRNGUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3121
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularSectionUtils.hoc",
+      "loads": [
+        "../Exported/InterModularSectionUtilsPart1_Exported.hoc",
+        "../Exported/InterModularSectionUtilsPart2_Exported.hoc"
+      ],
+      "procs": [
+        "getCurrentSecName",
+        "getMaxDistForCell",
+        "secListToListOfSecRef",
+        "deleteAllSections",
+        "addThisAndFilteredChildSecRefsToTheList",
+        "removeAllDupSecRefsFromTheList",
+        "interpEachSegmCentreCoordsFromSec3DPointCoords_CalledFromPython",
+        "getSomaSecCentreCoords",
+        "setSomaSecCentreCoords"
+      ],
+      "funcs": [
+        "isAnyDisconSecsInCell",
+        "isAnyDisconSecsInList",
+        "getDistRangeGivenSections",
+        "isDisconnectedDistance",
+        "capDiam",
+        "checkIfCurrentSecIsDendrite"
+      ],
+      "obfuncs": [
+        "getAllSectionNames",
+        "listOfSecRefToSecList"
+      ],
+      "size": 11631
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularStringUtils.hoc",
+      "loads": [
+        "../Exported/InterModularStringUtils_Exported.hoc"
+      ],
+      "procs": [
+        "joinStrings"
+      ],
+      "funcs": [
+        "containsSubstring"
+      ],
+      "obfuncs": [],
+      "size": 776
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularUniqueListItemUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [
+        "isVarExprUnique",
+        "isECSUnique"
+      ],
+      "obfuncs": [],
+      "size": 1420
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularUniqueNameUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [
+        "chooseUniqueAndValidNameForNewCompartmentForImport",
+        "chooseUniqueNameForCompartmentForMechManager",
+        "enterVarExpression",
+        "getNonZeroValence",
+        "_stringInputDialog"
+      ],
+      "obfuncs": [],
+      "size": 6917
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularUnitsUtils.hoc",
+      "loads": [],
+      "procs": [
+        "setUpExposedLengthVar",
+        "getWatchedVarUnits",
+        "getGraphedOrPointedVarUnits"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1437
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\InterModularWidgetUtils.hoc",
+      "loads": [],
+      "procs": [
+        "getGlobalVarsHint",
+        "getIfYouModifyGeomHint",
+        "oneZeroToYesNo",
+        "oneZeroToEnabledDisabled",
+        "getEmptyOrS",
+        "addEmptyLabels",
+        "createEmptyPanel",
+        "createElasticSpacer",
+        "closeDeck",
+        "createMetaVarHint",
+        "createRecordingPeriodHint",
+        "createExtracellularGeneratorHintsPanel",
+        "showIntegratesWithAltRunControlMsg",
+        "showWillBeSavedLaterMsg",
+        "showResultsWereSavedToMsg",
+        "dismissIfNotNil",
+        "unmapIfNotNil"
+      ],
+      "funcs": [],
+      "obfuncs": [
+        "openDeck"
+      ],
+      "size": 4283
+    },
+    {
+      "file": "_Code\\InterModular\\UtilsAndHelpers\\PrerequisitesCheck.hoc",
+      "loads": [],
+      "procs": [
+        "checkPrerequisites"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 459
+    },
+    {
+      "file": "_Code\\InterModular\\Widgets\\FileBrowserHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1952
+    },
+    {
+      "file": "_Code\\InterModular\\Widgets\\GlobalsEditorWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1161
+    },
+    {
+      "file": "_Code\\InterModular\\Widgets\\MessageWarningHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 10077
+    },
+    {
+      "file": "_Code\\InterModular\\Widgets\\SeedingDensityWidget.hoc",
+      "loads": [],
+      "procs": [
+        "showSeedingDensityWidget"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4652
+    },
+    {
+      "file": "_Code\\InterModular\\Widgets\\PointsToWatchWidget\\ObservationPoint.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1784
+    },
+    {
+      "file": "_Code\\InterModular\\Widgets\\PointsToWatchWidget\\OPsShowHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1588
+    },
+    {
+      "file": "_Code\\InterModular\\Widgets\\PointsToWatchWidget\\PointsToWatchWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 11426
+    },
+    {
+      "file": "_Code\\InterModular\\Widgets\\SectionsSelectorWidget\\PluginsForSectionsSelectorWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 5762
+    },
+    {
+      "file": "_Code\\InterModular\\Widgets\\SectionsSelectorWidget\\SectionsSelectorWidget.hoc",
+      "loads": [],
+      "procs": [
+        "reseedStalksHandler"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 7428
+    },
+    {
+      "file": "_Code\\MainUI\\CellInit.hoc",
+      "loads": [],
+      "procs": [
+        "initCell",
+        "_setSomaDendrCommonParams"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 983
+    },
+    {
+      "file": "_Code\\MainUI\\CellUpdate.hoc",
+      "loads": [],
+      "procs": [
+        "stretch"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1042
+    },
+    {
+      "file": "_Code\\MainUI\\GeometricalParameters.hoc",
+      "loads": [],
+      "procs": [
+        "calculateGeometricalParams",
+        "plotGeometricalParams",
+        "printGeometricalParamsToFile",
+        "GeometricalParameters"
+      ],
+      "funcs": [],
+      "obfuncs": [
+        "genericGraph"
+      ],
+      "size": 5263
+    },
+    {
+      "file": "_Code\\MainUI\\InitParamsMain.hoc",
+      "loads": [],
+      "procs": [
+        "initParamsMain"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 293
+    },
+    {
+      "file": "_Code\\MainUI\\MainProgram.hoc",
+      "loads": [
+        "nrngui.hoc",
+        "CellInit.hoc",
+        "CellUpdate.hoc",
+        "../NanoCore/Astrocyte/AstrocyteNanoInitUpdate.hoc",
+        "InitParamsMain.hoc",
+        "MainUi.hoc",
+        "GeometricalParameters.hoc"
+      ],
+      "procs": [
+        "runMain"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1179
+    },
+    {
+      "file": "_Code\\MainUI\\MainUi.hoc",
+      "loads": [
+        "Astrocyte/AstrocyteGeometryPanel.hoc",
+        "Astrocyte/AstrocyteHandlers.hoc",
+        "Neuron/NeuronGeometryPanel.hoc",
+        "../Managers/CommonLoads.hoc",
+        "../Managers/MechManager/MechManager.hoc",
+        "../Managers/GapJuncManager/GapJuncManager.hoc",
+        "../Managers/SynManager/SynManager.hoc",
+        "../Extracellular/OutsideInDiffusion/ExtracellularManager.hoc",
+        "../Extracellular/InsideOutDiffusion/InsideOutDiffManager.hoc",
+        "../Import/ImportExtraCells/ExtraCellsManagerWidget.hoc",
+        "../Export/Widgets/ExportWidgetsLoads.hoc",
+        "../Simulations/SimManagerLoads.hoc",
+        "Helpers/MainUiLockHelper.hoc",
+        "Helpers/MainUiDiffStatusIndicationHelper.hoc"
+      ],
+      "procs": [
+        "showMainUi",
+        "createNanoReseedingDeck",
+        "createNanoGeomAndBiophysDeck",
+        "showRunControlPanel",
+        "_showSeedingDensityWidget",
+        "startSpineSeedingManager",
+        "startMechManager",
+        "startGapJuncManager",
+        "startSynManager",
+        "startECSManager",
+        "startIODManager",
+        "outsideInDiffStatusCheckboxHandler",
+        "insertElectrode",
+        "manageExtraCells",
+        "startExportManager"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 15547
+    },
+    {
+      "file": "_Code\\MainUI\\NanoDistrFromFile.hoc",
+      "loads": [],
+      "procs": [
+        "loadDiamDistrFile"
+      ],
+      "funcs": [
+        "getDiameterFromDistr"
+      ],
+      "obfuncs": [],
+      "size": 2515
+    },
+    {
+      "file": "_Code\\MainUI\\Utils.hoc",
+      "loads": [],
+      "procs": [
+        "initVoltage",
+        "initVoltageAndRunControlParams"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 847
+    },
+    {
+      "file": "_Code\\MainUI\\Astrocyte\\AstrocyteGeometryPanel.hoc",
+      "loads": [],
+      "procs": [
+        "createAstrocyteGeometryPanel"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4055
+    },
+    {
+      "file": "_Code\\MainUI\\Astrocyte\\AstrocyteHandlers.hoc",
+      "loads": [],
+      "procs": [
+        "changeVolume",
+        "distrSelectedLeaves",
+        "distrSelectedStalks"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1886
+    },
+    {
+      "file": "_Code\\MainUI\\Helpers\\MainUiDiffStatusIndicationHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 897
+    },
+    {
+      "file": "_Code\\MainUI\\Helpers\\MainUiLockHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3749
+    },
+    {
+      "file": "_Code\\MainUI\\Neuron\\NeuronGeometryPanel.hoc",
+      "loads": [],
+      "procs": [
+        "createNeuronGeometryPanel",
+        "switchToOtherNeuronGeometry",
+        "UniformDistributionofSpineGeometry",
+        "NormalDistributionofSpineGeometry",
+        "NaturePaperControl_Init",
+        "NaturePaperControl",
+        "NaturePaperLTP_Init",
+        "NaturePaperLTP"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 8175
+    },
+    {
+      "file": "_Code\\Managers\\CommonLoads.hoc",
+      "loads": [
+        "FakeMechanismType.hoc",
+        "MechTypeHelper.hoc",
+        "InhomAndStochLibrary/InhomAndStochLibraryLoads.hoc",
+        "Widgets/Inhomogeneity/InhomEditorSectionUtils.hoc",
+        "Widgets/Inhomogeneity/InhomEditorSubWidget.hoc",
+        "Widgets/Stochasticity/StochEditorSubWidget.hoc",
+        "Widgets/VarsEditorWidget.hoc",
+        "Widgets/ListsFilterWidget.hoc",
+        "Widgets/ManageAndRunWidget.hoc",
+        "ManagersCommonUtils.hoc",
+        "ManagersCommonUtilsForTaps.hoc",
+        "TapSet.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1511
+    },
+    {
+      "file": "_Code\\Managers\\FakeMechanismType.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 724
+    },
+    {
+      "file": "_Code\\Managers\\ManagersCommonUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 7818
+    },
+    {
+      "file": "_Code\\Managers\\ManagersCommonUtilsForTaps.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 5076
+    },
+    {
+      "file": "_Code\\Managers\\MechTypeHelper.hoc",
+      "loads": [
+        "GapJuncManager/GapJuncManagerBaseLoads.hoc",
+        "SynManager/SynManagerBaseLoads.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 17176
+    },
+    {
+      "file": "_Code\\Managers\\SeedingDensityHelper.hoc",
+      "loads": [],
+      "procs": [
+        "reseedAstrocyteNanoBranches"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3322
+    },
+    {
+      "file": "_Code\\Managers\\TapSet.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 6975
+    },
+    {
+      "file": "_Code\\Managers\\GapJuncManager\\GapJuncManager.hoc",
+      "loads": [
+        "GapJuncManagerLoads.hoc"
+      ],
+      "procs": [
+        "makeSureGapJuncSetsCreatedOrImported",
+        "makeSureGapJuncSetsCreatedOrImportedThenShowGapJuncManagerBaseWidget",
+        "_createOrImportGapJuncSets"
+      ],
+      "funcs": [],
+      "obfuncs": [
+        "createDefaultGapJuncSets"
+      ],
+      "size": 1588
+    },
+    {
+      "file": "_Code\\Managers\\GapJuncManager\\GapJuncManagerBaseLoads.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 253
+    },
+    {
+      "file": "_Code\\Managers\\GapJuncManager\\GapJuncManagerLoads.hoc",
+      "loads": [
+        "GapJuncManagerBaseLoads.hoc",
+        "GapJuncComps/GapJuncPPComp.hoc",
+        "GapJuncComps/GapJuncExtValueComp.hoc",
+        "Utils/GapJuncSetSectionUtils.hoc",
+        "../../Prologue/CreateDefaultGapJuncs.hoc",
+        "GapJuncSet.hoc",
+        "Widgets/GapJuncManagerMainWidget.hoc",
+        "Widgets/GapJuncSetsWidget.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 576
+    },
+    {
+      "file": "_Code\\Managers\\GapJuncManager\\GapJuncSet.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 17595
+    },
+    {
+      "file": "_Code\\Managers\\GapJuncManager\\Exported\\GapJuncEnums.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 823
+    },
+    {
+      "file": "_Code\\Managers\\GapJuncManager\\FakesForExtValue\\Exported\\FakeMechanismStandardForExtValue.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2860
+    },
+    {
+      "file": "_Code\\Managers\\GapJuncManager\\FakesForExtValue\\Exported\\UtilsForFakeMechanismForExtValue.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1766
+    },
+    {
+      "file": "_Code\\Managers\\GapJuncManager\\GapJuncComps\\GapJuncExtValueComp.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 6543
+    },
+    {
+      "file": "_Code\\Managers\\GapJuncManager\\GapJuncComps\\GapJuncPPComp.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 7458
+    },
+    {
+      "file": "_Code\\Managers\\GapJuncManager\\Utils\\GapJuncSetSectionUtils.hoc",
+      "loads": [],
+      "procs": [
+        "forallCallApplyChangesToLocCore"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 147
+    },
+    {
+      "file": "_Code\\Managers\\GapJuncManager\\Widgets\\GapJuncManagerMainWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 37092
+    },
+    {
+      "file": "_Code\\Managers\\GapJuncManager\\Widgets\\GapJuncSetsWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 6739
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\DistMechVerbatimInhomTargetProto.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 775
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\InhomAndStochLibrary.hoc",
+      "loads": [],
+      "procs": [
+        "createOrImportInhomAndStochLibrary"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 34823
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\InhomAndStochLibraryLoads.hoc",
+      "loads": [
+        "InhomModels/DistFuncHelpers/DistFuncsCatalogue.hoc",
+        "StochModels/StochFuncHelpers/StochFuncsCatalogue.hoc",
+        "DistMechVerbatimInhomTargetProto.hoc",
+        "InhomAndStochTarget.hoc",
+        "InhomAndStochLibrary.hoc",
+        "InhomModels/DistFuncHelpers/PythonUtils/PythonUtilsForDistFuncs.hoc",
+        "InhomModels/DistFuncHelpers/FileUtilsForDistFuncs.hoc",
+        "StochModels/StochDistHelpers/PythonUtils/PythonUtilsForStochDists.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2205
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\InhomAndStochTarget.hoc",
+      "loads": [
+        "../Widgets/Inhomogeneity/SegmentationHelper.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 16275
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\Exported\\InhomAndStochApplicator.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3311
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\Exported\\VarLibId.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2433
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\InhomModels\\DistFuncHelpers\\DistFuncsCatalogue.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2412
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\InhomModels\\DistFuncHelpers\\FileUtilsForDistFuncs.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [
+        "selectDistFuncInputFile_deprecated"
+      ],
+      "obfuncs": [],
+      "size": 737
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\InhomModels\\DistFuncHelpers\\Exported\\CodeFromFileDistFuncHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2586
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\InhomModels\\DistFuncHelpers\\Exported\\CustomCodeDistFuncHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 8498
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\InhomModels\\DistFuncHelpers\\Exported\\SimpleModelDistFuncHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4598
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\InhomModels\\DistFuncHelpers\\Exported\\TablePlusLinInterpDistFuncHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 9451
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\InhomModels\\DistFuncHelpers\\Exported\\VerbatimDistFuncHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2807
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\InhomModels\\DistFuncHelpers\\Exported\\ZebraDistFuncHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2375
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\InhomModels\\DistFuncHelpers\\PythonUtils\\PythonUtilsForDistFuncs.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [
+        "loadPythonFile"
+      ],
+      "obfuncs": [],
+      "size": 426
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\StochModels\\StochDistHelpers\\Exported\\ErlangDistHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3019
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\StochModels\\StochDistHelpers\\Exported\\LogNormalDistHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2429
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\StochModels\\StochDistHelpers\\Exported\\NegExpDistHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1946
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\StochModels\\StochDistHelpers\\Exported\\NormalDistHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2059
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\StochModels\\StochDistHelpers\\Exported\\UniformDistHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2308
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\StochModels\\StochDistHelpers\\Exported\\WeibullDistHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2691
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\StochModels\\StochDistHelpers\\PythonUtils\\PythonUtilsForStochDists.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1321
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\StochModels\\StochFuncHelpers\\StochFuncsCatalogue.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2254
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\StochModels\\StochFuncHelpers\\Exported\\SimpleModelStochFuncHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 6494
+    },
+    {
+      "file": "_Code\\Managers\\InhomAndStochLibrary\\StochModels\\StochFuncHelpers\\Exported\\SpecialStochFuncHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4236
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\MechComp.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 33270
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\MechManager.hoc",
+      "loads": [
+        "MechManagerLoads.hoc"
+      ],
+      "procs": [
+        "makeSureMechCompsCreatedOrImportedAndRescannedThenShowMechManagerBaseWidget"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 416
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\MechManagerLoads.hoc",
+      "loads": [
+        "MechComp.hoc",
+        "Widgets/CompOps/MechManagerCompOpMergeSubWidget.hoc",
+        "Widgets/CompOps/MechManagerCompOpWidget.hoc",
+        "Widgets/MechOps/MechOpHelpers/MechOp0Helper.hoc",
+        "Widgets/MechOps/MechOpHelpers/MechOp1Helper.hoc",
+        "Widgets/MechOps/MechOpHelpers/MechOp2Helper.hoc",
+        "Widgets/MechOps/MechOpHelpers/MechOp3Helper.hoc",
+        "Widgets/MechOps/MechOpWidgetBase.hoc",
+        "BiophysExportImport/BiophysExportImportOptions.hoc",
+        "BiophysExportImport/BiophysExportImportHelper.hoc",
+        "Widgets/ExportImportBiophysicsWidget.hoc",
+        "Widgets/MechManagerMainWidget.hoc",
+        "MechCompImportCreateRescan/MechCompImportCreateRescanHelper.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 805
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\BiophysExportImport\\BiophysExportImportHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 10066
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\BiophysExportImport\\BiophysExportImportOptions.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1082
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\MechCompImportCreateRescan\\MechCompImportCreateRescanHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [
+        "_findAllRemainingSects",
+        "_findAllRemainingSects"
+      ],
+      "size": 12185
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\Widgets\\ExportImportBiophysicsWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 7144
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\Widgets\\MechManagerMainWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 7584
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\Widgets\\CompOps\\MechManagerCompOpMergeSubWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4636
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\Widgets\\CompOps\\MechManagerCompOpWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 8095
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\Widgets\\MechOps\\MechOpWidgetBase.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 19810
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\Widgets\\MechOps\\MechOpHelpers\\MechOp0Helper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3139
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\Widgets\\MechOps\\MechOpHelpers\\MechOp1Helper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 6288
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\Widgets\\MechOps\\MechOpHelpers\\MechOp2Helper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3763
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\Widgets\\MechOps\\MechOpHelpers\\MechOp3Helper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3285
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\SpineNeckDiamCache.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 985
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\SynManager.hoc",
+      "loads": [
+        "SynManagerLoads.hoc",
+        "../../NanoSeeding/Neuron/ProtoSpine.hoc",
+        "../../NanoSeeding/Neuron/SpineSet.hoc"
+      ],
+      "procs": [
+        "makeSureSynSetsCreatedOrImported",
+        "makeSureSynSetsCreatedOrImportedThenShowSynManagerBaseWidget",
+        "createDefaultSpineSet",
+        "_createOrImportSynSets"
+      ],
+      "funcs": [],
+      "obfuncs": [
+        "createDefaultSynSets"
+      ],
+      "size": 2330
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\SynManagerBaseLoads.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 310
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\SynManagerLoads.hoc",
+      "loads": [
+        "SynManagerBaseLoads.hoc",
+        "SynComps/SynPPComp.hoc",
+        "SynComps/SynNCComp.hoc",
+        "SpineNeckDiamCache.hoc",
+        "../../Prologue/Neuron/CreateDefaultSyns.hoc",
+        "SynSet.hoc",
+        "Widgets/SynLocationWidget.hoc",
+        "Widgets/SynManagerMainWidget.hoc",
+        "Widgets/SynSetsWidget.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 393
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\SynSet.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 19216
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\Exported\\SynEnums.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 786
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\Exported\\SynEventsHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3458
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\FakesForNetCon\\Exported\\FakeMechanismStandardForNetCon.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3412
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\FakesForNetCon\\Exported\\UtilsForFakeMechanismForNetCon.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2994
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\SynComps\\SynNCComp.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 7768
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\SynComps\\SynPPComp.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 6998
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\Widgets\\SynLocationWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4195
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\Widgets\\SynManagerMainWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 29190
+    },
+    {
+      "file": "_Code\\Managers\\SynManager\\Widgets\\SynSetsWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4662
+    },
+    {
+      "file": "_Code\\Managers\\Widgets\\ListsFilterWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3893
+    },
+    {
+      "file": "_Code\\Managers\\Widgets\\ManageAndRunWidget.hoc",
+      "loads": [
+        "../../AltRunControl/Exported/alt_stdrun.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 6194
+    },
+    {
+      "file": "_Code\\Managers\\Widgets\\VarsEditorWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 13116
+    },
+    {
+      "file": "_Code\\Managers\\Widgets\\Inhomogeneity\\InhomEditorSectionUtils.hoc",
+      "loads": [],
+      "procs": [
+        "getDistMechVarRangeOutside",
+        "getDistMechVarRangeInside"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1528
+    },
+    {
+      "file": "_Code\\Managers\\Widgets\\Inhomogeneity\\InhomEditorSubWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 46948
+    },
+    {
+      "file": "_Code\\Managers\\Widgets\\Inhomogeneity\\SegmentationHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3188
+    },
+    {
+      "file": "_Code\\Managers\\Widgets\\Stochasticity\\StochEditorSubWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 55976
+    },
+    {
+      "file": "_Code\\Managers\\Widgets\\Stochasticity\\Exported\\BoundingHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 5579
+    },
+    {
+      "file": "_Code\\Managers\\Widgets\\Stochasticity\\Exported\\ColourizationHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 5384
+    },
+    {
+      "file": "_Code\\NanoCore\\NanoBranchesManager.hoc",
+      "loads": [
+        "../Managers/CommonLoads.hoc",
+        "../Managers/GapJuncManager/GapJuncManager.hoc",
+        "../Managers/SynManager/SynManager.hoc",
+        "Exported/CreateNanoRefs_Exported_deprecated.hoc",
+        "Astrocyte/AstrocyteNanoBranch.hoc",
+        "Neuron/NeuronNanoBranch.hoc",
+        "../NanoSeeding/NanoSeedingLoads.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [
+        "createNeuronNanoBranch",
+        "createAstrocyteNanoBranch",
+        "createDefaultSynSets"
+      ],
+      "size": 8055
+    },
+    {
+      "file": "_Code\\NanoCore\\Astrocyte\\AstrocyteNanoBranch.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [
+        "createAstrocyteNanoBranch"
+      ],
+      "size": 8142
+    },
+    {
+      "file": "_Code\\NanoCore\\Astrocyte\\AstrocyteNanoInitUpdate.hoc",
+      "loads": [],
+      "procs": [
+        "reseedAstrocyteNanoBranches",
+        "setLeaves",
+        "setStalks"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 737
+    },
+    {
+      "file": "_Code\\NanoCore\\Exported\\CreateNanoRefs_Exported_deprecated.hoc",
+      "loads": [],
+      "procs": [
+        "createRefsForNanoGeometry_deprecated"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1019
+    },
+    {
+      "file": "_Code\\NanoCore\\Neuron\\NeuronNanoBranch.hoc",
+      "loads": [],
+      "procs": [
+        "NormalDistributionOfSpineGeometry_setParams",
+        "Neuron_Biophysics_init"
+      ],
+      "funcs": [],
+      "obfuncs": [
+        "createNeuronNanoBranch"
+      ],
+      "size": 8283
+    },
+    {
+      "file": "_Code\\NanoCore\\Neuron\\NeuronNanoInitUpdate.hoc",
+      "loads": [],
+      "procs": [
+        "reseedNeuronNanoBranches",
+        "UpdateSpines"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 319
+    },
+    {
+      "file": "_Code\\NanoSeeding\\NanoSeedingLoads.hoc",
+      "loads": [
+        "../Managers/SeedingDensityHelper.hoc",
+        "Astrocyte/SectionListUtils_deprecated.hoc",
+        "Astrocyte/Widgets/SeededDendritesWidget_deprecated.hoc",
+        "Neuron/SpineSeedingLoads.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 271
+    },
+    {
+      "file": "_Code\\NanoSeeding\\Astrocyte\\SectionListUtils_deprecated.hoc",
+      "loads": [],
+      "procs": [
+        "addThisAndAllChildSecRefsToTheList_deprecated"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 317
+    },
+    {
+      "file": "_Code\\NanoSeeding\\Astrocyte\\Widgets\\SeededDendritesWidget_deprecated.hoc",
+      "loads": [],
+      "procs": [
+        "reseedStalksHandler_deprecated"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 5866
+    },
+    {
+      "file": "_Code\\NanoSeeding\\Neuron\\PhantomSpine.hoc",
+      "loads": [],
+      "procs": [
+        "createPhantomSpineOnFirstDendrite"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1381
+    },
+    {
+      "file": "_Code\\NanoSeeding\\Neuron\\ProtoSpine.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 672
+    },
+    {
+      "file": "_Code\\NanoSeeding\\Neuron\\SpineSeedingLoads.hoc",
+      "loads": [
+        "Widgets/SpineSeedingSubWidget.hoc",
+        "Widgets/SpineSeedingMainWidget.hoc",
+        "PhantomSpine.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 137
+    },
+    {
+      "file": "_Code\\NanoSeeding\\Neuron\\SpineSet.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3963
+    },
+    {
+      "file": "_Code\\NanoSeeding\\Neuron\\Widgets\\SpineSeedingMainWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 10785
+    },
+    {
+      "file": "_Code\\NanoSeeding\\Neuron\\Widgets\\SpineSeedingSubWidget.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4854
+    },
+    {
+      "file": "_Code\\Prologue\\CommonPrologue.hoc",
+      "loads": [
+        "../Managers/SeedingDensityHelper.hoc",
+        "../NanoCore/NanoBranchesManager.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1083
+    },
+    {
+      "file": "_Code\\Prologue\\CreateDefaultGapJuncs.hoc",
+      "loads": [],
+      "procs": [
+        "cacheTotalSecLen",
+        "chooseRandomLocationForIntGapJuncPointer",
+        "_getSegm3DCoords"
+      ],
+      "funcs": [
+        "getDefMinSeedingDistanceForGapJuncs"
+      ],
+      "obfuncs": [
+        "reseedDefaultGapJuncs"
+      ],
+      "size": 5699
+    },
+    {
+      "file": "_Code\\Prologue\\Astrocyte\\CreateDefaultEndFoot.hoc",
+      "loads": [],
+      "procs": [
+        "setEndFoot"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1304
+    },
+    {
+      "file": "_Code\\Prologue\\Astrocyte\\initAstrocyte.hoc",
+      "loads": [
+        "nrngui.hoc",
+        "../../MainUI/NanoDistrFromFile.hoc",
+        "_Code/Prologue/Astrocyte/CreateDefaultEndFoot.hoc",
+        "_Code/Prologue/Astrocyte/StretchXY.hoc",
+        "_Code/Prologue/CreateDefaultGapJuncs.hoc",
+        "_Code/Prologue/CommonPrologue.hoc"
+      ],
+      "procs": [
+        "showAstrocyteLevelOfNanoDetailWidget",
+        "showSelectedGeometry",
+        "loadGeometryFile",
+        "loadGeometryEndFootFile",
+        "loadGeometryEndFootFile_afterImport",
+        "loadGeometryFileReconstruct",
+        "loadGeometryFileReconstruct_afterImport",
+        "initMainProgram",
+        "showSelectGeometryUi"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 8109
+    },
+    {
+      "file": "_Code\\Prologue\\Astrocyte\\StretchXY.hoc",
+      "loads": [],
+      "procs": [
+        "stretchXY"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 733
+    },
+    {
+      "file": "_Code\\Prologue\\Exported\\GapJunction.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3203
+    },
+    {
+      "file": "_Code\\Prologue\\Neuron\\CreateDefaultSyns.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [
+        "reseedDefaultSynsForNeuron"
+      ],
+      "size": 2581
+    },
+    {
+      "file": "_Code\\Prologue\\Neuron\\DefaultBiophys.hoc",
+      "loads": [],
+      "procs": [
+        "Neuron_Biophysics_init"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 2460
+    },
+    {
+      "file": "_Code\\Prologue\\Neuron\\initNeuron.hoc",
+      "loads": [
+        "_Code/Prologue/CreateDefaultGapJuncs.hoc",
+        "_Code/Prologue/CommonPrologue.hoc",
+        "_Code/Prologue/Neuron/initNew.hoc"
+      ],
+      "procs": [
+        "showNeuronLevelOfNanoDetailWidget",
+        "neuronPostImportHandler",
+        "initNeuron"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1582
+    },
+    {
+      "file": "_Code\\Prologue\\Neuron\\initNew.hoc",
+      "loads": [
+        "stdrun.hoc",
+        "../../NanoCore/Neuron/NeuronNanoInitUpdate.hoc",
+        "DefaultBiophys.hoc",
+        "CreateDefaultSyns.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 749
+    },
+    {
+      "file": "_Code\\Prologue\\Neuron\\Exported\\Synapse.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3249
+    },
+    {
+      "file": "_Code\\Simulations\\MechanismSwitch_deprecated.hoc",
+      "loads": [],
+      "procs": [
+        "_SectionInsertFRAP",
+        "_SectionInsertCadifus",
+        "InsertElectricMechanisms",
+        "_SectionInsertGlutamateMechanisms",
+        "_SectionInsertPotassiumMechanisms",
+        "InsertGlutamateMechanisms",
+        "InsertPotassiumMechanisms"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3028
+    },
+    {
+      "file": "_Code\\Simulations\\SimManager.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 23981
+    },
+    {
+      "file": "_Code\\Simulations\\SimManagerLoads.hoc",
+      "loads": [
+        "../Clamps/IClampHelper.hoc",
+        "../Clamps/SEClampHelper.hoc",
+        "Sims/Astrocyte/SimCalciumDynamics.hoc",
+        "Sims/Neuron/SimVoltageCA1Neuron.hoc",
+        "Sims/Common/SimSpatialVoltageDistributions.hoc",
+        "Sims/Common/SimConstantElectricalSimulations.hoc",
+        "Sims/Common/SimFrequencyElectricalSimulation.hoc",
+        "Sims/Common/SimFrapCylinder.hoc",
+        "Sims/Common/SimFrapPlane.hoc",
+        "Sims/Common/SimFrapSphere.hoc",
+        "Sims/Common/SimCalciumWave.hoc",
+        "Sims/Common/SimOutsideInDiffusion.hoc",
+        "Sims/Common/SimGlutamate.hoc",
+        "Sims/Common/SimPotassium.hoc",
+        "MechanismSwitch_deprecated.hoc",
+        "SimManager.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1703
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Astrocyte\\SimCalciumDynamics.hoc",
+      "loads": [
+        "../Common/Utils/CalciumParameters.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 14484
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimCalciumWave.hoc",
+      "loads": [
+        "Utils/CalciumParameters.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 5023
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimConstantElectricalSimulations.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 10001
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimFrapCylinder.hoc",
+      "loads": [
+        "Utils/FrapUtils.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [
+        "setInitialCircleConcentration",
+        "setInitialCircleConcentration"
+      ],
+      "size": 17977
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimFrapPlane.hoc",
+      "loads": [
+        "Utils/FrapUtils.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [
+        "setInitialLineConcentration",
+        "setInitialLineConcentration"
+      ],
+      "size": 23593
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimFrapSphere.hoc",
+      "loads": [
+        "Utils/FrapUtils.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [
+        "setInitialSphereConcentration",
+        "setInitialSphereConcentration"
+      ],
+      "size": 18885
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimFrequencyElectricalSimulation.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3520
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimGlutamate.hoc",
+      "loads": [],
+      "procs": [
+        "GluIteration",
+        "GluIteration"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 9497
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimOutsideInDiffusion.hoc",
+      "loads": [
+        "../../../Extracellular/Common/RangeVarHistory/RangeVarHistoryLoads.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 15447
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimPotassium.hoc",
+      "loads": [],
+      "procs": [
+        "PotassiumIteration",
+        "PotassiumIteration"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 12326
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimSpatialVoltageDistributions.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 4233
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\Utils\\CalciumParameters.hoc",
+      "loads": [],
+      "procs": [
+        "initCaParams",
+        "showCaParameters"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 3289
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\Utils\\FrapUtils.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 9294
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimVoltageCA1Neuron.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 15814
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\HocCode\\biophysics_deprecated.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 450
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\HocCode\\ParamsHelper.hoc",
+      "loads": [],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 14234
+    },
+    {
+      "file": "_Testing\\init_BioManager.hoc",
+      "loads": [
+        "_CommonPrologueForTests.hoc",
+        "../_Code/Managers/CommonLoads.hoc",
+        "../_Code/Managers/MechManager/MechManager.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 775
+    },
+    {
+      "file": "_Testing\\init_ExportManager.hoc",
+      "loads": [
+        "_CommonPrologueForTests.hoc",
+        "../_Code/Managers/CommonLoads.hoc",
+        "../_Code/Managers/MechManager/MechManager.hoc",
+        "../_Code/Managers/GapJuncManager/GapJuncManager.hoc",
+        "../_Code/Managers/SynManager/SynManager.hoc",
+        "../_Code/Extracellular/OutsideInDiffusion/ExtracellularManager.hoc",
+        "../_Code/Extracellular/InsideOutDiffusion/InsideOutDiffManager.hoc",
+        "../_Code/Export/ExportCoreLoads.hoc",
+        "../_Code/Export/Widgets/ExportWidgetsLoads.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 906
+    },
+    {
+      "file": "_Testing\\init_GapJuncManager.hoc",
+      "loads": [
+        "_CommonPrologueForTests.hoc",
+        "../_Code/Managers/CommonLoads.hoc",
+        "../_Code/Managers/GapJuncManager/GapJuncManager.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1091
+    },
+    {
+      "file": "_Testing\\init_ImportExtraCells.hoc",
+      "loads": [
+        "_CommonPrologueForTests.hoc",
+        "../_Code/Managers/CommonLoads.hoc",
+        "../_Code/Managers/MechManager/MechManager.hoc",
+        "../_Code/Managers/GapJuncManager/GapJuncManager.hoc",
+        "../_Code/Managers/SynManager/SynManager.hoc",
+        "../_Code/Import/CommonUtils.hoc",
+        "../_Code/Import/ImportExtraCells/ExtraCellsManagerWidget.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 767
+    },
+    {
+      "file": "_Testing\\init_InsideOutDiffManager.hoc",
+      "loads": [
+        "_CommonPrologueForTests.hoc",
+        "../_Code/Managers/CommonLoads.hoc",
+        "../_Code/Extracellular/InsideOutDiffusion/InsideOutDiffManager.hoc"
+      ],
+      "procs": [],
+      "funcs": [
+        "disableExtracellularSourcesAndUpdateMainUiDiffStatusIndication"
+      ],
+      "obfuncs": [],
+      "size": 1726
+    },
+    {
+      "file": "_Testing\\init_OutsideInDiffManager.hoc",
+      "loads": [
+        "_CommonPrologueForTests.hoc",
+        "../_Code/Managers/CommonLoads.hoc",
+        "../_Code/Extracellular/OutsideInDiffusion/ExtracellularManager.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [
+        "createTestPlotShape",
+        "createTestGraph"
+      ],
+      "size": 3234
+    },
+    {
+      "file": "_Testing\\init_SimManager.hoc",
+      "loads": [
+        "_CommonPrologueForTests.hoc",
+        "../_Code/Managers/CommonLoads.hoc",
+        "../_Code/Managers/MechManager/MechManager.hoc",
+        "../_Code/Extracellular/OutsideInDiffusion/ExtracellularManager.hoc",
+        "../_Code/Simulations/SimManagerLoads.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 915
+    },
+    {
+      "file": "_Testing\\init_SpineSeedingManager.hoc",
+      "loads": [
+        "../_Code/InterModular/InterModularLoads.hoc",
+        "../Geometry/Neuron/test.hoc",
+        "../_Code/Import/ImportBaseGeometry/SectionUtils.hoc",
+        "../_Code/Import/ImportBaseGeometry/SectionRefUtils.hoc",
+        "../_Code/Prologue/CommonPrologue.hoc",
+        "../_Code/NanoSeeding/NanoSeedingLoads.hoc"
+      ],
+      "procs": [
+        "initVoltage"
+      ],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1282
+    },
+    {
+      "file": "_Testing\\init_SynManager.hoc",
+      "loads": [
+        "_CommonPrologueForTests.hoc",
+        "../_Code/Managers/CommonLoads.hoc",
+        "../_Code/Managers/SynManager/SynManager.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 1079
+    },
+    {
+      "file": "_Testing\\_CommonPrologueForTests.hoc",
+      "loads": [
+        "../_Code/InterModular/InterModularLoads.hoc"
+      ],
+      "procs": [],
+      "funcs": [],
+      "obfuncs": [],
+      "size": 677
+    }
+  ],
+  "py": [
+    {
+      "file": "Distance functions\\example1.py",
+      "classes": [],
+      "functions": [
+        "myDistFunc"
+      ],
+      "imports": [
+        "math"
+      ],
+      "size": 105
+    },
+    {
+      "file": "Distance functions\\example2.py",
+      "classes": [],
+      "functions": [
+        "myDistFunc"
+      ],
+      "imports": [
+        "numpy"
+      ],
+      "size": 139
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\Framework.py",
+      "classes": [
+        "_GenInfo"
+      ],
+      "functions": [
+        "exportCore",
+        "_exportSkeletonBasedHocFile",
+        "_copyMechsDllFile",
+        "_unwrapTapSetsAndFindGenerators",
+        "_removeEmptyParagraphs",
+        "_prependTableOfContents",
+        "_insertSubstring",
+        "_insertLines",
+        "_addNewLineChars"
+      ],
+      "imports": [
+        "os",
+        "tkinter.messagebox",
+        "neuron",
+        "GeneratorsForMainHocFile.MetaGensForTaps",
+        "GeneratorsForMainHocFile.GeneratorsForMainHocFile",
+        "GeneratorsForAuxHocFiles.GenForParamsHoc",
+        "GeneratorsForAuxHocFiles.GensForRunnerHoc",
+        "Utils.OtherUtils"
+      ],
+      "size": 7542
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\GeneratorsForAuxHocFiles\\GenForParamsHoc.py",
+      "classes": [
+        "GenForParamsHoc"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "Utils.UnitsUtils",
+        "Utils.OtherUtils"
+      ],
+      "size": 929
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\GeneratorsForAuxHocFiles\\GensForRunnerHoc.py",
+      "classes": [
+        "GensForRunnerHoc"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "Utils.UnitsUtils",
+        "Utils.OtherUtils"
+      ],
+      "size": 27682
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\GeneratorsForMainHocFile\\GeneratorsForMainHocFile.py",
+      "classes": [
+        "GeneratorsForMainHocFile"
+      ],
+      "functions": [],
+      "imports": [
+        "glob",
+        "os",
+        "platform",
+        "re",
+        "shutil",
+        "re",
+        "neuron",
+        "Utils.CleanupHelper",
+        "GeneratorsForMainHocFile.GensForHomogenVars",
+        "GeneratorsForMainHocFile.GensForInhomAndStochModels",
+        "GeneratorsForMainHocFile.GensForTaps",
+        "GeneratorsForMainHocFile.GensForExtracellularDiffusion",
+        "Utils.LoopUtils",
+        "Utils.UnitsUtils",
+        "Utils.OtherUtils"
+      ],
+      "size": 45600
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\GeneratorsForMainHocFile\\GensForExtracellularDiffusion.py",
+      "classes": [
+        "GensForExtracellularDiffusion"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "Utils.UnitsUtils",
+        "Utils.OtherUtils"
+      ],
+      "size": 11871
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\GeneratorsForMainHocFile\\GensForHomogenVars.py",
+      "classes": [
+        "GensForHomogenVars"
+      ],
+      "functions": [],
+      "imports": [
+        "math",
+        "neuron",
+        "Utils.UnitsUtils",
+        "Utils.OtherUtils"
+      ],
+      "size": 16430
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\GeneratorsForMainHocFile\\GensForInhomAndStochModels.py",
+      "classes": [
+        "GensForInhomAndStochModels"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "Utils.OtherUtils"
+      ],
+      "size": 8673
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\GeneratorsForMainHocFile\\GensForTaps.py",
+      "classes": [
+        "GensForTaps"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "Utils.LoopUtils",
+        "Utils.OtherUtils"
+      ],
+      "size": 20637
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\GeneratorsForMainHocFile\\MetaGensForTaps.py",
+      "classes": [
+        "MetaGensForTaps"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "Utils.OtherUtils"
+      ],
+      "size": 2395
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\Utils\\CleanupHelper.py",
+      "classes": [
+        "CleanupHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "Utils.OtherUtils"
+      ],
+      "size": 769
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\Utils\\LoopUtils.py",
+      "classes": [
+        "LoopUtils"
+      ],
+      "functions": [],
+      "imports": [
+        "Utils.OtherUtils"
+      ],
+      "size": 5644
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\Utils\\OtherUtils.py",
+      "classes": [],
+      "functions": [
+        "getAllSectionNamesExceptNanogeometry",
+        "getAllLinesFromFile",
+        "getAllLinesFromReducedVersionFile",
+        "exportTheseTemplatesFromThisDir",
+        "getExposedVarName",
+        "getSweptVarName",
+        "emptyParagraphHint",
+        "getIndent",
+        "getExtraCellPrefixes"
+      ],
+      "imports": [
+        "os",
+        "re",
+        "neuron",
+        "OtherInterModularUtils"
+      ],
+      "size": 2545
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\Utils\\UnitsUtils.py",
+      "classes": [
+        "UnitsUtils"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron"
+      ],
+      "size": 1674
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\UtilsCalledFromHoc\\GraphUtils.py",
+      "classes": [
+        "GraphUtils"
+      ],
+      "functions": [],
+      "imports": [
+        "os",
+        "neuron",
+        "TempFolderUtils",
+        "OtherInterModularUtils"
+      ],
+      "size": 2819
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\UtilsCalledFromHoc\\NsgZipUtils.py",
+      "classes": [
+        "NsgZipUtils"
+      ],
+      "functions": [],
+      "imports": [
+        "os",
+        "zipfile",
+        "neuron"
+      ],
+      "size": 1497
+    },
+    {
+      "file": "_Code\\Export\\PythonCode\\UtilsCalledFromHoc\\OtherUtils.py",
+      "classes": [],
+      "functions": [
+        "_isExtraCellSectionName",
+        "checkForNotImplementedExportScenario"
+      ],
+      "imports": [
+        "neuron",
+        "re",
+        "Utils.OtherUtils"
+      ],
+      "size": 1433
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\PythonCode\\NeuronPlayer.py",
+      "classes": [
+        "NeuronPlayer"
+      ],
+      "functions": [],
+      "imports": [],
+      "size": 437
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\PythonCode\\Plotly2dPlayer.py",
+      "classes": [
+        "Plotly2dPlayer"
+      ],
+      "functions": [],
+      "imports": [
+        "Separated.TwoDimPlayerBase",
+        "numpy",
+        "plotly.graph_objects",
+        "neuron"
+      ],
+      "size": 4682
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\PythonCode\\Plotly3dPlayer.py",
+      "classes": [
+        "Plotly3dPlayer"
+      ],
+      "functions": [],
+      "imports": [
+        "Separated.ThreeDimPlayerBase",
+        "plotly.graph_objects",
+        "plotly.express",
+        "pandas",
+        "numpy"
+      ],
+      "size": 6317
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\PythonCode\\Pyplot2dPlayer_Separated.py",
+      "classes": [
+        "Pyplot2dPlayer"
+      ],
+      "functions": [],
+      "imports": [
+        "Separated.PyplotPlayerBase",
+        "Separated.TwoDimPlayerBase",
+        "matplotlib.pyplot",
+        "matplotlib.animation",
+        "numpy",
+        "Separated.FakeGridOfSections",
+        "Separated.FakeGridSlicerWidget",
+        "pickle"
+      ],
+      "size": 4151
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\PythonCode\\Pyplot3dPlayer_Separated.py",
+      "classes": [
+        "Pyplot3dPlayer"
+      ],
+      "functions": [],
+      "imports": [
+        "Separated.PyplotPlayerBase",
+        "Separated.ThreeDimPlayerBase",
+        "matplotlib.pyplot",
+        "matplotlib.animation",
+        "matplotlib.widgets",
+        "scipy.special",
+        "numpy",
+        "pickle"
+      ],
+      "size": 10486
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\PythonCode\\RangeVarAnimationPlayer.py",
+      "classes": [
+        "RangeVarAnimationPlayer"
+      ],
+      "functions": [],
+      "imports": [
+        "NeuronPlayer",
+        "Plotly2dPlayer",
+        "Plotly3dPlayer",
+        "numpy",
+        "neuron",
+        "MsgWarnHelperWrappers",
+        "OtherInterModularUtils"
+      ],
+      "size": 8657
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\PythonCode\\Separated\\FakeGridOfSections.py",
+      "classes": [
+        "FakeGridOfSections"
+      ],
+      "functions": [],
+      "imports": [],
+      "size": 250
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\PythonCode\\Separated\\FakeGridSlicerWidget.py",
+      "classes": [
+        "FakeGridSlicerWidget"
+      ],
+      "functions": [],
+      "imports": [],
+      "size": 501
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\PythonCode\\Separated\\PyplotPlayerBase.py",
+      "classes": [
+        "PyplotPlayerBase"
+      ],
+      "functions": [],
+      "imports": [
+        "matplotlib.pyplot",
+        "matplotlib.widgets",
+        "webbrowser",
+        "numpy"
+      ],
+      "size": 4287
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\PythonCode\\Separated\\ThreeDimPlayerBase.py",
+      "classes": [
+        "ThreeDimPlayerBase"
+      ],
+      "functions": [],
+      "imports": [],
+      "size": 819
+    },
+    {
+      "file": "_Code\\Extracellular\\Common\\RangeVarHistory\\PythonCode\\Separated\\TwoDimPlayerBase.py",
+      "classes": [
+        "TwoDimPlayerBase"
+      ],
+      "functions": [],
+      "imports": [
+        "numpy"
+      ],
+      "size": 2105
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\PythonCode\\InsideOutDiffCalculator.py",
+      "classes": [
+        "InsideOutDiffCalculator"
+      ],
+      "functions": [],
+      "imports": [
+        "NumbaHelpers.ConcScalingHelper",
+        "NumbaHelpers.ArrayCache",
+        "NumbaBackends.CpuBackend",
+        "NumbaBackends.GpuBackend",
+        "RxdBackend",
+        "math",
+        "time",
+        "neuron",
+        "XpuUtils",
+        "OtherInterModularUtils"
+      ],
+      "size": 13143
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\PythonCode\\RxdBackend.py",
+      "classes": [
+        "RxdBackend"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "MsgWarnHelperWrappers",
+        "OtherInterModularUtils"
+      ],
+      "size": 6597
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\PythonCode\\NumbaBackends\\CommonBackend.py",
+      "classes": [],
+      "functions": [
+        "calcConcsInParallelXPU_kernel1",
+        "calcConcsInParallelXPU_kernel2",
+        "_getTimeFactorTerm"
+      ],
+      "imports": [
+        "math",
+        "numba"
+      ],
+      "size": 2417
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\PythonCode\\NumbaBackends\\CpuBackend.py",
+      "classes": [],
+      "functions": [
+        "calcConcsInParallelOnCPU",
+        "_calcConcsInParallelOnCPU_kernel1",
+        "_calcConcsInParallelOnCPU_kernel2"
+      ],
+      "imports": [
+        "NumbaBackends.CommonBackend",
+        "numba"
+      ],
+      "size": 2211
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\PythonCode\\NumbaBackends\\GpuBackend.py",
+      "classes": [],
+      "functions": [
+        "calcConcsInParallelOnGPU",
+        "_calcConcsInParallelOnGPU_kernel1",
+        "_calcConcsInParallelOnGPU_kernel2",
+        "_calcConcsInParallelOnGPU_kernel3"
+      ],
+      "imports": [
+        "NumbaBackends.CommonBackend",
+        "numba",
+        "numba.core.errors",
+        "warnings",
+        "numpy"
+      ],
+      "size": 4849
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\PythonCode\\NumbaHelpers\\ArrayCache.py",
+      "classes": [
+        "ArrayCache"
+      ],
+      "functions": [],
+      "imports": [
+        "numpy",
+        "numba"
+      ],
+      "size": 4249
+    },
+    {
+      "file": "_Code\\Extracellular\\InsideOutDiffusion\\PythonCode\\NumbaHelpers\\ConcScalingHelper.py",
+      "classes": [
+        "ConcScalingHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "sys",
+        "math",
+        "neuron",
+        "OtherInterModularUtils"
+      ],
+      "size": 3519
+    },
+    {
+      "file": "_Code\\Import\\ImportExtraCells\\PythonCode\\ExtraCell.py",
+      "classes": [
+        "ExtraCell"
+      ],
+      "functions": [],
+      "imports": [
+        "os",
+        "glob",
+        "pickle",
+        "subprocess",
+        "sys",
+        "neuron",
+        "OtherInterModularUtils"
+      ],
+      "size": 8678
+    },
+    {
+      "file": "_Code\\Import\\ImportExtraCells\\PythonCode\\Separated\\wrapper2.py",
+      "classes": [],
+      "functions": [],
+      "imports": [
+        "pickle",
+        "ThirdParty.hoc2swc"
+      ],
+      "size": 670
+    },
+    {
+      "file": "_Code\\Import\\ImportExtraCells\\PythonCode\\Separated\\ThirdParty\\hoc2swc.py",
+      "classes": [
+        "TransientCWD",
+        "MorphologyPoint",
+        "NeuronSection"
+      ],
+      "functions": [
+        "get_cell_template_names",
+        "compile_mod",
+        "load_mod",
+        "_hoc2swc",
+        "neuron2swc",
+        "swc_type_from_section_name",
+        "hoc2swc"
+      ],
+      "imports": [
+        "os"
+      ],
+      "size": 10997
+    },
+    {
+      "file": "_Code\\InterModular\\PythonCode\\FileDialogUtils.py",
+      "classes": [
+        "FileDialogUtils"
+      ],
+      "functions": [],
+      "imports": [
+        "os",
+        "tkinter",
+        "enum",
+        "tkinter"
+      ],
+      "size": 11127
+    },
+    {
+      "file": "_Code\\InterModular\\PythonCode\\GuiPrimitiveWrappers.py",
+      "classes": [
+        "Panel",
+        "_Mappable",
+        "VBox",
+        "HBox",
+        "Deck"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron"
+      ],
+      "size": 3457
+    },
+    {
+      "file": "_Code\\InterModular\\PythonCode\\MechSettings.py",
+      "classes": [],
+      "functions": [
+        "_ms_loadJsonFileAndDeleteHintKey",
+        "ms_isHideStochButton",
+        "ms_warnIfNoRecordForGapJunc",
+        "ms_doesGapJuncHavePtr",
+        "ms_getGapJuncPtrName",
+        "ms_getGapJuncExtVarNameWithIndex",
+        "ms_setIonGlobalVars",
+        "ms_getAllSpcCatNames",
+        "ms_getTotalNumExpIons",
+        "ms_getAllExpIonNames",
+        "ms_getAllExpIonNamesInThisCat",
+        "ms_getUserFriendlyIonNameOrEmpty",
+        "ms_isActIonInThisCat",
+        "ms_getDiff",
+        "ms_gett_alpha",
+        "ms_getUptakeReversalConc",
+        "ms_ionMechNameToSuffix",
+        "_ms_getVar",
+        "ms_getNumSpeciesInMOD"
+      ],
+      "imports": [
+        "os",
+        "json",
+        "neuron",
+        "OtherInterModularUtils"
+      ],
+      "size": 5827
+    },
+    {
+      "file": "_Code\\InterModular\\PythonCode\\MsgWarnHelperWrappers.py",
+      "classes": [
+        "PleaseWaitBox",
+        "MsgWarnInterceptor"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron"
+      ],
+      "size": 792
+    },
+    {
+      "file": "_Code\\InterModular\\PythonCode\\OtherInterModularUtils.py",
+      "classes": [],
+      "functions": [
+        "codeContractViolation",
+        "getTemplOrClassName",
+        "convertPyIterableOfStrsToHocListOfStrObjs",
+        "convertPyIterableOfSecsToHocListOfSecRefs",
+        "isNanoGeometrySection",
+        "isAstrocyteSpecificInhomVar",
+        "isInPySet",
+        "getArrayElem",
+        "getIdxInSortedArray",
+        "getDirPath",
+        "getDllFilePathName",
+        "getAllBiophysMechNamesSet",
+        "getAllUninsertableBiophysMechNamesList"
+      ],
+      "imports": [
+        "os",
+        "numpy",
+        "neuron"
+      ],
+      "size": 4310
+    },
+    {
+      "file": "_Code\\InterModular\\PythonCode\\RxdTempFilesDeleter.py",
+      "classes": [
+        "RxdTempFilesDeleter"
+      ],
+      "functions": [],
+      "imports": [
+        "os",
+        "glob"
+      ],
+      "size": 1272
+    },
+    {
+      "file": "_Code\\InterModular\\PythonCode\\TempFolderUtils.py",
+      "classes": [
+        "TempFolderUtils"
+      ],
+      "functions": [],
+      "imports": [
+        "os",
+        "OtherInterModularUtils"
+      ],
+      "size": 792
+    },
+    {
+      "file": "_Code\\InterModular\\PythonCode\\XpuUtils.py",
+      "classes": [
+        "XpuUtils"
+      ],
+      "functions": [],
+      "imports": [
+        "os",
+        "numba",
+        "neuron"
+      ],
+      "size": 4414
+    },
+    {
+      "file": "_Code\\Managers\\GapJuncManager\\Utils\\PythonCode\\IntGapJuncPtrSeedingHelper.py",
+      "classes": [
+        "IntGapJuncPtrSeedingHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "numpy",
+        "scipy.spatial"
+      ],
+      "size": 2558
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\BiophysExportImport\\PythonCode\\BiophysJsonExportCore.py",
+      "classes": [
+        "BiophysJsonExportCore"
+      ],
+      "functions": [],
+      "imports": [
+        "math",
+        "neuron",
+        "BiophysJsonExportImportUtils",
+        "OtherInterModularUtils"
+      ],
+      "size": 10844
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\BiophysExportImport\\PythonCode\\BiophysJsonExportImportUtils.py",
+      "classes": [
+        "BiophysJsonExportImportUtils"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron"
+      ],
+      "size": 1767
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\BiophysExportImport\\PythonCode\\BiophysJsonFileHelper.py",
+      "classes": [
+        "BiophysJsonFileHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "json",
+        "neuron",
+        "BiophysJsonExportCore",
+        "BiophysJsonImportCore",
+        "OtherInterModularUtils"
+      ],
+      "size": 3869
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\BiophysExportImport\\PythonCode\\BiophysJsonImportCore.py",
+      "classes": [
+        "BiophysJsonImportCore"
+      ],
+      "functions": [],
+      "imports": [
+        "math",
+        "neuron",
+        "BiophysJsonExportImportUtils",
+        "GuiPrimitiveWrappers",
+        "OtherInterModularUtils"
+      ],
+      "size": 18448
+    },
+    {
+      "file": "_Code\\Managers\\MechManager\\MechCompImportCreateRescan\\PythonCode\\MechCompAutoSplitUtils.py",
+      "classes": [],
+      "functions": [
+        "splitSectionsIntoGroupsBasedOnMechInsertion"
+      ],
+      "imports": [
+        "neuron"
+      ],
+      "size": 1102
+    },
+    {
+      "file": "_Code\\Simulations\\PythonCode\\SimABCs.py",
+      "classes": [
+        "Simulation",
+        "UsesCustomProcAdvance",
+        "RequiresAltRunControl"
+      ],
+      "functions": [],
+      "imports": [
+        "abc"
+      ],
+      "size": 1188
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimLocalFieldPotential\\LFPCalculator.py",
+      "classes": [
+        "LFPCalculator"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "math",
+        "numpy",
+        "XpuUtils",
+        "OtherInterModularUtils"
+      ],
+      "size": 9347
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimLocalFieldPotential\\SimLocalFieldPotential.py",
+      "classes": [
+        "SimLocalFieldPotential"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "SimABCs",
+        "LFPCalculator",
+        "GuiPrimitiveWrappers",
+        "MsgWarnHelperWrappers",
+        "XpuUtils"
+      ],
+      "size": 5790
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimUserTemplate\\SimUserTemplate.py",
+      "classes": [
+        "SimUserTemplate"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "os",
+        "subprocess",
+        "sys",
+        "pickle",
+        "GuiPrimitiveWrappers",
+        "MsgWarnHelperWrappers",
+        "OtherInterModularUtils",
+        "SimUserTemplateCore"
+      ],
+      "size": 12504
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimUserTemplate\\SimUserTemplateCore.py",
+      "classes": [
+        "SimUserTemplateCore"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron"
+      ],
+      "size": 4308
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Common\\SimUserTemplate\\plots\\user_sim_plot.py",
+      "classes": [],
+      "functions": [],
+      "imports": [
+        "sys",
+        "os",
+        "pickle",
+        "matplotlib",
+        "matplotlib.pyplot",
+        "matplotlib.patches"
+      ],
+      "size": 5283
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\SimCore.py",
+      "classes": [
+        "SimMyelinatedAxonCore"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "itertools",
+        "Helpers.BasicEnums",
+        "Helpers.AxonTransformationHelper",
+        "Helpers.ProcAdvanceHelper",
+        "MsgWarnHelperWrappers",
+        "OtherInterModularUtils"
+      ],
+      "size": 45873
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\SimMyelinatedAxon.py",
+      "classes": [
+        "SimMyelinatedAxon"
+      ],
+      "functions": [],
+      "imports": [
+        "SimABCs",
+        "neuron",
+        "Helpers.PresentationParams",
+        "Helpers.BasicEnums",
+        "Helpers.DirtyStatesHelper",
+        "Helpers.MyelRegionHelper",
+        "Helpers.AxonBiophysCompsHelper",
+        "Helpers.BaseAxonHelper",
+        "Helpers.CellBuildHelper",
+        "Helpers.AnimSavePrintHelper",
+        "Helpers.BiophysExportHelper",
+        "SimCore",
+        "GuiPrimitiveWrappers",
+        "MsgWarnHelperWrappers",
+        "OtherInterModularUtils"
+      ],
+      "size": 44415
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\AnimSavePrintHelper.py",
+      "classes": [
+        "AnimSavePrintHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "sys",
+        "math",
+        "numpy",
+        "neuron",
+        "neuron.units",
+        "Helpers.BasicEnums",
+        "MsgWarnHelperWrappers",
+        "OtherInterModularUtils"
+      ],
+      "size": 10015
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\AxonBiophysCompsHelper.py",
+      "classes": [
+        "AxonBiophysCompsHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "itertools",
+        "neuron",
+        "OtherInterModularUtils"
+      ],
+      "size": 3397
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\AxonTransformationHelper.py",
+      "classes": [
+        "AxonArcInterval",
+        "Axon3DPointWithArc",
+        "AxonTransformationHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "OtherInterModularUtils"
+      ],
+      "size": 9072
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\BaseAxonHelper.py",
+      "classes": [
+        "BaseAxonHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "Helpers.ProtoGeomStructs"
+      ],
+      "size": 7622
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\BasicEnums.py",
+      "classes": [
+        "EnumAxonGeometry",
+        "EnumMyelSheath"
+      ],
+      "functions": [],
+      "imports": [
+        "enum"
+      ],
+      "size": 272
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\BiophysExportHelper.py",
+      "classes": [
+        "BiophysExportHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "json",
+        "os",
+        "datetime",
+        "neuron"
+      ],
+      "size": 9265
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\CellBuildHelper.py",
+      "classes": [
+        "CellBuildHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "GuiPrimitiveWrappers",
+        "Helpers.ProtoGeomStructs",
+        "OtherInterModularUtils"
+      ],
+      "size": 12224
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\DirtyStatesHelper.py",
+      "classes": [
+        "EnumParamCats",
+        "DirtyStatesHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "enum",
+        "OtherInterModularUtils"
+      ],
+      "size": 775
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\MyelRegionHelper.py",
+      "classes": [
+        "EnumMyelRegion",
+        "Interval",
+        "MyelRegionHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "enum",
+        "sortedcontainers",
+        "neuron",
+        "OtherInterModularUtils"
+      ],
+      "size": 7793
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\PresentationParams.py",
+      "classes": [
+        "PresentationParams"
+      ],
+      "functions": [],
+      "imports": [
+        "neuron",
+        "GuiPrimitiveWrappers"
+      ],
+      "size": 3315
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\ProcAdvanceHelper.py",
+      "classes": [
+        "ProcAdvanceHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "OtherInterModularUtils"
+      ],
+      "size": 3877
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\ProtoGeomStructs.py",
+      "classes": [
+        "_ProtoPoint",
+        "ProtoSection",
+        "ProtoFork"
+      ],
+      "functions": [],
+      "imports": [
+        "dataclasses",
+        "neuron"
+      ],
+      "size": 3942
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\PyplotHelpers\\PyplotAndSaveHelper_Separated.py",
+      "classes": [
+        "PyplotAndSaveHelper"
+      ],
+      "functions": [
+        "codeContractViolation"
+      ],
+      "imports": [
+        "sys",
+        "os",
+        "pickle",
+        "math",
+        "threading",
+        "matplotlib.pyplot",
+        "matplotlib.animation",
+        "matplotlib.widgets"
+      ],
+      "size": 18242
+    },
+    {
+      "file": "_Code\\Simulations\\Sims\\Neuron\\SimMyelinatedAxon\\Helpers\\PyplotHelpers\\PyplotSubProcHelper.py",
+      "classes": [
+        "PyplotSubProcHelper"
+      ],
+      "functions": [],
+      "imports": [
+        "OtherInterModularUtils",
+        "os",
+        "pickle",
+        "sys",
+        "subprocess",
+        "time",
+        "Helpers.PyplotHelpers.PyplotAndSaveHelper_Separated",
+        "TempFolderUtils"
+      ],
+      "size": 4266
+    }
+  ]
+}

@@ -1,0 +1,795 @@
+
+// A mechanism-dependant compartment
+// (strictly speaking, not a compartment, but rather a collection of sections having the same set of mechanisms)
+begintemplate MechComp
+
+    public name, enumDmPpFk, list_ref, isMechInserted, isMechVarTypeInhom, mechStds, isCompDirty
+    public rescanAllVarsInAllMechs, finishAllVerbatimInhomProtos, split, mergeAllSectsFrom, showMechStdPanel, markMechDirty, applyHomogenChangesToDirtyMechs, getDistRange, getDistRangeAsVec, getSecList, applySegmentationAndInhomogeneity, updateStatsCurve, updateVerbatimModelCurve, isMechVarInhom, prepareVarsEditorHeader, onJustAfterCompMerge, onJustBeforeCompHomogenBiophysImport, onJustAfterCompHomogenBiophysImport
+    
+    external mmAllComps
+    external mechsDllUtils, mwh, math, mth, mmmowb, mcu, dfc
+    external pyObj
+    external inhomAndStochLibrary
+    external getDistRangeGivenSections, stringsEqual, stringEmpty, joinStrings, concatenateTwoLists, codeContractViolation, printMsgAndRaiseError
+    external eachItemInList, eachSecInList
+    
+    strdef name
+    enumDmPpFk = -1
+    objref list_ref                     // List of SectionRef-s
+    double isMechInserted[1]            // 0/1 flags
+    double isMechVarTypeInhom[1][1]     // 0/1 flags
+    // !! would it make sense to create these MechanismStandard-s without 2nd ctor arg and get rid of 2nd dimension in this array?
+    objref mechStds[1][1]               // MechanismStandard-s
+    double isMechDirty[1]               // 0/1 flags indicating that given mechanism in this compartment has any pending operation: either insertion/uninsertion or change of a variable (except GLOBAL-s)
+    isCompDirty = -1
+    
+    objref inhomTargetProtos            // List of DistMechVerbatimInhomTargetProto-s
+    
+    objref this
+    
+    iterator updateStatsCurveIter() { codeContractViolation() }
+    
+    
+    proc init() { local numArg localobj impRedObj
+        strdef msg
+        
+        numArg = numarg()
+        if (numArg == 1) {
+            // Load data from the imported reduced template (part 1)
+            impRedObj = $o1
+            name = impRedObj.name
+            list_ref = impRedObj.list_ref
+        } else if (numArg == 2) {
+            name = $s1
+            list_ref = $o2
+        } else {
+            codeContractViolation()
+        }
+        
+        // Doing it here to avoid less user-friendly errors afterwards
+        if (list_ref.count() == 0) {
+            sprint(msg, "Error: Cannot create compartment \"%s\" with no sections.", name)
+            printMsgAndRaiseError(msg)
+        }
+        
+        enumDmPpFk = 0
+        
+        rescanOrImport(impRedObj)
+    }
+    
+    _compIdxForRescan = -1
+    
+    // !! maybe I don't need this; what I need is rescan of verbatim models for specific vars
+    proc rescanAllVarsInAllMechs() { localobj nil
+        _compIdxForRescan = $1
+        rescanOrImport(nil)
+        _compIdxForRescan = -1
+    }
+    
+    proc finishAllVerbatimInhomProtos() { local compIdx localobj inhomTargetProto, nil
+        compIdx = $1
+        for eachItemInList(inhomTargetProto, inhomTargetProtos) {
+            inhomTargetProto.finish(compIdx)
+        }
+        inhomTargetProtos = nil
+    }
+    
+    // Split this compartment into two. The new compartment will have all the same mechanisms inserted with the same variables.
+    // $o1 - The sections that will be moved from this into the new compartment (List of SectionRef-s)
+    // $s2 - The new compartment name
+    // Returns the new compartment (MechComp)
+    obfunc split() { local isCancelOrAccept, isFound, idx localobj selected_ref, sel_ref
+        strdef newCompName, secName1, secName2
+        
+        selected_ref = $o1
+        newCompName = $s2
+        
+        // Remove all the selected sections from this compartment
+        // !! very slow and inefficient implementation, just for demo
+        //    need to use Python's Set here
+        // !! maybe use eachSecInList here
+        for eachItemInList(sel_ref, selected_ref) {
+            sel_ref.sec secName1 = secname()
+            isFound = 0
+            for (idx = list_ref.count() - 1; idx >= 0; idx -= 1) {
+                list_ref.o(idx).sec secName2 = secname()
+                if (stringsEqual(secName1, secName2)) {
+                    list_ref.remove(idx)
+                    isFound = 1
+                    break
+                }
+            }
+            if (!isFound) {
+                codeContractViolation()
+            }
+        }
+        
+        // Doing this just to remove NaN from mechStds[0][0] and to have isMechVarTypeInhom[0][0] = 0
+        // if we got the homogen diams after splitting the inhom ones
+        analyzeMorphology()
+        
+        // !! for higher performance, it would be better to implement a copy constructor
+        //    but there will be an inconvenience because the copy constructor can only "live" within a branch of "IF" block in the same "init" proc,
+        //    and so the "init" proc will have to have two sets of input args: for simple ctor and for copy ctor
+        return new MechComp(newCompName, selected_ref)
+    }
+    
+    // Extend this compartment with all the sections from the input list
+    // $o1 - List of SectionRef-s
+    proc mergeAllSectsFrom() { localobj otherComp
+        otherComp = $o1
+        concatenateTwoLists(list_ref, otherComp.list_ref)
+    }
+    
+    func isMechVarInhom() { local mechIdx, varType, arrayIndex, varTypeIdx
+        strdef varName
+        mechIdx = $1
+        varType = $2
+        varName = $s3
+        arrayIndex = $4
+        if (varType == -1) {    // -1: "GLOBAL"
+            return 0
+        }
+        varTypeIdx = mth.convertVarTypeToVarTypeIdx(varType)
+        return math.isNaN(mechStds[mechIdx][varTypeIdx].get(varName, arrayIndex))
+    }
+    
+    // !! it would be better to move this to MechTypeHelper
+    proc prepareVarsEditorHeader() { local mechIdx, varType
+        strdef varTypeName, mechName
+        
+        mechIdx = $1
+        varType = $2
+        
+        mth.getMechName(0, mechIdx, mechName)
+        mth.getVarTypeName(varType, varTypeName)
+        sprint($s3, "%s in %s (all %s variables):", mechName, name, varTypeName)
+    }
+    
+    proc markMechDirty() { local mechIdx
+        mechIdx = $1
+        
+        isMechDirty[mechIdx] = 1
+        isCompDirty = 1
+        mmmowb.isDirty = 1
+    }
+    
+    // !! need to test all isDirty staff carefully
+    // Keep in sync with ReducedMechComp.initHomogenBiophysics in the exported file
+    func applyHomogenChangesToDirtyMechs() { local wasMorphologyDirty, numMechs, mechIdx, varType, varTypeIdx, x, diamValue localobj mechType, compMechStd, tempMechStd
+        strdef mechName, autoAddedIons, msg
+        
+        wasMorphologyDirty = 0
+        
+        mechType = mth.getMechType(0)
+        
+        numMechs = mechType.count
+        
+        for mechIdx = 0, numMechs - 1 {
+            if (!isMechDirty[mechIdx]) {
+                continue
+            }
+            mechType.select(mechIdx)
+            mth.getMechName(0, mechIdx, mechName)
+            for eachSecInList(list_ref) {
+                // We get here even if user just clicked a checkbox twice or started sections merge process (and actually no operation required for this section),
+                // but that's not a problem (no warnings printed)
+                if (isMechInserted[mechIdx]) {
+                    mechType.make()
+                    // !! inhomAndStochLibrary.onMechInsert(!!compIdx, mechIdx)
+                    for varType = 1, 3 {    // 1: "PARAMETER", 2: "ASSIGNED", 3: "STATE"
+                        varTypeIdx = mth.convertVarTypeToVarTypeIdx(varType)
+                        compMechStd = mechStds[mechIdx][varTypeIdx]
+                        if (!isMechVarTypeInhom[mechIdx][varTypeIdx]) {
+                            compMechStd.out()
+                        } else {
+                            tempMechStd = new MechanismStandard(mechName, varType)
+                            for (x, 0) {
+                                tempMechStd.in(x)
+                                mcu.copyAllVarsValuesExceptInhom(compMechStd, tempMechStd)
+                                tempMechStd.out(x)
+                            }
+                        }
+                    }
+                    
+                    if (mechIdx == mth.morphologyMechIdx) {
+                        // If we remove this special assignment for "diam" from "morphology",
+                        // then the diameter will revert back to the previous value once we execute line "plotShape1 = new PlotShape()"
+                        // in proc InhomEditorSubWidget.show (very weird NEURON behaviour)
+                        varTypeIdx = mth.convertVarTypeToVarTypeIdx(mth.diamVarType)
+                        diamValue = mechStds[mechIdx][varTypeIdx].get(mth.diamVarName)
+                        if (!math.isNaN(diamValue)) {
+                            diam = diamValue
+                            wasMorphologyDirty = 1
+                        }
+                    }
+                } else {
+                    // Don't remove this IF because it would lead to warnings for "sticky" mechs
+                    if (ismembrane(mechName)) {
+                        mechType.remove()
+                        // !! inhomAndStochLibrary.onMechUninsert(!!compIdx, mechIdx)
+                    }
+                }
+            }
+            isMechDirty[mechIdx] = 0
+        }
+        isCompDirty = 0
+        
+        // Some mechs insert ions automatically (e.g. hh inserts na_ion and k_ion), so now we need to find all "newcomers" and warn user about them
+        autoAddedIons = ""
+        list_ref.o(0).sec {
+            for mechIdx = 0, numMechs - 1 {
+                mth.getMechName(0, mechIdx, mechName)
+                if (!isMechInserted[mechIdx] && ismembrane(mechName)) {
+                    if (!mth.isIon(mechName)) {
+                        // !! review this and the message below on import of biophysiscs"
+                        codeContractViolation()
+                    }
+                    joinStrings(autoAddedIons, mechName, ", ")
+                    isMechInserted[mechIdx] = 1
+                    // !! do I need to make it homogeneous here?
+                }
+            }
+        }
+        
+        if (!stringEmpty(autoAddedIons)) {
+            sprint(msg, "The next ions were inserted into \"%s\" automatically:", name)
+            mwh.showWarningBox(msg, autoAddedIons)
+        }
+        
+        return wasMorphologyDirty
+    }
+    
+    // !! the range returned by this func depends on the initial segmentation;
+    //    do I need to apply some default segmentation before calling it?
+    func getDistRange() {
+        return getDistRangeGivenSections(list_ref, &$&1, &$&2)
+    }
+    
+    // !! maybe cache the info in ctor instead of calling this (but the dist range can depend on segmentation)
+    func getDistRangeAsVec() { local isDisconnected, distMin, distMax localobj distMinMaxVec
+        distMinMaxVec = $o1
+        isDisconnected = getDistRange(&distMin, &distMax)
+        if (isDisconnected) {
+            return 1
+        }
+        distMinMaxVec.resize(2)
+        distMinMaxVec.x[0] = distMin
+        distMinMaxVec.x[1] = distMax
+        return 0
+    }
+    
+    obfunc getSecList() { localobj secList
+        secList = new SectionList()
+        for eachSecInList(list_ref) {
+            secList.append()
+        }
+        return secList
+    }
+    
+    // Keep in sync with ReducedInhomAndStochTarget.applyBiophysInhomogeneity
+    proc applySegmentationAndInhomogeneity() { local varType, arrayIndex, mechIdx, isDiam, x, dist, y localobj segmentationHelperOrNil, distFuncHelper, mechStd, nil
+        strdef mechName, varName
+        
+        segmentationHelperOrNil = $o1
+        mechName = $s2
+        varType = $3
+        varName = $s4
+        arrayIndex = $5
+        distFuncHelper = $o6
+        
+        if (varType == -1) {    // -1: "GLOBAL"
+            codeContractViolation()
+        }
+        
+        mechIdx = mth.getMechIdx(enumDmPpFk, mechName)
+        isDiam = mth.isDiamDistMechVar(mechIdx, varType, varName)
+        
+        mechStd = new MechanismStandard(mechName, varType)
+        
+        mwh.showPleaseWaitBox("Applying segmentation and inhomogeneity.")
+        distFuncHelper.onJustBeforeFirstSection()
+        {
+            for eachSecInList(list_ref) {
+                if (segmentationHelperOrNil != nil) {   // It is nil for VerbatimDistFuncHelper
+                    segmentationHelperOrNil.subdivideSection()
+                }
+                
+                distFuncHelper.onJustBeforeNewSection()
+                
+                if (!isDiam) {
+                    for (x, 0) {
+                        mechStd.in(x)
+                        
+                        dist = distance(x)
+                        y = distFuncHelper.calculateAt(dist)
+                        
+                        // !! BUG: "variable_domain" used in "MechanismStandard.panel()" is ignored in "MechanismStandard.set()" and "MechanismStandard.out()",
+                        //         so we can use any invalid value here without even a warning
+                        
+                        mechStd.set(varName, y, arrayIndex)
+                        
+                        mechStd.out(x)
+                    }
+                } else {
+                    for (x, 0) {
+                        // !! BUG: when applying inhomogeneity to "diam", the result is not as accurate as for other vars;
+                        //         e.g. for the default 2-section axon, after applying a linear model to "diam" with InhomEditorSubWidget,
+                        //         we can see that the red dashes are detached from the blue curve
+                        //         (maybe NEURON interpolates the diameter at section joints or mixes "diam(x)" with "diam3d(i)" somehow)
+                        
+                        dist = distance(x)
+                        y = distFuncHelper.calculateAt(dist)
+                        diam(x) = y
+                        
+                        // !! very weird NEURON behaviour: uncommenting the next line of code results in a distortion of "diam(x)" making it
+                        //    significantly different from the applied inhom model;
+                        //    moreover, when clicking "Apply" in InhomEditorSubWidget several times, each time it leads to a change of the red dashes
+                        // print diam
+                    }
+                }
+            }
+        }
+        distFuncHelper.onJustAfterLastSection()
+        mwh.hidePleaseWaitBox()
+    }
+    
+    proc updateStatsCurve() { local yMin, yMax, yMean, varType, arraySize, arrayIndex, x, d, y localobj graph, mechStd
+        strdef mechName, varName
+        
+        graph = $o1
+        yMin = $&2          // Read / write
+        yMax = $&3          // Read / write
+        // yMean = $&4      // Write only
+        mechName = $s5
+        varType = $6
+        varName = $s7
+        // arraySize = $8   // Just a placeholder
+        arrayIndex = $9
+        
+        mechStd = new MechanismStandard(mechName, varType)
+        
+        for updateStatsCurveIter(graph, &x, &d, &y, &yMin, &yMax, &yMean) {
+            mechStd.in(x)
+            y = mechStd.get(varName, arrayIndex)
+        }
+        
+        $&2 = yMin
+        $&3 = yMax
+        $&4 = yMean
+    }
+    
+    proc updateVerbatimModelCurve() { local yMin, yMax, x, d, y, _ localobj graph, verbatimDistFuncHelper
+        
+        graph = $o1
+        yMin = $&2
+        yMax = $&3
+        verbatimDistFuncHelper = $o4
+        
+        verbatimDistFuncHelper.onJustBeforeFirstSection()
+        for updateStatsCurveIter(graph, &x, &d, &y, &yMin, &yMax, &_) {
+            // No call of verbatimDistFuncHelper.onJustBeforeNewSection() here because the proc is empty by design for by VerbatimDistFuncHelper
+            y = verbatimDistFuncHelper.calculateAt(d)
+        }
+        verbatimDistFuncHelper.onJustAfterLastSection()
+        
+        $&2 = yMin
+        $&3 = yMax
+    }
+    
+    proc onJustAfterCompMerge() {
+        // Doing this just to assign NaN in mechStds[0][0] and to have isMechVarTypeInhom[0][0] = 1
+        // if we got the inhom diams after the merge
+        analyzeMorphology()
+        
+        // Applying mechanisms
+        // !! we can improve perf here applying changes to the borrowed sections only,
+        //    but this can be done only when we don't borrow any "sticky" mechs
+        applyAllHomogenModelsExceptMorphology()
+    }
+    
+    obfunc onJustBeforeCompHomogenBiophysImport() { local numMechs, mechIdx, varType, varTypeIdx localobj mechType, stickyMechNamesPyList
+        strdef mechName
+        
+        mechType = mth.getMechType(enumDmPpFk)
+        numMechs = mth.getNumMechs(enumDmPpFk)
+        
+        stickyMechNamesPyList = pyObj.list()
+        
+        // Except some special mechs, reset all:
+        //  * mechStd[*][*] to defaults
+        //  * isMechInserted[*] to 0
+        //  * isMechVarTypeInhom[*][*] to 0
+        for mechIdx = 0, numMechs - 1 {
+            
+            mth.getMechName(enumDmPpFk, mechIdx, mechName)
+            
+            if (isMechInserted[mechIdx] && mth.isDistMechSticky(mechIdx)) {
+                stickyMechNamesPyList.append(mechName)
+            }
+            
+            if (mechIdx == mth.morphologyMechIdx || mth.isDistMechSticky(mechIdx) || mechsDllUtils.isThisMechForIntUseOnly(mechName)) {
+                // !! do we need to reset mechStd for a sticky mech to defaults if it was inserted before and not imported? (currently we don't reset them)
+                continue
+            }
+            
+            // !! do we need to "continue" for g_pas in LargeGlia as well?
+            
+            isMechInserted[mechIdx] = 0
+            
+            mechType.select(mechIdx)
+            for eachSecInList(list_ref) {
+                mechType.remove()
+            }
+            
+            for varType = 1, 3 {
+                varTypeIdx = mth.convertVarTypeToVarTypeIdx(varType)
+                mechStds[mechIdx][varTypeIdx] = new MechanismStandard(mechName, varType)
+                isMechVarTypeInhom[mechIdx][varTypeIdx] = 0
+            }
+        }
+        
+        // !! how about inhomTargetProtos?
+        
+        return stickyMechNamesPyList
+    }
+    
+    proc onJustAfterCompHomogenBiophysImport() {
+        applyAllHomogenModelsExceptMorphology()
+    }
+    
+    // All next staff is private
+    
+    
+    proc rescanOrImport() { local numMechs localobj impRedObjOrNil, nil
+        impRedObjOrNil = $o1
+        
+        numMechs = mth.getNumMechs(enumDmPpFk)
+        
+        double isMechInserted[numMechs]         // 0/1 flags
+        double isMechVarTypeInhom[numMechs][3]  // 0/1 flags
+        objref mechStds[numMechs][3]            // 0: "PARAMETER", 1: "ASSIGNED", 2: "STATE"
+        double isMechDirty[numMechs]            // 0/1 flags
+        
+        if (impRedObjOrNil == nil) {
+            analyzeAllSegmentsInAllSections(numMechs)
+        } else {
+            // Load data from the imported reduced template (part 2)
+            initFromImportedReducedTemplate(impRedObjOrNil)
+        }
+        
+        // isMechDirty[*] = 0   // Not needed because a new array of doubles is always zeroed by default
+        isCompDirty = 0
+    }
+    
+    proc analyzeAllSegmentsInAllSections() { local numMechs
+        numMechs = $1
+        
+        // 1. Determine what mechs are inserted
+        // 2. Analyze all the sections and make sure each mech is either inserted or uninserted everywhere
+        analyzeMechInsertion(numMechs)
+        
+        // 3. For the first segment of the first section, read the values assigned to mech vars
+        analyzeMechHomogeneity(numMechs)
+        
+        // 4. Loop through all segments of all sections to determine what mech vars are inhomogeneous
+        // 5. Create "verbatim" inhom models for them and put these models into the library
+        analyzeMechInhomogeneity(numMechs)
+    }
+    
+    proc analyzeMechInsertion() { local numMechs, mechIdx, secIdx, isMechInsertedHere, isInsertOrUninsert localobj mechType, firstSec_ref
+        strdef msgTempl1, msgTempl2, mechName, msg
+        
+        numMechs = $1
+        
+        msgTempl1 = "Cannot create the comp \"%s\" until the mech \"%s\" is inserted in some its section(s) but uninserted in other(s). To proceed, we need to either uninsert or insert it everywhere."
+        msgTempl2 = "Cannot create the comp \"%s\" until the mech \"%s\" is inserted in some its section(s) but uninserted in other(s). To proceed, we need to insert it everywhere."
+        
+        mechType = mth.getMechType(0)
+        
+        firstSec_ref = list_ref.o(0)
+        
+        for mechIdx = 0, numMechs - 1 {
+            mth.getMechName(0, mechIdx, mechName)
+            
+            firstSec_ref.sec {
+                isMechInserted[mechIdx] = ismembrane(mechName)
+            }
+            
+            for secIdx = 1, list_ref.count() - 1 {
+                list_ref.o(secIdx).sec {
+                    isMechInsertedHere = ismembrane(mechName)
+                }
+                
+                if (isMechInsertedHere == isMechInserted[mechIdx]) {
+                    continue
+                }
+                
+                if (!mth.isDistMechSticky(mechIdx)) {
+                    sprint(msg, msgTempl1, name, mechName)
+                    isInsertOrUninsert = !boolean_dialog(msg, "Uninsert", "Insert (default)")
+                } else {
+                    // !! that's strange, but clicking "OK" in this "Warning" widget has the effect on "continue_dialog" (below) or "boolean_dialog" (above)
+                    //    forcing "Continue" or "Insert (default)" respectively
+                    // !! BUG: depending on screen size and the scale, this warning box can obstructed by "continue_dialog" or "boolean_dialog" (particularly, for 1920x1080 and 150% scale)
+                    mcu.showCannotUninsertMechWarning(mechName, 1)
+                    
+                    sprint(msg, msgTempl2, name, mechName)
+                    continue_dialog(msg)
+                    
+                    isInsertOrUninsert = 1
+                }
+                
+                mechType.select(mechIdx)
+                
+                for eachSecInList(list_ref) {
+                    if (isInsertOrUninsert) {
+                        mechType.make()
+                    } else {
+                        mechType.remove()
+                    }
+                }
+                
+                isMechInserted[mechIdx] = isInsertOrUninsert
+                
+                break
+            }
+        }
+    }
+    
+    proc analyzeMechHomogeneity() { local numMechs, mechIdx, varType, varTypeIdx localobj firstSec_ref, mechStd
+        strdef mechName // , handlerHocCommand
+        
+        numMechs = $1
+        
+        firstSec_ref = list_ref.o(0)
+        
+        for mechIdx = 0, numMechs - 1 {
+            mth.getMechName(0, mechIdx, mechName)
+            
+            for varType = 1, 3 {    // 1: "PARAMETER", 2: "ASSIGNED", 3: "STATE"
+                // If varType == -1 ("GLOBAL"), then MechanismStandard object does not implement "panel" method,
+                // so all the GLOBAL variables will be edited with "nrnglobalmechmenu" just in place
+                // NEURON docs say: If vartype = -1, the count and names (and array size) of the GLOBAL variables are accessible, but any other method will generate an error message.
+                
+                mechStd = new MechanismStandard(mechName, varType)  // !! do I need to create such "default" mechStd after each uninsert/insert?
+                
+                if (isMechInserted[mechIdx]) {
+                    firstSec_ref.sec {
+                        // NEURON docs say that this copies parameter values into this mechanism standard from the mechanism located in first segment of the currently accessed section
+                        mechStd.in()
+                    }
+                }
+                
+                // Deprecated because MechanismStandard.panel() is not used anymore
+                // sprint(handlerHocCommand, "markMechDirty(%d)", mechIdx)
+                // mechStd.action(handlerHocCommand)    // !! it would be better to create a handler that reads hoc_ac_ to get the index of the variable (0 to count-1) and mark only it dirty
+                
+                varTypeIdx = mth.convertVarTypeToVarTypeIdx(varType)
+                mechStds[mechIdx][varTypeIdx] = mechStd
+            }
+        }
+    }
+    
+    // !! this proc is the bottleneck causing the pause before the widgets show up (loops nesting of depth 6)
+    proc analyzeMechInhomogeneity() { local numMechs, mechIdx, varType, varTypeIdx, varIdx, arraySize, arrayIndex, isInhom, compIdx, isNonVerbatimInhomModelFound localobj baseMechStd, tempMechStd, varLibId, distFuncHelper, inhomTargetProto
+        strdef mechName, varName
+        
+        numMechs = $1
+        
+        inhomTargetProtos = new List()
+        
+        for mechIdx = 0, numMechs - 1 {
+            
+            if (!isMechInserted[mechIdx]) {
+                continue
+            }
+            
+            mth.getMechName(0, mechIdx, mechName)
+            
+            for varType = 1, 3 {    // 1: "PARAMETER", 2: "ASSIGNED", 3: "STATE"
+                varTypeIdx = mth.convertVarTypeToVarTypeIdx(varType)
+                
+                baseMechStd = mechStds[mechIdx][varTypeIdx]
+                tempMechStd = new MechanismStandard(mechName, varType)
+                
+                for varIdx = 0, tempMechStd.count() - 1 {
+                    arraySize = mth.getVarNameAndArraySize(0, mechIdx, varType, varIdx, varName) 
+                    for arrayIndex = 0, arraySize - 1 {
+                        isInhom = analyzeMechInhomogeneityCore(mechIdx, varTypeIdx, varName, arrayIndex, baseMechStd, tempMechStd)
+                        if (!isInhom) {
+                            continue
+                        }
+                        if (mth.isDiamDistMechVar(mechIdx, varType, varName)) {
+                            continue
+                        }
+                        
+                        if (_compIdxForRescan != -1) {
+                            compIdx = _compIdxForRescan
+                        } else {
+                            // !! BUG: this won't work correctly if MechComp ctor is called from .split
+                            compIdx = mmAllComps.count()
+                        }
+                        
+                        varLibId = new VarLibId(enumDmPpFk, -1, -1, compIdx, mechIdx, varType, varIdx, arrayIndex)
+                        isNonVerbatimInhomModelFound = inhomAndStochLibrary.doesThisVarHaveVerbatimOrNonVerbatimInhomModel(varLibId, 0)
+                        if (isNonVerbatimInhomModelFound) {
+                            continue
+                        }
+                        
+                        distFuncHelper = new VerbatimDistFuncHelper(list_ref, varName, arrayIndex, tempMechStd)
+                        
+                        // !! would it make sense to store distFuncCatIdx and distFuncIdx inside distFuncHelper?
+                        inhomTargetProto = new DistMechVerbatimInhomTargetProto(mechIdx, varType, varIdx, arrayIndex, distFuncHelper)
+                        inhomTargetProtos.append(inhomTargetProto)
+                    }
+                }
+            }
+        }
+    }
+    
+    func analyzeMechInhomogeneityCore() { local mechIdx, varTypeIdx, arrayIndex, baseValue, isFirstSecAndSegm, secIdx, x, otherValue localobj baseMechStd, tempMechStd
+        strdef varName
+        
+        mechIdx = $1
+        varTypeIdx = $2
+        varName = $s3
+        arrayIndex = $4
+        baseMechStd = $o5
+        tempMechStd = $o6
+        
+        baseValue = baseMechStd.get(varName, arrayIndex)
+        if (math.isNaN(baseValue)) {
+            codeContractViolation()
+        }
+        
+        isFirstSecAndSegm = 1
+        
+        // Don't use eachSecInList or eachSegmInSecList here because we cannot "return" from iterators
+        for secIdx = 0, list_ref.count() - 1 {
+            list_ref.o(secIdx).sec for (x, 0) {
+                if (isFirstSecAndSegm) {
+                    isFirstSecAndSegm = 0
+                    continue
+                }
+                tempMechStd.in(x)
+                otherValue = tempMechStd.get(varName, arrayIndex)
+                /* Minor saving of performance; we can return early anyway
+                if (math.isNaN(otherValue)) {
+                    codeContractViolation()
+                }
+                */
+                if (baseValue != otherValue) {
+                    // Mark as inhomogeneous
+                    baseMechStd.set(varName, math.nan, arrayIndex)
+                    isMechVarTypeInhom[mechIdx][varTypeIdx] = 1
+                    
+                    // Break 2 cycles
+                    pop_section()
+                    return 1
+                }
+            }
+        }
+        
+        return 0
+    }
+    
+    proc initFromImportedReducedTemplate() { local numMechs, mechIdx, isInserted, varType, varTypeIdx, isNil, isAnyMorphologyDiamMechStdNil localobj impRedObj, mechStd, nil
+        strdef mechName
+        
+        impRedObj = $o1
+        
+        isAnyMorphologyDiamMechStdNil = 0
+        
+        numMechs = mth.getNumMechs(enumDmPpFk)
+        for mechIdx = 0, numMechs - 1 {
+            mth.getMechName(0, mechIdx, mechName)
+            
+            if (mechIdx != mth.morphologyMechIdx) {
+                isInserted = impRedObj.isMechInserted[mechIdx]
+            } else {
+                isInserted = 1
+            }
+            isMechInserted[mechIdx] = isInserted
+            
+            for varType = 1, 3 {    // 1: "PARAMETER", 2: "ASSIGNED", 3: "STATE"
+                varTypeIdx = mth.convertVarTypeToVarTypeIdx(varType)
+                
+                mechStd = impRedObj.mechStds[mechIdx][varTypeIdx]
+                isNil = (mechStd == nil)
+                if (isNil) {
+                    if (mechIdx == mth.morphologyMechIdx && varType == mth.diamVarType) {
+                        // We are here because user disabled export of biophysics when created the nano HOC file;
+                        // below we'll analyze "morphology" mech in all sections
+                        isAnyMorphologyDiamMechStdNil = 1
+                        continue
+                    }
+                    mechStd = new MechanismStandard(mechName, varType)
+                }
+                mechStds[mechIdx][varTypeIdx] = mechStd
+                
+                if (!isNil) {
+                    mcu.setOneIfNeededIn_isMechVarTypeInhom(this, mechIdx, varType)
+                }
+            }
+        }
+        
+        if (isAnyMorphologyDiamMechStdNil) {
+            // Analyze "morphology" mech only
+            // (it's a code contract that the mech doesn't have any other vars except "diam")
+            analyzeAllSegmentsInAllSections(1)
+        }
+    }
+    
+    iterator updateStatsCurveIter() { local yMin, yMax, ySum, numSegms, secIdx, dd, x, d, y, d1, d2 localobj graph
+        graph = $o1
+        yMin = $&5
+        yMax = $&6
+        
+        ySum = 0
+        numSegms = 0
+        
+        graph.brush(0)  // Solid line
+        
+        // Don't use eachSecInList here (Segmentation violation when we call an iterator from a definition of other iterator)
+        for secIdx = 0, list_ref.count() - 1 {
+            list_ref.o(secIdx).sec {
+                // We'll use "distance(x) +- dd" instead of "distance(x +- dx)" because the latter is a step-like function of "dx" (NEURON feature)
+                dd = L / (2 * nseg)
+                
+                for (x, 0) {
+                    
+                    d = distance(x)
+                    
+                    $&2 = x
+                    $&3 = d
+                    iterator_statement
+                    y = $&4
+                    
+                    d1 = d - dd
+                    d2 = d + dd
+                    
+                    graph.beginline()
+                    graph.line(d1, y)
+                    graph.line(d2, y)
+                    
+                    math.updateMinMaxSum(&yMin, &yMax, &ySum, y)
+                }
+                
+                numSegms += nseg
+            }
+        }
+        
+        $&5 = yMin
+        $&6 = yMax
+        $&7 = ySum / numSegms
+    }
+    
+    proc analyzeMorphology() { localobj nil
+        if (mth.morphologyMechIdx != 0) {
+            codeContractViolation()
+        }
+        analyzeMechHomogeneity(1)
+        analyzeMechInhomogeneity(1)
+        inhomTargetProtos = nil
+    }
+    
+    // !! think about applyChangesToDirtySects instead of this
+    proc applyAllHomogenModelsExceptMorphology() { local numMechs, mechIdx
+        if (mth.morphologyMechIdx != 0) {
+            codeContractViolation()
+        }
+        numMechs = mth.getNumMechs(enumDmPpFk)
+        // !! maybe skip the sticky mechs here as well
+        for mechIdx = mth.morphologyMechIdx + 1, numMechs - 1 {
+            isMechDirty[mechIdx] = 1
+        }
+        isCompDirty = 1
+        mmmowb.isDirty = 1
+        
+        applyHomogenChangesToDirtyMechs()
+        
+        mmmowb.isDirty = 0
+    }
+    
+endtemplate MechComp

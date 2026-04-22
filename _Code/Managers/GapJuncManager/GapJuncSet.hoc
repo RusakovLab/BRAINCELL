@@ -1,0 +1,441 @@
+
+// !! major code dupl. with SynSet
+begintemplate GapJuncSet
+    
+    public getIsExtOrInt, getPpNameOrEmpty, getMechIdxAndOptionalName, reCalcAndCacheDistInGapJuncs, getDistRange, getSecList, applyChangesToLoc, applyChangesToLocCore, applyChangesToStrucIfNeeded, applyChangesToDirtyHomogenVars, deployMarkerPointProcessesForIntGapJuncPointers, destroyMarkerPointProcessesForIntGapJuncPointers, updateMarks, prepareShownString, onJustBeforeDestruction
+    public isExtOrInt, isAllOrSomeSecsSeeded, selected_ref, maxNumGapJuncsPerSec, maxRadiusForIntGapJuncs, isCrissCrossForIntGapJuncs, seedingDensityHelper
+    public allComps, allGapJuncs
+    public s
+    
+    external isAstrocyteOrNeuron
+    external mth, mcu, tapSet, utils4FakeMech4GapJuncExtValue
+    external forallCallApplyChangesToLocCore
+    external getDefMinSeedingDistanceForGapJuncs, reseedDefaultGapJuncs, chooseRandomLocationForIntGapJuncPointer, stringsEqual, stringEmpty, getEmptyOrS, codeContractViolation
+    external eachSecInList, eachItemInList
+    external enumGapJuncCompIdxs, enumGapJuncPpRoles
+    external inhomAndStochLibrary
+    external gjmDefMaxNumGapJuncsPerSec, gjmDefMaxRadiusForIntGapJuncsForAstrocyte
+    external randomGapJuncSeeder
+    external enumArgTypes, enumColours
+    external pyObj
+    
+    isExtOrInt = -1
+    isAllOrSomeSecsSeeded = -1
+    objref selected_ref
+    maxNumGapJuncsPerSec = -1
+    maxRadiusForIntGapJuncs = -1        // Used for internal gap juncs only
+    isCrissCrossForIntGapJuncs = -1     //
+    objref seedingDensityHelper
+    objref allComps, allGapJuncs
+    
+    strdef s
+    
+    objref this
+    
+    
+    proc init() { local argType, minSeedingDistance localobj impRedObj, inComps, nil
+        
+        allComps = new List()
+        
+        argType = argtype(1)
+        if (argType == enumArgTypes.number) {
+            isExtOrInt = $1
+            
+            // Defaults
+            isAllOrSomeSecsSeeded = 1
+            selected_ref = nil
+            maxNumGapJuncsPerSec = gjmDefMaxNumGapJuncsPerSec
+            maxRadiusForIntGapJuncs = gjmDefMaxRadiusForIntGapJuncsForAstrocyte
+            isCrissCrossForIntGapJuncs = 0  // !! maybe set 1 by default (see the legacy code)
+            
+            minSeedingDistance = getDefMinSeedingDistanceForGapJuncs(isExtOrInt)
+            seedingDensityHelper = new SeedingDensityHelper(0, minSeedingDistance)
+            
+            allGapJuncs = reseedDefaultGapJuncs(isExtOrInt)
+            
+            // Keep in sync with hoc:EnumGapJuncCompIdxs.init, py:GensForTaps.createReducedGapJuncComps and py:GensForTaps.initHomogenGapJuncVars
+            allComps.append(new GapJuncPPComp("External GJ", this))
+            allComps.append(new GapJuncExtValueComp(this))
+            allComps.append(new GapJuncPPComp("Internal GJ", this))
+            
+        } else if (argType == enumArgTypes.objref_) {
+            impRedObj = $o1
+            
+            isExtOrInt = impRedObj.isExtOrInt
+            isAllOrSomeSecsSeeded = impRedObj.isAllOrSomeSecsSeeded
+            selected_ref = impRedObj.selected_ref
+            maxNumGapJuncsPerSec = impRedObj.maxNumGapJuncsPerSec
+            maxRadiusForIntGapJuncs = impRedObj.maxRadiusForIntGapJuncs
+            isCrissCrossForIntGapJuncs = impRedObj.isCrissCrossForIntGapJuncs
+            
+            seedingDensityHelper = new SeedingDensityHelper(impRedObj.seedingDensityHelper)
+            
+            allGapJuncs = impRedObj.allGapJuncs
+            
+            // Keep in sync with hoc:EnumGapJuncCompIdxs.init, py:GensForTaps.createReducedGapJuncComps and py:GensForTaps.initHomogenGapJuncVars
+            inComps = impRedObj.allComps
+            if (inComps.count() != 3) {
+                codeContractViolation()
+            }
+            allComps.append(new GapJuncPPComp(inComps.o(0), this))
+            allComps.append(new GapJuncExtValueComp(inComps.o(1), this))
+            allComps.append(new GapJuncPPComp(inComps.o(2), this))
+            
+        } else {
+            codeContractViolation()
+        }
+        
+        if (!isAstrocyteOrNeuron && !isExtOrInt) {
+            codeContractViolation()
+        }
+        
+        prepareShownString()
+    }
+    
+    func getIsExtOrInt() {
+        if (allGapJuncs.count() > 0) {
+            // It's a code contract that all the gap juncs have the same structure given set
+            return (allGapJuncs.o(0).isExtOrInt())
+        } else {
+            return 1
+        }
+    }
+    
+    proc getPpNameOrEmpty() { local enumPpRole
+        strdef ppName
+        if (allGapJuncs.count() > 0) {
+            enumPpRole = enumGapJuncPpRoles.sngPp
+            tapSet.getPpNameOrEmpty(allGapJuncs.o(0), enumPpRole, ppName)
+        } else {
+            ppName = ""
+        }
+        $s1 = ppName
+    }
+    
+    // !! some code dup. with SynSet.getMechIdxAndOptionalName
+    // Returns -1 and "" if the gap junc set is empty
+    func getMechIdxAndOptionalName() { local numArg
+        strdef mechName
+        numArg = numarg()
+        if (numArg > 1) {
+            codeContractViolation()
+        }
+        getPpNameOrEmpty(mechName)
+        if (numArg == 1) {
+            $s1 = mechName
+        }
+        if (stringEmpty(mechName)) {
+            return -1
+        } else {
+            return mth.getMechIdx(1, mechName)  // 1: "Point Processes"
+        }
+    }
+    
+    proc reCalcAndCacheDistInGapJuncs() { localobj gapJunc
+        for eachItemInList(gapJunc, allGapJuncs) {
+            gapJunc.calcAndCacheDist()
+        }
+    }
+    
+    func getDistRange() {
+        return tapSet.getDistRange(allGapJuncs, &$&1, &$&2)     // !! BUG: we don't take into account that each gap junc can be connected to 2 sections
+    }
+    
+    obfunc getSecList() {
+        return tapSet.getSecList(allGapJuncs)   // !! BUG: we don't take into account that each gap junc can be connected to 2 sections
+    }
+    
+    // See also: SynSet.applyChangesToLoc
+    proc applyChangesToLoc() { localobj nil
+        
+        allGapJuncs.remove_all()
+        
+        if (isAllOrSomeSecsSeeded) {
+            forallCallApplyChangesToLocCore(this)   // --> applyChangesToLocCore()
+        } else if (selected_ref != nil) {
+            for eachSecInList(selected_ref) {
+                applyChangesToLocCore()
+            }
+        }
+        
+        if (!isExtOrInt) {
+            // !! don't do this if the int gap junc doesn't have a pointer
+            //    (or even assign otherSec_ref = nil and otherConnectionPoint = -1 in each GapJunction)
+            deployMarkerPointProcessesForIntGapJuncPointers()
+        }
+    }
+    
+    // !! keep in sync with CreateDefaultGapJuncs.hoc -> reseed*GapJuncs, SpineSet.reseed and NanoBranchesManager.reseedBranches
+    proc applyChangesToLocCore() { local slotIdx, connectionPoint, minSeedingDistance, controlFactor, invNormFactor, otherConnectionPoint localobj sec_ref, gapJunc, otherSec_ref
+        
+        for slotIdx = 0, maxNumGapJuncsPerSec - 1 {
+            connectionPoint = (slotIdx + 0.5) / maxNumGapJuncsPerSec
+            minSeedingDistance = seedingDensityHelper.getMinSeedingDistance(connectionPoint)
+            controlFactor = minSeedingDistance * maxNumGapJuncsPerSec
+            invNormFactor = L / controlFactor                           // !! this can be > 1
+            if (randomGapJuncSeeder.uniform(0, 1) < invNormFactor) {    // !! use .repick() for performance
+                sec_ref = new SectionRef()
+                if (isExtOrInt) {
+                    gapJunc = new GapJunction(sec_ref, connectionPoint)
+                } else {
+                    chooseRandomLocationForIntGapJuncPointer(sec_ref, connectionPoint, maxRadiusForIntGapJuncs, otherSec_ref, &otherConnectionPoint)
+                    gapJunc = new GapJunction(sec_ref, connectionPoint, otherSec_ref, otherConnectionPoint)
+                    if (isCrissCrossForIntGapJuncs) {
+                        allGapJuncs.append(gapJunc)
+                        gapJunc = new GapJunction(otherSec_ref, otherConnectionPoint, sec_ref, connectionPoint)
+                    }
+                }
+                allGapJuncs.append(gapJunc)
+            }
+        }
+    }
+    
+    objref _gapJunc
+    objref _sngPp
+    _otherConnectionPoint = -1  // For internal GJs only
+    
+    // Keep in sync with ReducedGapJuncSet.createGapJuncStruc
+    func applyChangesToStrucIfNeeded() { local gapJuncSetIdx, mechIdx, isLocChanged, isExtOrInt_old, cond1, cond2, isCreateNew, doesHavePtr localobj nil
+        strdef mechName, mechName_old, ppPtrName, hocCommand, dmVarNameWithIndex, extMechNameOrEmpty_old, intMechNameOrEmpty_old, extMechNameOrEmpty, intMechNameOrEmpty
+        
+        gapJuncSetIdx = $1
+        mechIdx = $2
+        mechName = $s3
+        isLocChanged = $4
+        isExtOrInt_old = $5
+        mechName_old = $s6
+        
+        cond1 = (allGapJuncs.count() != 0)
+        cond2 = (isLocChanged || !stringsEqual(mechName, mechName_old))
+        isCreateNew = (cond1 && cond2)
+        
+        if (isCreateNew) {
+            doesHavePtr = pyObj.ms_doesGapJuncHavePtr(mechName)
+            if (doesHavePtr) {
+                ppPtrName = pyObj.ms_getGapJuncPtrName(mechName)
+                if (isExtOrInt) {
+                    sprint(hocCommand, "setpointer _sngPp.%s, _gapJunc.extValue", ppPtrName)
+                } else {
+                    dmVarNameWithIndex = pyObj.ms_getGapJuncExtVarNameWithIndex(mechName)
+                    sprint(hocCommand, "setpointer _sngPp.%s, %s(_otherConnectionPoint)", ppPtrName, dmVarNameWithIndex)
+                }
+            }
+            
+            for eachItemInList(_gapJunc, allGapJuncs) {
+                _sngPp = createNewSngPpButTryToInherit(_gapJunc, mechIdx, mechName, isLocChanged, mechName_old)
+                if (doesHavePtr) {
+                    if (isExtOrInt) {
+                        execute(hocCommand, this)
+                    } else {
+                        _otherConnectionPoint = _gapJunc.otherConnectionPoint
+                        _gapJunc.otherSec_ref {
+                            execute(hocCommand, this)
+                        }
+                    }
+                }
+                _gapJunc.changeStructure(_sngPp)
+            }
+            
+            _gapJunc = nil
+            _sngPp = nil
+        }
+        
+        setMechNames(isExtOrInt_old, mechName_old, extMechNameOrEmpty_old, intMechNameOrEmpty_old)
+        setMechNames(isExtOrInt, mechName, extMechNameOrEmpty, intMechNameOrEmpty)
+        inhomAndStochLibrary.onGapJuncStrucChange(gapJuncSetIdx, isExtOrInt_old, extMechNameOrEmpty_old, intMechNameOrEmpty_old, isExtOrInt, extMechNameOrEmpty, intMechNameOrEmpty)
+        
+        return cond2
+    }
+    
+    // Keep in sync with ReducedGapJuncSet.initAllHomogenVars
+    func applyChangesToDirtyHomogenVars() { local mechIdx, isSmthChanged
+        mechIdx = $1
+        
+        if (isExtOrInt) {
+            isSmthChanged = ifMechDirtyThenApplyHomogenChanges(enumGapJuncCompIdxs.extGjExtValue, utils4FakeMech4GapJuncExtValue.mechIdx, enumGapJuncPpRoles.extValue)
+            isSmthChanged = ifMechDirtyThenApplyHomogenChanges(enumGapJuncCompIdxs.extGjPp, mechIdx, enumGapJuncPpRoles.sngPp) || isSmthChanged
+        } else {
+            isSmthChanged = ifMechDirtyThenApplyHomogenChanges(enumGapJuncCompIdxs.intGjPp, mechIdx, enumGapJuncPpRoles.sngPp)
+        }
+        return isSmthChanged
+    }
+    
+    proc deployMarkerPointProcessesForIntGapJuncPointers() { localobj gapJunc
+        if (isExtOrInt) {
+            codeContractViolation()
+        }
+        for eachItemInList(gapJunc, allGapJuncs) {
+            gapJunc.deployPtrMarkerPp()
+        }
+    }
+    
+    proc destroyMarkerPointProcessesForIntGapJuncPointers() { localobj gapJunc
+        if (isExtOrInt) {
+            codeContractViolation()
+        }
+        for eachItemInList(gapJunc, allGapJuncs) {
+            gapJunc.destroyPtrMarkerPp()
+        }
+    }
+    
+    proc updateMarks() { local isCreateLabels, enumPpRole, colour, brush localobj shape
+        strdef extOrInt, label
+        
+        shape = $o1
+        isCreateLabels = $2     // When 0, the labels already exist, and we just don't want to create the copies
+        
+        enumPpRole = enumGapJuncPpRoles.sngPp
+        tapSet.updateMarks(allGapJuncs, enumPpRole, shape)  // Red
+        
+        if (isCreateLabels) {
+            getExtOrIntStr(extOrInt)
+            sprint(label, "%s GJ PPs", extOrInt)
+            colour = enumColours.red
+            brush = 1
+            shape.beginline(label, colour, brush)
+        }
+        
+        if (!isExtOrInt) {
+            enumPpRole = enumGapJuncPpRoles.ptrMarkerPp
+            colour = enumColours.blue
+            tapSet.updateMarksCore(allGapJuncs, enumPpRole, shape, colour, "+")
+            
+            if (isCreateLabels) {
+                label = "Int GJ Ptrs"
+                shape.beginline(label, colour, brush)
+            }
+        }
+    }
+    
+    proc prepareShownString() { local numGapJuncs, mechIdx
+        strdef extOrInt, electricOrChemic, ppName, emptyOrS
+        
+        numGapJuncs = allGapJuncs.count()
+        
+        getExtOrIntStr(extOrInt)
+        
+        if (numGapJuncs == 0) {
+            // !! BUG: we've lost the info about the last selected mechIdx because it's defined only by allGapJuncs.o(0)
+            sprint(s, "%s GJs: Empty set (0 GJs)", extOrInt)
+        } else {
+            // !! consider 2 more categories: "Electrochemic" and "Neither electric nor chemic"
+            // !! for "Chemic" and "Electrochemic", it would be nice to list all the ions
+            mechIdx = getMechIdxAndOptionalName(ppName)
+            if (mth.doesPointProcessUseIons(mechIdx)) {
+                electricOrChemic = "Chemic"
+            } else {
+                electricOrChemic = "Electric"
+            }
+            getEmptyOrS(numGapJuncs, emptyOrS)
+            sprint(s, "%s GJs: %s / \"%s\" (%d GJ%s)", extOrInt, electricOrChemic, ppName, numGapJuncs, emptyOrS)
+        }
+    }
+    
+    // Must be called just before destruction of this GapJuncSet object to avoid two problems: "zombie" PPs and deferred Segmentation Violation
+    // (looks like a bug in NEURON garbage collector)
+    proc onJustBeforeDestruction() { localobj nil
+        allGapJuncs = nil
+    }
+    
+    // All next staff is private
+    
+    
+    obfunc createNewSngPpButTryToInherit() { local mechIdx, isLocChanged, isMechNameUnchanged, gapJuncCompIdx, isInherit localobj gapJunc, pp_old
+        strdef mechName, mechName_old
+        
+        gapJunc = $o1
+        mechIdx = $2
+        mechName = $s3
+        isLocChanged = $4
+        mechName_old = $s5
+        
+        pp_old = gapJunc.sngPp
+        isMechNameUnchanged = stringsEqual(mechName, mechName_old)
+        if (!isLocChanged && isMechNameUnchanged) {
+            return pp_old
+        } else {
+            if (isExtOrInt) {
+                gapJuncCompIdx = enumGapJuncCompIdxs.extGjPp
+            } else {
+                gapJuncCompIdx = enumGapJuncCompIdxs.intGjPp
+            }
+            isInherit = 0
+            return tapSet.createNewPpAttachedToSectionButTryToInherit(pp_old, this, gapJuncCompIdx, mechIdx, mechName, gapJunc.sec_ref, gapJunc.connectionPoint, isInherit)
+        }
+    }
+    
+    // Keep in sync with ReducedGapJuncSet.initHomogenVars
+    func ifMechDirtyThenApplyHomogenChanges() { local compIdx, mechIdx, enumPpRole, isPPorEV, maxVarType, varType, varTypeIdx localobj comp, gapJunc, ppOrExtVal, compMechStd, tempMechStdExt
+        strdef mechName
+        
+        compIdx = $1
+        mechIdx = $2
+        enumPpRole = $3
+        
+        if (enumPpRole == enumGapJuncPpRoles.ptrMarkerPp) {
+            codeContractViolation()
+        }
+        
+        comp = allComps.o(compIdx)
+        
+        if (!comp.isMechDirty[mechIdx]) {
+            return 0
+        }
+        
+        isPPorEV = (compIdx != enumGapJuncCompIdxs.extGjExtValue)
+        
+        if (isPPorEV) {
+            maxVarType = 3
+        } else {
+            maxVarType = 1
+        }
+        
+        mth.getMechName(1, mechIdx, mechName)
+        
+        for eachItemInList(gapJunc, allGapJuncs) {
+            ppOrExtVal = gapJunc.getPointProcess(enumPpRole)
+            for varType = 1, maxVarType {   // 1: "PARAMETER", 2: "ASSIGNED", 3: "STATE"
+                varTypeIdx = mth.convertVarTypeToVarTypeIdx(varType)
+                compMechStd = comp.mechStds[mechIdx][varTypeIdx]
+                if (!comp.isMechVarTypeInhom[mechIdx][varTypeIdx]) {
+                    compMechStd.out(ppOrExtVal)
+                } else {
+                    if (isPPorEV) {
+                        tempMechStdExt = new MechanismStandard(mechName, varType)
+                    } else {
+                        tempMechStdExt = new FakeMechanismStandardForExtValue()
+                    }
+                    tempMechStdExt.in(ppOrExtVal)
+                    mcu.copyAllVarsValuesExceptInhom(compMechStd, tempMechStdExt)
+                    tempMechStdExt.out(ppOrExtVal)
+                }
+            }
+        }
+        
+        comp.isMechDirty[mechIdx] = 0
+        
+        return 1
+    }
+    
+    proc getExtOrIntStr() {
+        if (isExtOrInt) {
+            $s1 = "Ext"
+        } else {
+            $s1 = "Int"
+        }
+    }
+    
+    proc setMechNames() { local isExtOrInt
+        strdef _mechName    // Don't rename to "mechName" not to interfere with the caller
+        isExtOrInt = $1
+        _mechName = $s2
+        if (isExtOrInt) {
+            $s3 = _mechName
+            $s4 = ""
+        } else {
+            $s3 = ""
+            $s4 = _mechName
+        }
+    }
+    
+endtemplate GapJuncSet

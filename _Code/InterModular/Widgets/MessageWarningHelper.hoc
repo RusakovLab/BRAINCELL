@@ -1,0 +1,322 @@
+
+// !! TODO: unify showMessageBox, showWarningBox and showPleaseWaitBox procs
+
+// !! see also: MsgWarnHelperWrappers.py
+begintemplate MessageWarningHelper
+
+    public showMessageBox, showWarningBox, showNotImplementedWarning, startIntercepting, endIntercepting, showPleaseWaitBox, hidePleaseWaitBox
+    
+    external getNotImplementedLines, codeContractViolation
+    external eachItemInList
+    external enumArgTypes
+    
+    objref msgWarnBox, waitBox
+    
+    intLevel = -1
+    numInts = -1
+    objref intMsgLines, intWarnLines
+    strdef lastIntMsgTitle
+    
+    x = -1
+    y = -1
+    
+    strdef warnTitle
+    
+    
+    proc init() {
+        intLevel = 0
+        numInts = -1
+        intMsgLines = new List()
+        intWarnLines = new List()
+        
+        x = 500
+        y = 300
+        
+        warnTitle = "Warning"
+    }
+    
+    // Show the message box with "OK" button OR intercept all message lines and the title to show them later
+    // Restriction: Cannot be called in the process of construction of a panel (applied if intLevel == 0)
+    // $si, i from 1 to numarg()-1 - All lines of the message
+    // $oi - (List of String-s) The lines of the message to be shown as a bulleted list
+    // $si, i=numarg() - The widget title
+    proc showMessageBox() { local numArg, i, argType
+        
+        numArg = numarg()
+        
+        if (intLevel > 0) {
+            if (intMsgLines.count() != 0) {
+                intMsgLines.append(new String("--------------------"))
+            }
+            // !! keep in sync with similar cycle below
+            for i = 1, numArg - 1 {
+                argType = argtype(i)
+                if (argType == enumArgTypes.strdef_) {
+                    intMsgLines.append(new String($si))
+                } else if (argType == enumArgTypes.objref_) {
+                    appendBulletedList(intMsgLines, $oi)
+                } else {
+                    codeContractViolation()
+                }
+            }
+            lastIntMsgTitle = $si       // here i == numArg
+            numInts += 1
+            return
+        }
+        
+        dismissHandler()
+        
+        msgWarnBox = new VBox()
+        msgWarnBox.intercept(1)
+        {
+            xpanel("")
+            // !! keep in sync with similar cycle above
+            for i = 1, numArg - 1 {
+                argType = argtype(i)
+                if (argType == enumArgTypes.strdef_) {
+                    xlabel($si)
+                } else if (argType == enumArgTypes.objref_) {
+                    showBulletedList($oi)
+                } else {
+                    codeContractViolation()
+                }
+            }
+            xbutton("OK", "dismissHandler()")
+            xpanel()
+        }
+        msgWarnBox.dismiss_action("dismissHandler()")
+        msgWarnBox.intercept(0)
+        msgWarnBox.map($si, x, y, -1, -1)   // here i == numArg
+    }
+    
+    // Show warning box with "OK" button OR intercept all warning lines to show them later
+    // Restriction: Cannot be called in the process of construction of a panel (applied if intLevel == 0)
+    // $si - The lines of the warning
+    // $oi - (List of String-s) The lines of the warning to be shown as a bulleted list
+    proc showWarningBox() { local numArg, i, argType
+        
+        numArg = numarg()
+        
+        if (intLevel > 0) {
+            if (intWarnLines.count() != 0) {
+                intWarnLines.append(new String("--------------------"))
+            }
+            // !! keep in sync with similar cycle below
+            for i = 1, numArg {
+                argType = argtype(i)
+                if (argType == enumArgTypes.strdef_) {
+                    intWarnLines.append(new String($si))
+                } else if (argType == enumArgTypes.objref_) {
+                    appendBulletedList(intWarnLines, $oi)
+                } else {
+                    codeContractViolation()
+                }
+            }
+            numInts += 1
+            return
+        }
+        
+        dismissHandler()
+        
+        msgWarnBox = new VBox()
+        msgWarnBox.intercept(1)
+        {
+            xpanel("")
+            // !! keep in sync with similar cycle above
+            for i = 1, numArg {
+                argType = argtype(i)
+                if (argType == enumArgTypes.strdef_) {
+                    xlabel($si)
+                } else if (argType == enumArgTypes.objref_) {
+                    showBulletedList($oi)
+                } else {
+                    codeContractViolation()
+                }
+            }
+            xbutton("OK", "dismissHandler()")
+            xpanel()
+        }
+        msgWarnBox.dismiss_action("dismissHandler()")
+        msgWarnBox.intercept(0)
+        msgWarnBox.map(warnTitle, x, y, -1, -1)
+    }
+    
+    // Show "Not implemented" warning box with "OK" button OR intercept all warning lines to show them later
+    // Restriction: Cannot be called in the process of construction of a panel (applied if intLevel == 0)
+    // $s1...$s5 (optional) - The lines of the warning
+    proc showNotImplementedWarning() { local numArg
+        strdef line1, line2
+        getNotImplementedLines(line1, line2)
+        numArg = numarg()
+        if (numArg == 0) {
+            showWarningBox(line1, line2)
+        } else if (numArg == 1) {
+            showWarningBox($s1, line1, line2)
+        } else if (numArg == 2) {
+            showWarningBox($s1, $s2, line1, line2)
+        } else if (numArg == 3) {
+            showWarningBox($s1, $s2, $s3, line1, line2)
+        } else if (numArg == 4) {
+            showWarningBox($s1, $s2, $s3, $s4, line1, line2)
+        } else if (numArg == 5) {
+            showWarningBox($s1, $s2, $s3, $s4, $s5, line1, line2)
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    // Start intercepting all messages and warnings to show them later in a single box
+    // It's safe to use the nested interception blocks
+    proc startIntercepting() {
+        intLevel += 1
+        if (intLevel == 1) {
+            numInts = 0
+        }
+    }
+    
+    // Show all intercepted messages and warnings in a single box
+    // Restriction: Cannot be called in the process of construction of a panel
+    proc endIntercepting() { local isSomeWarns, isSomeMsgs, isOnlyOneWarn, isOnlyOneMsg
+        strdef title
+        
+        if (intLevel == 0) {
+            codeContractViolation()
+        }
+        
+        intLevel -= 1
+        if (intLevel > 0) {
+            return
+        }
+        
+        if (numInts == 0) {
+            return
+        }
+        
+        dismissHandler()
+        
+        isSomeWarns = (intWarnLines.count() != 0)
+        isSomeMsgs = (intMsgLines.count() != 0)
+        isOnlyOneWarn = (numInts == 1 && !isSomeMsgs)
+        isOnlyOneMsg = (numInts == 1 && !isSomeWarns)
+        
+        msgWarnBox = new VBox()
+        msgWarnBox.intercept(1)
+        {
+            xpanel("")
+            if (isSomeWarns) {
+                dumpAllIntLines(intWarnLines, isOnlyOneWarn, warnTitle)
+            }
+            if (isSomeMsgs) {
+                dumpAllIntLines(intMsgLines, isOnlyOneMsg, "Message")
+            }
+            xbutton("OK", "dismissHandler()")
+            xpanel()
+        }
+        msgWarnBox.dismiss_action("dismissHandler()")
+        msgWarnBox.intercept(0)
+        if (isOnlyOneWarn) {
+            title = warnTitle
+        } else if (isOnlyOneMsg) {
+            title = lastIntMsgTitle
+        } else {
+            title = "Warnings and messages"
+        }
+        msgWarnBox.map(title, x, y, -1, -1)
+        
+        numInts = -1
+        intWarnLines.remove_all()
+        intMsgLines.remove_all()
+        lastIntMsgTitle = ""
+    }
+    
+    // Show "Please wait" message box with "OK" button
+    // It's safe to call this many times in a row (each new box replaces the previous)
+    // Restriction: Cannot be called in the process of construction of a panel
+    // $si - All lines of the message
+    proc showPleaseWaitBox() { local numArg, i localobj nil
+        numArg = numarg()
+        
+        // Each new "Please wait" box replaces the previous
+        hidePleaseWaitBox()
+        
+        waitBox = new VBox()
+        waitBox.intercept(1)
+        {
+            xpanel("")
+            for i = 1, numArg {
+                xlabel($si)
+            }
+            xlabel("Please wait ...")
+            xbutton("OK", "hidePleaseWaitBox()")
+            xpanel()
+        }
+        waitBox.dismiss_action("hidePleaseWaitBox()")
+        waitBox.intercept(0)
+        waitBox.map("Slow operation", x, y, -1, -1)
+    }
+    
+    // Hide "Please wait" message box
+    // It's safe to call this many times in a row
+    proc hidePleaseWaitBox() { localobj nil
+        if (waitBox != nil) {
+            waitBox.unmap()
+            waitBox = nil
+        }
+    }
+    
+    // All next staff is private
+    
+    
+    proc appendBulletedList() { localobj intLines, listOfStrs, strObj
+        strdef str
+        
+        intLines = $o1
+        listOfStrs = $o2
+        
+        for eachItemInList(strObj, listOfStrs) {
+            sprint(str, "    * %s", strObj.s)
+            intLines.append(new String(str))
+        }
+    }
+    
+    proc showBulletedList() { localobj listOfStrs, strObj
+        strdef str
+        
+        listOfStrs = $o1
+        
+        for eachItemInList(strObj, listOfStrs) {
+            sprint(str, "    * %s", strObj.s)
+            xlabel(str)
+        }
+    }
+    
+    proc dumpAllIntLines() { local isOnlyOneWarnOrMsg localobj intLines, line
+        strdef name, text
+        
+        intLines = $o1
+        isOnlyOneWarnOrMsg = $2
+        name = $s3
+        
+        if (!isOnlyOneWarnOrMsg) {
+            sprint(text, "========== %s(s) ==========", name)
+            xlabel(text)
+        }
+        for eachItemInList(line, intLines) {
+            xlabel(line.s)
+        }
+        if (!isOnlyOneWarnOrMsg) {
+            xlabel("")
+        }
+    }
+    
+    proc dismissHandler() { localobj nil
+        if (msgWarnBox != nil) {
+            msgWarnBox.unmap()
+        }
+    }
+    
+endtemplate MessageWarningHelper
+
+
+objref mwh
+mwh = new MessageWarningHelper()

@@ -1,0 +1,149 @@
+
+// !! some code dupl. with GapJuncSetsWidget, SpineSeedingMainWidget, CreateListOfInputVarsWidget and ExtracellularManagerMainWidget
+begintemplate SynSetsWidget
+    
+    public show, onApplyInChildHandler, dismissHandler
+    
+    external smAllSynSets
+    external mwh, mcu4t
+    external openDeck, closeDeck, unmapIfNotNil, dismissIfNotNil
+    external synManagerMainWidget
+    
+    objref mainBox, shapeBox    // !! shapeBox is not used now
+    
+    isShowAllOrThisOnly = -1    // !!
+    
+    objref this
+    
+    
+    proc init() {
+        synManagerMainWidget = new SynManagerMainWidget(this)
+    }
+    
+    proc show() { local slotHeight localobj hBox, deck
+        
+        dismissHandler()
+        
+        slotHeight = 190
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            xlabel("Sets of synapses:")
+            xpanel()
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                // It turns out, the usage of two Deck-s with just 1 card below
+                // gives a nicer UI compared to other options (VBox, HBox or no-box)
+                deck = openDeck()
+                {
+                    smAllSynSets.browser("", "s")
+                    if (smAllSynSets.count() != 0) {
+                        smAllSynSets.select(0)
+                    }
+                    smAllSynSets.select_action("selectSetHandler()")    // Single click
+                    smAllSynSets.accept_action("editSetHandler()")      // Double click
+                }
+                closeDeck(deck, 0, 345, slotHeight)
+                deck = openDeck()
+                {
+                    xpanel("")
+                    xbutton("Edit this set", "editSetHandler()")
+                    xpanel()
+                }
+                closeDeck(deck, 0, 105, slotHeight)
+            }
+            hBox.intercept(0)
+            hBox.map()
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                xpanel("")
+                xbutton("Done", "doneHandler()")
+                xpanel()
+                xpanel("")
+                // !!
+                xradiobutton("Show all sets", "showAllOrThisOnlyChangedHandler(1)", isShowAllOrThisOnly)
+                xradiobutton("Show this set only", "showAllOrThisOnlyChangedHandler(0)", !isShowAllOrThisOnly)
+                xpanel()
+            }
+            hBox.intercept(0)
+            hBox.map()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("Synapse set selector", 25, 125, -1, -1)
+        
+        // !! showAllOrThisOnlyChangedHandler(isShowAllOrThisOnly)
+    }
+    
+    proc onApplyInChildHandler() { local synSetIdx
+        synSetIdx = $1
+        mcu4t.updateItemInShownTapSetsList(smAllSynSets, synSetIdx)
+    }
+    
+    proc dismissHandler() {
+        dismissChild()
+        unmapIfNotNil(shapeBox)
+        unmapIfNotNil(mainBox)
+    }
+    
+    // All next staff is private
+    
+    
+    proc selectSetHandler() {
+        // !! this closes the child widget unnecessarily when user clicks "Apply" on it
+        // dismissChilds()
+        
+        // !! update shapeBox here
+        // mwh.showNotImplementedWarning()
+    }
+    
+    proc editSetHandler() { local synSetIdx, isAnyDisconSecsInSet, xMin, xMax localobj synSet
+        
+        dismissChild()
+        
+        synSetIdx = smAllSynSets.selected()
+        if (synSetIdx == -1) {
+            return
+        }
+        
+        synSet = smAllSynSets.o(synSetIdx)
+        
+        // !! review this
+        if (synSet.allSyns.count() == 0) {
+            mwh.showWarningBox("Cannot open the synapse manager because there are no synapses in this set.")
+            return
+        }
+        
+        isAnyDisconSecsInSet = synSet.getDistRange(&xMin, &xMax)
+        
+        mwh.startIntercepting()     // !! maybe not needed
+        {
+            synManagerMainWidget.show(synSetIdx, isAnyDisconSecsInSet, xMin, xMax)      // --> onApplyInChildHandler
+            
+            if (isAnyDisconSecsInSet) {
+                mwh.showWarningBox("Cannot use func(dist) for synapses in this set", "because at least one synapse target section doesn't have a topological connection with the distance centre.")
+            }
+        }
+        mwh.endIntercepting()
+    }
+    
+    proc showAllOrThisOnlyChangedHandler() {
+        isShowAllOrThisOnly = $1
+        
+        // !!
+        mwh.showNotImplementedWarning()
+    }
+    
+    proc doneHandler() {
+        dismissHandler()
+    }
+    
+    proc dismissChild() {
+        dismissIfNotNil(synManagerMainWidget)
+    }
+    
+endtemplate SynSetsWidget

@@ -1,0 +1,220 @@
+
+// The next "declarations" are needed just to bind the template external-s at the file sourcing time
+obfunc createNeuronNanoBranch() { codeContractViolation() }
+obfunc createAstrocyteNanoBranch() { codeContractViolation() }
+
+{ load_file("../Managers/CommonLoads.hoc") }
+{ load_file("../Managers/GapJuncManager/GapJuncManager.hoc") }
+
+obfunc createDefaultSynSets() { codeContractViolation() }
+if (!isAstrocyteOrNeuron) {
+    load_file("../Managers/SynManager/SynManager.hoc")
+}
+
+objref manageAndRunWidget
+
+isFirstReseeding = 1
+
+NumberNanoBranches = -1
+
+{ load_file("Exported/CreateNanoRefs_Exported_deprecated.hoc") }
+
+if (isAstrocyteOrNeuron) {
+    load_file("Astrocyte/AstrocyteNanoBranch.hoc")
+} else {
+    load_file("Neuron/NeuronNanoBranch.hoc")
+}
+
+{ load_file("../NanoSeeding/NanoSeedingLoads.hoc") }
+
+
+begintemplate NanoBranchesManager
+    
+    public reseedBranches, reseedBranchesWithLastUsedArgs, updateBranches, deleteBranches
+    
+    // Keeping this list "public" even though the name doesn't appear explicitly anywhere outside this template.
+    // It turns out, NEURON accesses it via reflection (implicitly) when user selects
+    //  Tools -> Distributed Mechanisms -> Viewers -> Shape Name
+    // and then double clicks on any nanogeometry section in the list.
+    public nanoBranches_flat
+    
+    public maxNumBranchesPerDend
+    
+    external seededDendrite_ref, NumberNanoBranches
+    external isAstrocyteOrNeuron, isFirstReseeding
+    external mwh, rngUtils, math, nanoGeomSeedingDensityHelper
+    external eachRandomlySeededSlotInSecList, eachItemInList
+    external manageAndRunWidget
+    
+    external createAstrocyteNanoBranch, createNeuronNanoBranch, createRefsForNanoGeometry_deprecated
+    external gjmAllGapJuncSets, spmAllSpineSets, smAllSynSets
+    external createDefaultGapJuncSets, createDefaultSynSets, initVoltage
+    
+    // Flat List of all AstrocyteNanoBranch or NeuronNanoBranch
+    // !! merge this with the logic from Exported/CreateNanoRefs_Exported_deprecated.hoc
+    objref nanoBranches_flat
+    
+    objref randomBranchSeeder 
+    
+    maxNumBranchesPerDend = -1
+    
+    objref lastUsedArgs
+    
+    
+    // Initialization of this singleton template
+    proc init() { local inf
+        maxNumBranchesPerDend = $1
+        
+        nanoBranches_flat = new List()
+        randomBranchSeeder = rngUtils.getFor_nano_branchSeeder()
+        
+        inf = math.inf
+        variable_domain(&maxNumBranchesPerDend, 0, inf)
+    }
+    
+    // Reseed dendrites with nanobranches
+    // $o1 - The Vector of args passed to *NanoBranch template
+    // Other inputs: seededDendrite_ref (taken from the top level) etc.
+    // !! keep in sync with CreateDefaultGapJuncs.hoc -> reseed*GapJuncs, GapJuncSet.applyChangesToLoc and SpineSet.reseed
+    proc reseedBranches() { local connectionPoint localobj args, spineSet, protoSpine, spineNecks_ref, spineHeads_ref, newBranch, nil
+        strdef what
+        
+        args = $o1
+        
+        lastUsedArgs = args
+        
+        if (manageAndRunWidget != nil) {
+            manageAndRunWidget.onNanoReseedOrUpdateHandler(1)
+        }
+        
+        mwh.showPleaseWaitBox("Reseeding nanostructures.")
+        {
+            if (!isFirstReseeding) {
+                deleteBranches()
+            }
+            
+            if (isAstrocyteOrNeuron) {
+                for eachRandomlySeededSlotInSecList(&connectionPoint, seededDendrite_ref, maxNumBranchesPerDend, nanoGeomSeedingDensityHelper, randomBranchSeeder, 1) {
+                    createInitAndConnectOneBranch(connectionPoint, args)
+                }
+            } else {
+                for eachItemInList(spineSet, spmAllSpineSets) {
+                    spineNecks_ref = new List()
+                    spineHeads_ref = new List()
+                    for eachItemInList(protoSpine, spineSet.protoSpineList) {
+                        protoSpine.sec_ref.sec {
+                            newBranch = createInitAndConnectOneBranch(protoSpine.x, args)
+                        }
+                        spineNecks_ref.append(newBranch.root_ref)
+                        newBranch.spine_head {
+                            spineHeads_ref.append(new SectionRef())
+                        }
+                    }
+                    spineSet.spineNecks_ref = spineNecks_ref
+                    spineSet.spineHeads_ref = spineHeads_ref
+                }
+            }
+            
+            gjmAllGapJuncSets = createDefaultGapJuncSets()
+            
+            if (!isAstrocyteOrNeuron) {
+                smAllSynSets = createDefaultSynSets()
+            }
+            
+            // !! is this correct place?
+            // !! deprecated: collect the references when creating sections rather than search for sections with regex afterwards
+            createRefsForNanoGeometry_deprecated()
+            
+            // !! it would be better to init the voltage just in nanogeometry
+            initVoltage()
+        }
+        mwh.hidePleaseWaitBox()
+        
+        isFirstReseeding = 0
+        NumberNanoBranches = nanoBranches_flat.count()
+        
+        if (isAstrocyteOrNeuron) {
+            what = "stalks"
+        } else {
+            what = "spines"
+        }
+        printf("Number of %s: %d\n", what, NumberNanoBranches)
+    }
+    
+    // Reseed dendrites with nanobranches using the same arguments as the last time
+    // Inputs: seededDendrite_ref (taken from the top level) etc.
+    proc reseedBranchesWithLastUsedArgs() {
+        reseedBranches(lastUsedArgs)
+    }
+    
+    // Update nanobranches geometry without reseeding
+    // $o1 - The Vector of args passed to *NanoBranch template
+    proc updateBranches() { localobj args, nanoBranch, synSet, nil
+        args = $o1
+        
+        if (manageAndRunWidget != nil) {
+            manageAndRunWidget.onNanoReseedOrUpdateHandler(0)
+        }
+        
+        for eachItemInList(nanoBranch, nanoBranches_flat) {
+            nanoBranch.update(args)
+        }
+        
+        if (!isAstrocyteOrNeuron) {
+            for eachItemInList(synSet, smAllSynSets) {
+                synSet.spineNeckDiamCache.cacheAllDiams()
+            }
+        }
+    }
+    
+    // Delete all nanobranches
+    proc deleteBranches() {
+        
+        // !! would it make sense to delete only a subset of gap juncs located on or connected to the deleted nanogeometry?
+        removeAllTapSets(gjmAllGapJuncSets)
+        
+        if (!isAstrocyteOrNeuron) {
+            removeAllTapSets(smAllSynSets)
+        }
+        
+        // !! would it make sense to add some validation code to unref() procs of the destructed templates to check whether something external is connected?
+        nanoBranches_flat.remove_all()
+        
+        // !! maybe clean up all refs to nanogeometry here just for safety
+    }
+    
+    // All next staff is private
+    
+    
+    // Create, initialize and connect to dendrite a new nanobranch
+    // $1 - The connection point (0 to 1) on the dendrite where to connect the new nanobranch
+    // $o2 - The Vector of args passed to *NanoBranch template
+    // Other inputs: seededDendrite_ref (taken from the top level) etc.
+    // Output: The new nanobranch
+    obfunc createInitAndConnectOneBranch() { local connectionPoint localobj args, newBranch
+        connectionPoint = $1
+        args = $o2
+        
+        // Create and initialize one branch (sections, topology, geometry, biophysics)
+        if (isAstrocyteOrNeuron) {
+            newBranch = createAstrocyteNanoBranch(args)
+        } else {
+            newBranch = createNeuronNanoBranch(args)
+        }
+        nanoBranches_flat.append(newBranch)
+        
+        // Connect the new branch to this dendrite in this point
+        connect newBranch.root_ref.sec(0), connectionPoint
+        
+        return newBranch
+    }
+    
+    proc removeAllTapSets() { localobj xmAllTapSets, tapSet
+        xmAllTapSets = $o1
+        for eachItemInList(tapSet, xmAllTapSets) {
+            tapSet.onJustBeforeDestruction()
+        }
+        xmAllTapSets.remove_all()
+    }
+    
+endtemplate NanoBranchesManager

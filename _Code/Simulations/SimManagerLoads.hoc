@@ -1,0 +1,37 @@
+
+strdef _thisFileName
+_thisFileName = "SimManagerLoads.hoc"
+
+objref vBoxIClampPPGM, vBoxSEClampPPGM
+
+{ load_file("../Clamps/IClampHelper.hoc") }
+{ load_file("../Clamps/SEClampHelper.hoc") }
+
+sourcePythonCode("\\PythonCode", "from SimABCs import *", _thisFileName)
+// add this:
+sourcePythonCode("\\Sims\\Common\\SimUserTemplate", "from SimUserTemplate import SimUserTemplate", "SimManagerLoads")
+
+if (isAstrocyteOrNeuron) {
+    load_file("Sims/Astrocyte/SimCalciumDynamics.hoc")
+} else {
+    load_file("Sims/Neuron/SimVoltageCA1Neuron.hoc")
+    sourcePythonCode("\\Sims\\\\Neuron\\SimMyelinatedAxon", "from SimMyelinatedAxon import SimMyelinatedAxon", _thisFileName)
+}
+{ load_file("Sims/Common/SimSpatialVoltageDistributions.hoc") }
+{ load_file("Sims/Common/SimConstantElectricalSimulations.hoc") }
+sourcePythonCode("\\Sims\\Common\\SimLocalFieldPotential", "from SimLocalFieldPotential import SimLocalFieldPotential", _thisFileName)
+{ load_file("Sims/Common/SimFrequencyElectricalSimulation.hoc") }
+{ load_file("Sims/Common/SimFrapCylinder.hoc") }
+{ load_file("Sims/Common/SimFrapPlane.hoc") }
+{ load_file("Sims/Common/SimFrapSphere.hoc") }
+{ load_file("Sims/Common/SimCalciumWave.hoc") }
+{ load_file("Sims/Common/SimOutsideInDiffusion.hoc") }
+{ load_file("Sims/Common/SimGlutamate.hoc") }
+{ load_file("Sims/Common/SimPotassium.hoc") }
+
+// !! deprecated: get rid of this file in favour of BiophysExportImportHelper and JSON files once we:
+//    (1) export/import density_GluTrans inhom model in the same way as for g_pas;
+//    (2) move the GLOBAL vars assigned in "MechanismSwitch_deprecated.hoc" to the loaded JSON file
+{ load_file("MechanismSwitch_deprecated.hoc") }
+
+{ load_file("SimManager.hoc") }

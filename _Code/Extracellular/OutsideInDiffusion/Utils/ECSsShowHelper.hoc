@@ -1,0 +1,178 @@
+
+// !! see also: OPsShowHelper
+begintemplate ECSsShowHelper
+
+    public viewDirIdx, markerSize
+    public setShape, dismissShape
+    public convertCoordsWorldToScreen, convertCoordsScreenToWorld, convertRadiusWorldToScreen, convertRadiusScreenToWorld
+    public showAllSrcs, showThisSrc
+    
+    external speciesLibrary, ecsLibrary
+    external plotShapeUtils
+    external codeContractViolation
+    external eachItemInList
+    external pyObj
+    external enumColours
+    
+    objref shape
+    viewDirIdx = -1
+    markerSize = -1
+    
+    
+    proc init() {
+        viewDirIdx = 0
+        markerSize = 8
+        
+        variable_domain(&markerSize, 0.1, 100)  // "Arg out of range in user function" if markerSize < 0.1 or > 100
+    }
+    
+    proc setShape() {
+        shape = $o1
+    }
+    
+    proc dismissShape() { localobj nil
+        shape = nil
+    }
+    
+    // !! code dup. with OPsShowHelper
+    proc convertCoordsWorldToScreen() { local x_world, y_world, z_world
+        x_world = $1
+        y_world = $2
+        z_world = $3
+        plotShapeUtils.convertCoordsWorldToScreen(x_world, y_world, z_world, viewDirIdx, &$&4, &$&5)
+    }
+    
+    // !! code dup. with OPsShowHelper
+    proc convertCoordsScreenToWorld() { local x_screen, y_screen
+        x_screen = $1
+        y_screen = $2
+        plotShapeUtils.convertCoordsScreenToWorld(x_screen, y_screen, viewDirIdx, &$&3, &$&4, &$&5)
+    }
+    
+    func convertRadiusWorldToScreen() { local radius_world
+        radius_world = $1
+        return radius_world
+    }
+    
+    func convertRadiusScreenToWorld() { local radius_screen, radius_world
+        radius_screen = $1
+        radius_world = radius_screen
+        radius_world = capRadius(radius_world)  // !!
+        return radius_world
+    }
+    
+    proc showAllSrcs() { local brush, colourIdx localobj labelsSet, ecs
+        strdef label
+        
+        brush = 1   // Just a placeholder
+        
+        labelsSet = pyObj.set()
+        
+        for eachItemInList(ecs, ecsLibrary.ecsList) {
+            label = ecs.species
+            showThisSrc(label, ecs.spatialInfo)
+            if (pyObj.isInPySet(labelsSet, label)) {
+                continue
+            }
+            colourIdx = getColourIdx2(label)
+            shape.beginline(label, colourIdx, brush)
+            labelsSet.add(label)
+        }
+    }
+    
+    // vvvvvvvvvv !! just a quick prototype to start with
+    
+    // !! think about making all next proc-s members of "ExtracellularSource" or "ExtracellularSourcesLibrary"
+    //    (I will have to store one "ExtracellularSource" inside "OneExtracellularSourceWidget")
+    
+    // !! similar to OneExtracellularSourceWidget.updatePlotShape
+    proc showThisSrc() { local x_screen, y_screen localobj otherSpatialInfo
+        strdef otherSpecies
+        
+        otherSpecies = $s1
+        otherSpatialInfo = $o2
+        
+        // !! no need to convert each time user changes species, source shape, sphere radius or whatToShowIdx (just cache it)
+        convertCoordsWorldToScreen(otherSpatialInfo.x, otherSpatialInfo.y, otherSpatialInfo.z, &x_screen, &y_screen)
+        updateSrcMark2(otherSpecies, otherSpatialInfo, x_screen, y_screen)
+    }
+    
+    // All next staff is private
+    
+    
+    // !! BUG: for colourIdx > 9, we have 2 bad colours and then repetition: 10 - white, 11 - black, 12 - red etc.
+    //    but we can install more colours (up to 100):
+    //    https://www.neuron.yale.edu/neuron/static/new_doc/visualization/graph.html#Graph.color
+    // !! similar to OneExtracellularSourceWidget.getColourIdx
+    func getColourIdx2() { local otherSpeciesIdx
+        strdef otherSpecies
+        otherSpecies = $s1
+        if (1) {
+            // !! other category - same colours
+            otherSpeciesIdx = speciesLibrary.getSpeciesInsideCatIdx(otherSpecies)
+            return enumColours.red + otherSpeciesIdx
+        } else {
+            // !! other category - other colours
+            codeContractViolation()
+        }
+    }
+    
+    // !! BUG: despite this capper, in OneExtracellularSourceWidget user can make radius_world exactly equal 0 using "Shift" + mouse
+    func capRadius() { local radius_world
+        radius_world = $1
+        
+        if (radius_world < float_epsilon) {     // !! keep the lower bound in sync with OneExtracellularSourceWidget ctor
+            radius_world = float_epsilon
+        }
+        
+        return radius_world
+    }
+    
+    // !! similar to OneExtracellularSourceWidget.updateSrcMark
+    proc updateSrcMark2() { local x_screen, y_screen localobj otherSpatialInfo
+        strdef otherSpecies
+        
+        otherSpecies = $s1
+        otherSpatialInfo = $o2
+        x_screen = $3
+        y_screen = $4
+        
+        if (otherSpatialInfo.enumPointSphere == 0) {
+            updatePointMark2(otherSpecies, x_screen, y_screen)
+        } else if (otherSpatialInfo.enumPointSphere == 1) {
+            updateSphereMark2(otherSpecies, otherSpatialInfo, x_screen, y_screen)
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    // !! similar to OneExtracellularSourceWidget.updatePointMark
+    proc updatePointMark2() { local x_screen, y_screen
+        strdef otherSpecies
+        
+        otherSpecies = $s1
+        x_screen = $2
+        y_screen = $3
+        
+        shape.mark(x_screen, y_screen, "O", markerSize, getColourIdx2(otherSpecies), 0)
+    }
+    
+    // !! similar to OneExtracellularSourceWidget.updateSphereMark
+    proc updateSphereMark2() { local x_screen, y_screen, radius_screen, colourIdx localobj otherSpatialInfo
+        strdef otherSpecies
+        
+        otherSpecies = $s1
+        otherSpatialInfo = $o2
+        x_screen = $3
+        y_screen = $4
+        
+        // !!
+        radius_screen = convertRadiusWorldToScreen(otherSpatialInfo.radiusOrMinus1)     // !! no need to do this on each mouseEventsHandler
+        
+        colourIdx = getColourIdx2(otherSpecies)
+        plotShapeUtils.addCircleMarker(shape, x_screen, y_screen, radius_screen, colourIdx)
+    }
+    
+    // ^^^^^^^^^^ !! just a quick prototype to start with
+    
+endtemplate ECSsShowHelper

@@ -1,0 +1,259 @@
+
+
+// !! BUG: cannot use left and right arrows for slider when there is just 3 layers
+
+// !! BUG: after switching projection, the Layer Index mini-arrows get strange step size >> 1
+
+
+// !! don't forget to add "onGridChange" method and call it from GridToWatch widget
+
+// !! don't forget to test the "load anim from file" scenario (at least show the not supported warning)
+
+// !! maybe rename "slice" to "layer" everywhere
+
+// !! maybe rename to TwoDimGridToAnimateWidget
+
+begintemplate GridSlicerWidget
+    
+    public show, projIdxToEnumXYZ, dismissHandler
+    public projIdx, isOneLayerOrMean, sliceIdx_1Based
+    public gridRegion
+    
+    external createEmptyPanel, unmapIfNotNil, codeContractViolation
+    external math
+    external pyObj
+    
+    objref mainBox, deck
+    
+    objref gridRegion
+    objref neuronPlayerWidget
+    
+    projIdx = -1    // 0: XY, 1: ZY, 2: XZ
+    isOneLayerOrMean = -1
+    sliceCoord = -1
+    sliceIdx_1Based = -1
+    sliceIdxForSlider_1Based = -1           // !! not sure that we need this
+    
+    sliceCoord_old = -1
+    
+    minCoord = -1
+    stepCoord = -1
+    
+    
+    proc init() {
+        gridRegion = $o1
+        neuronPlayerWidget = $o2
+        
+        projIdx = 0     // XY
+        isOneLayerOrMean = 1    // !!
+        
+        units(&sliceCoord, units("L"))
+    }
+    
+    proc show() { local numPts, enumXYZ localobj hBox
+        strdef Letter, str
+        
+        if (gridRegion.is3dOr2dGrid) {
+            gridRegion.onJustBeforeShow()
+            
+            numPts = setVariableDomainsAndSetMinAndStepCoord()
+            
+            sliceIdx_1Based = math.round(numPts / 2)
+            setCoordAndSliceIdxForSlider(1)
+        } else {
+            projIdx = gridRegion.twoDimGridPlaneIdx
+            enumXYZ = projIdxToEnumXYZ(projIdx)
+            
+            sliceIdx_1Based = 0
+            sliceCoord = gridRegion.xyzCentre.x[enumXYZ]
+        }
+        
+        projIdxToLetter(Letter)
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            if (gridRegion.is3dOr2dGrid) {
+                hBox = new HBox()
+                hBox.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("Projection:")
+                    xradiobutton("XY", "projChangedHandler(0)", projIdx == 0)
+                    xradiobutton("ZY", "projChangedHandler(1)", projIdx == 1)
+                    xradiobutton("XZ", "projChangedHandler(2)", projIdx == 2)
+                    xpanel()
+                    xpanel("")
+                    xlabel("Show:")
+                    // !! no need to show this if the cell is flat in that dimension (Nx/y/z = 1)
+                    sprint(str, "Mean by %s (all layers)", Letter)
+                    xradiobutton(str, "isOneLayerOrMeanChangedHandler(0, 0)", !isOneLayerOrMean)
+                    xradiobutton("One layer", "isOneLayerOrMeanChangedHandler(1, 0)", isOneLayerOrMean)
+                    xpanel()
+                }
+                hBox.intercept(0)
+                hBox.map()
+                deck = new Deck()
+                deck.intercept(1)
+                {
+                    createEmptyPanel()
+                    xpanel("")
+                    xpvalue(Letter, &sliceCoord, 1, "sliceCoordChangedHandler()")
+                    xpvalue("Layer index", &sliceIdx_1Based, 1, "sliceChangedHandler(sliceIdx_1Based)")
+                    xslider(&sliceIdxForSlider_1Based, 1, numPts, "sliceChangedHandler(sliceIdxForSlider_1Based)", 0, 1)
+                    xlabel("")
+                    xpanel()
+                }
+                deck.intercept(0)
+                // deck.flip_to(*)     // Will be done in isOneLayerOrMeanChangedHandler below
+                deck.map()
+            } else {
+                // !! maybe use this branch if the grid is 3D, but the cell is flat (Nx/y/z = 1)
+                xpanel("")
+                xlabel("Projection:")
+                if (projIdx == 0) {
+                    xlabel("     XY")
+                } else if (projIdx == 1) {
+                    xlabel("     ZY")
+                } else if (projIdx == 2) {
+                    xlabel("     XZ")
+                } else {
+                    codeContractViolation()
+                }
+                xpanel()
+                xpanel("")
+                sprint(str, "%s (um):", Letter)
+                xlabel(str)
+                sprint(str, "     %g", sliceCoord)
+                xlabel(str)
+                xpanel()
+            }
+            // !! maybe add a hint here that the changes are applied immediately for NEURON anim module, but after button click for Pyplot and Plotly
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("Grid slicing", 940, 530, -1, -1)   // !! review the name
+        
+        if (gridRegion.is3dOr2dGrid) {
+            isOneLayerOrMeanChangedHandler(isOneLayerOrMean, 1)
+        }
+    }
+    
+    // !! code dup. with py:FakeGridSlicerWidget.projIdxToEnumXYZ
+    func projIdxToEnumXYZ() { local _projIdx
+        _projIdx = $1
+        return (2 + _projIdx) % 3
+    }
+    
+    proc dismissHandler() {
+        unmapIfNotNil(mainBox)
+    }
+    
+    // All next staff is private
+    
+    
+    proc projChangedHandler() { localobj mainBoxCopy
+        projIdx = $1
+        
+        // Re-show this widget just to have the new Letter in "Mean by %s (all layers)" radiobutton
+        // !! BUG: annoying flickering
+        
+        dismissHandler()
+        
+        // !! not sure why this temporary copy is needed, but without it we'll catch Segmentation violation
+        mainBoxCopy = mainBox
+        
+        show()
+        
+        neuronPlayerWidget.onAnimationSettingsChanged(1, projIdx, isOneLayerOrMean, sliceIdx_1Based, 1)
+    }
+    
+    proc isOneLayerOrMeanChangedHandler() { local cardIdx, isCalledFromShow
+        isOneLayerOrMean = $1
+        isCalledFromShow = $2
+        
+        cardIdx = isOneLayerOrMean
+        deck.flip_to(cardIdx)
+        
+        if (!isCalledFromShow) {
+            neuronPlayerWidget.onAnimationSettingsChanged(1, projIdx, isOneLayerOrMean, sliceIdx_1Based, 1)
+        }
+    }
+    
+    proc sliceCoordChangedHandler() { local sliceIdx_0Based, sliceIdx_1Based_new, isCoordChanged
+        
+        sliceIdx_0Based = (sliceCoord - minCoord) / stepCoord
+        if (sliceIdx_0Based < 0) {
+            sliceIdx_0Based = 0
+        }
+        sliceIdx_1Based_new = 1 + math.round(sliceIdx_0Based)
+        
+        // !! a workaround to make the up and down mini-arrows for "X/Y/Z (um)" work properly
+        isCoordChanged = (abs(sliceCoord - sliceCoord_old) > sqrt(float_epsilon))   // !! using sqrt(float_epsilon) here rather than 0 to avoid strange back-force movements on the edge
+        if (isCoordChanged && sliceIdx_1Based_new == sliceIdx_1Based) {
+            if (sliceCoord < sliceCoord_old) {
+                sliceIdx_1Based_new -= 1
+            } else {
+                sliceIdx_1Based_new += 1
+            }
+        }
+        
+        sliceIdx_1Based = sliceIdx_1Based_new
+        
+        setCoordAndSliceIdxForSlider(0)
+    }
+    
+    proc sliceChangedHandler() { local _sliceIdx_1Based
+        _sliceIdx_1Based = $1
+        
+        sliceIdx_1Based = math.round(_sliceIdx_1Based)
+        setCoordAndSliceIdxForSlider(0)
+    }
+    
+    func setVariableDomainsAndSetMinAndStepCoord() { local enumXYZ, centre, range, minValue, maxValue, numPts
+        enumXYZ = projIdxToEnumXYZ(projIdx)
+        
+        centre = gridRegion.xyzCentre.x[enumXYZ]
+        range = gridRegion.xyzRange.x[enumXYZ]
+        minValue = centre - range / 2
+        maxValue = centre + range / 2
+        // !! print "minValue: ", minValue
+        // !! print "maxValue: ", maxValue
+        variable_domain(&sliceCoord, minValue, maxValue)
+        
+        numPts = gridRegion.getNumPts(enumXYZ)
+        
+        variable_domain(&sliceIdx_1Based, 1, numPts)
+        
+        if (numPts != 1) {
+            minCoord = minValue
+            stepCoord = (maxValue - minValue) / (numPts - 1)
+        } else {
+            minCoord = centre
+            stepCoord = 1
+        }
+        
+        return numPts
+    }
+    
+    proc projIdxToLetter() { local enumXYZ
+        strdef letter
+        enumXYZ = projIdxToEnumXYZ(projIdx)
+        gridRegion.getLetter(enumXYZ, letter)   // 0: "z", 1: "x", 2: "y"
+        $s1 = pyObj.str.upper(letter)    // !! we already have stringCapitalize in intermodular utils
+    }
+    
+    proc setCoordAndSliceIdxForSlider() { local isCalledFromShow
+        isCalledFromShow = $1
+        
+        sliceCoord = minCoord + (sliceIdx_1Based - 1) * stepCoord
+        sliceIdxForSlider_1Based = sliceIdx_1Based
+        
+        sliceCoord_old = sliceCoord
+        
+        if (!isCalledFromShow) {
+            neuronPlayerWidget.onAnimationSettingsChanged(1, projIdx, isOneLayerOrMean, sliceIdx_1Based, 1)
+        }
+    }
+    
+endtemplate GridSlicerWidget

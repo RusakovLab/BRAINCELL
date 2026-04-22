@@ -1,0 +1,161 @@
+
+begintemplate RoadmapWidget
+
+    public show
+    
+    external isAstrocyteOrNeuron, isBaseOrNanoStart, isExternalSimStart
+    external getBrainCellVersionStr
+    external mwh
+    external roadmapChosenHandler
+    
+    objref mainBox, astrocyteOrNeuronDeck, hintDeck
+    
+    enumRoadmap = -1
+    
+    
+    proc init() {
+        isAstrocyteOrNeuron = 1
+        enumRoadmap = 0             //
+        isBaseOrNanoStart = 1       // Keep these 3 in sync
+        isExternalSimStart = 0      //
+    }
+    
+    proc show() { localobj hBox
+        strdef bcv, text
+        
+        getBrainCellVersionStr(bcv)
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            xlabel("")
+            sprint(text, "Welcome to BrainCell %s !", bcv) 
+            xlabel(text)
+            xlabel("")
+            xpanel()
+            astrocyteOrNeuronDeck = new Deck()
+            astrocyteOrNeuronDeck.intercept(1)
+            {
+                xpanel("")
+                xpanel()
+                xpanel("")
+                xlabel("Please choose a type of the cell that will be imported and simulated:")
+                xlabel("")
+                xradiobutton("Astrocyte", "isAstrocyteOrNeuron = 1", isAstrocyteOrNeuron)
+                xradiobutton("Neuron", "isAstrocyteOrNeuron = 0", !isAstrocyteOrNeuron)
+                xlabel("")
+                xpanel()
+            }
+            astrocyteOrNeuronDeck.intercept(0)
+            // astrocyteOrNeuronDeck.flip_to(*)     // Will be done below in roadmapChangedHandler
+            astrocyteOrNeuronDeck.map()
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                xpanel("")
+                xlabel("Please choose the input file type:")
+                xlabel("")
+                xradiobutton("Base Geometry File", "roadmapChangedHandler(0)", enumRoadmap == 0)
+                xradiobutton("BrainCell Export", "roadmapChangedHandler(1)", enumRoadmap == 1)
+                xradiobutton("Advanced HOC File", "roadmapChangedHandler(2)", enumRoadmap == 2)
+                xpanel()
+                hintDeck = new Deck()
+                hintDeck.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("Option 1: Base Geometry File")
+                    xlabel("Select this option if you have a base geometry file")
+                    xlabel("such as HOC, SWC, or ZIP downloaded from NeuroMorpho.org, etc.")
+                    xlabel("Make sure it does NOT use its own library \"nrnmech.dll\".")
+                    xbutton("More Info", "moreInfoHandler(0)")
+                    xpanel()
+                    xpanel("")
+                    xlabel("Option 2: BrainCell Export")
+                    xlabel("If you have an HOC file previously exported by the BrainCell program,")
+                    xlabel("use this option to load it.")
+                    xlabel("")
+                    xlabel("Warning: The load may fail if the export was done by an earlier version")
+                    xlabel("                of BrainCell.")
+                    xpanel()
+                    xpanel("")
+                    xlabel("Option 3: Advanced HOC File")
+                    xlabel("Select this option if you have an advanced HOC file")
+                    xlabel("with biophysics or simulation, e.g. downloaded from ModelDB.science,")
+                    xlabel("and it does use its own library \"nrnmech.dll\".")
+                    xbutton("More Info", "moreInfoHandler(1)")
+                    xpanel()
+                }
+                hintDeck.intercept(0)
+                // hintDeck.flip_to(*)              // Will be done below in roadmapChangedHandler
+                hintDeck.map()
+            }
+            hBox.intercept(0)
+            hBox.map()
+            xpanel("")
+            xbutton("Next", "nextHandler()")
+            xpanel()
+        }
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.intercept(0)
+        mainBox.map("BrainCell", 375, 200, -1, -1)
+        
+        roadmapChangedHandler(enumRoadmap)
+    }
+    
+    // All next staff is private
+    
+    
+    proc roadmapChangedHandler() {
+        enumRoadmap = $1
+        
+        isBaseOrNanoStart = (enumRoadmap != 1)
+        astrocyteOrNeuronDeck.flip_to(isBaseOrNanoStart)
+        hintDeck.flip_to(enumRoadmap)
+        isExternalSimStart = (enumRoadmap == 2)
+    }
+    
+    proc moreInfoHandler() { local _isExternalSimStart
+        strdef str1, str2, str3, title, str4, str5, str6
+        
+        _isExternalSimStart = $1
+        
+        str1 = "* After the import, we seed the nanobranches, the gap junctions and (for neuron cell type) the synapses%s"
+        str2 = "   and add some extracellular sources.%s"
+        str3 = "* We expect that the simulation doesn't start immediately, but rather waits for a button like \"Run\"."
+        title = "Start with %s"
+        if (!_isExternalSimStart) {
+            sprint(str1, str1, ",")
+            sprint(str2, str2, "")
+            str4 = "   insert \"capacitance\" and \"pas\", edit \"Ra\" and \"nseg\", set \"celsius\" and \"v_init\" etc."
+            str5 = "* If loading a HOC file, it's OK if it defines not only geometry, but also biophysics or even a simulation,"
+            str6 = "   but notice that we'll overwrite some biophysics. To preserve it, use \"Advanced HOC File\" option instead."
+            sprint(title, title, "Base Geometry File")
+            mwh.showMessageBox(str1, str4, str2, str5, str6, str3, title)
+        } else {
+            sprint(str1, str1, "")
+            sprint(str2, str2, " The biophysics is preserved.")
+            str4 = "* You need to prepare a new DLL merging external MOD files with our ones;"      // !! we may have a helper PS1-script for this
+            str5 = "   the DLL file should be placed in the same folder with the simulation entry point HOC file."
+            sprint(title, title, "Advanced HOC File")
+            mwh.showMessageBox(str4, str5, str3, str1, str2, title)
+        }
+    }
+    
+    proc nextHandler() {
+        dismissHandler()
+        
+        if (!isBaseOrNanoStart) {
+            isAstrocyteOrNeuron = -1
+        }
+        
+        roadmapChosenHandler()
+    }
+    
+    proc dismissHandler() {
+        mainBox.unmap()
+    }
+
+endtemplate RoadmapWidget
+
+objref roadmapWidget

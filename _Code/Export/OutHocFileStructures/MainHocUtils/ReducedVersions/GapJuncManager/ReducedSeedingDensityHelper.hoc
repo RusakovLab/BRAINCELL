@@ -1,0 +1,16 @@
+
+begintemplate ReducedSeedingDensityHelper
+    
+    public isUniform, minSeedingDistance, oneLinerPyDistFuncBody
+    
+    isUniform = -1
+    minSeedingDistance = -1
+    strdef oneLinerPyDistFuncBody
+    
+    proc init() {
+        isUniform = $1
+        minSeedingDistance = $2     // um
+        oneLinerPyDistFuncBody = $s3
+    }
+    
+endtemplate ReducedSeedingDensityHelper

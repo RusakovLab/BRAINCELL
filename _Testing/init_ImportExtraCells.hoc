@@ -1,0 +1,22 @@
+
+// Load some test nanogeometry file
+isAstrocyteOrNeuron = 0
+{ load_file("_CommonPrologueForTests.hoc") }
+
+objref cellPlotShape
+cellPlotShape = new PlotShape()
+
+{ load_file("../_Code/Managers/CommonLoads.hoc") }
+{ load_file("../_Code/Managers/MechManager/MechManager.hoc") }
+{ load_file("../_Code/Managers/GapJuncManager/GapJuncManager.hoc") }
+if (!isAstrocyteOrNeuron) {
+    load_file("../_Code/Managers/SynManager/SynManager.hoc")
+}
+
+{ load_file("../_Code/Import/CommonUtils.hoc") }
+{ load_file("../_Code/Import/ImportExtraCells/ExtraCellsManagerWidget.hoc") }
+
+extraCellsManagerWidget = new ExtraCellsManagerWidget()
+{ extraCellsManagerWidget.show() }
+
+{ chdir("..") }     // Without this, getcwd() will return different path compared to the start from "init.hoc"

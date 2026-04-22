@@ -1,0 +1,84 @@
+// ============================================================
+// Cell 1 Geometry — Presynaptic Neuron
+// Soma  : sphere approximated by 8 cylindrical sections (s1_0..s1_7)
+//         laid out along X from 0 to 8*R1/Deformation
+//         diameter profile: 2*R1*cos(theta) gives spherical cross-section
+// Dend  : section d1, oriented along -X axis
+// For BrainCell multi-cell import (loaded independently)
+// ============================================================
+// PARAMETERS — edit here only
+// ------------------------------------------------------------
+R1          = 1.5    // soma radius (um)
+Deformation = 8     // controls soma length in X: total = 8*R1/Deformation
+DendL1      = 3.0    // dendrite length (um)
+DendD1      = 0.3     // dendrite diameter (um)
+DendNseg1   = 5     // dendrite number of segments
+// ------------------------------------------------------------
+
+create s1_0, s1_1, s1_2, s1_3, s1_4, s1_5, s1_6, s1_7
+create d1
+create ax
+
+s1_0 connect s1_1(0), 1
+s1_1 connect s1_2(0), 1
+s1_2 connect s1_3(0), 1
+s1_3 connect s1_4(0), 1
+s1_4 connect s1_5(0), 1
+s1_5 connect s1_6(0), 1
+s1_6 connect s1_7(0), 1
+s1_0 connect d1(0), 1
+s1_0 connect ax(0), 1
+
+proc shape_soma1() {
+    s1_0 { pt3dclear()
+        pt3dadd(0*R1/Deformation, 0, 0, 2*R1*cos((-90.0)*PI/180))
+        pt3dadd(1*R1/Deformation, 0, 0, 2*R1*cos((-67.5)*PI/180))
+        nseg = 1 }
+    s1_1 { pt3dclear()
+        pt3dadd(1*R1/Deformation, 0, 0, 2*R1*cos((-67.5)*PI/180))
+        pt3dadd(2*R1/Deformation, 0, 0, 2*R1*cos((-45.0)*PI/180))
+        nseg = 1 }
+    s1_2 { pt3dclear()
+        pt3dadd(2*R1/Deformation, 0, 0, 2*R1*cos((-45.0)*PI/180))
+        pt3dadd(3*R1/Deformation, 0, 0, 2*R1*cos((-22.5)*PI/180))
+        nseg = 1 }
+    s1_3 { pt3dclear()
+        pt3dadd(3*R1/Deformation, 0, 0, 2*R1*cos((-22.5)*PI/180))
+        pt3dadd(4*R1/Deformation, 0, 0, 2*R1*cos((  0.0)*PI/180))
+        nseg = 1 }
+    s1_4 { pt3dclear()
+        pt3dadd(4*R1/Deformation, 0, 0, 2*R1*cos((  0.0)*PI/180))
+        pt3dadd(5*R1/Deformation, 0, 0, 2*R1*cos(( 22.5)*PI/180))
+        nseg = 1 }
+    s1_5 { pt3dclear()
+        pt3dadd(5*R1/Deformation, 0, 0, 2*R1*cos(( 22.5)*PI/180))
+        pt3dadd(6*R1/Deformation, 0, 0, 2*R1*cos(( 45.0)*PI/180))
+        nseg = 1 }
+    s1_6 { pt3dclear()
+        pt3dadd(6*R1/Deformation, 0, 0, 2*R1*cos(( 45.0)*PI/180))
+        pt3dadd(7*R1/Deformation, 0, 0, 2*R1*cos(( 67.5)*PI/180))
+        nseg = 1 }
+    s1_7 { pt3dclear()
+        pt3dadd(7*R1/Deformation, 0, 0, 2*R1*cos(( 67.5)*PI/180))
+        pt3dadd(8*R1/Deformation, 0, 0, 2*R1*cos(( 90.0)*PI/180))
+        nseg = 1 }
+}
+
+proc shape_dend1() {
+    d1 { pt3dclear()
+        pt3dadd(0,        0, 0, DendD1)
+        pt3dadd(-DendL1,  0, DendD1/10, DendD1)
+        nseg = DendNseg1 }
+}
+
+ax {
+diam = 0.01
+L = 0.01
+}
+
+proc celldef() {
+    shape_soma1()
+    shape_dend1()
+}
+
+celldef()

@@ -1,0 +1,37 @@
+
+// This file is sourced just after successful completion of the import of Base geometry
+
+// The next ones will be assigned just below
+isAllOrSomeDendritesSeeded = -1
+objref seededDendrite_ref, nanoBranchesManager
+
+isAllOrSomeDendritesSeeded = 1
+seededDendrite_ref = dendrite_ref
+
+{ load_file("../Managers/SeedingDensityHelper.hoc") }
+{ load_file("../NanoCore/NanoBranchesManager.hoc") }
+
+if (isAstrocyteOrNeuron) {
+    if (MaxNumberStalksPerDendrite > 0) {
+        nanoBranchesManager = new NanoBranchesManager(MaxNumberStalksPerDendrite)
+    } else {
+        NumberNanoBranches = 0
+    }
+} else {
+    if (MaxNumberSpinesPerDendrite > 0) {
+        nanoBranchesManager = new NanoBranchesManager(MaxNumberSpinesPerDendrite)
+    } else {
+        NumberNanoBranches = 0
+    }
+}
+
+if (isAstrocyteOrNeuron) {
+    maxNumBranchesPerDendUI = MaxNumberStalksPerDendrite
+} else {
+    maxNumBranchesPerDendUI = 0
+}
+
+// The default distance centre
+// !! we set it here and in GeometricalParameters.hoc, but in different way
+// !! maybe skip this if isExternalSimStart
+soma_ref.o(0).sec distance()

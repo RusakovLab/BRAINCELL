@@ -1,0 +1,318 @@
+
+// !! for simplicity, we use PointProcessMark PPs to indicate the locations where spines will be created in the future (once user leaves the widget);
+//    but such an approach has the drawback: any PP cannot be inserted at arbitrary location of the section and always shifts to the centre of a segment;
+//    as a result, the visual presentation of spines with the marker PPs has unwanted spatial discretization that depends on "nseg" of dendrites;
+//    despite this visual problem for the markers, the actual spine sections will be seeded and shown fine regardless "nseg"
+
+
+createDefaultSpineSet()
+
+
+// !! some code dupl. with SynSetsWidget, GapJuncSetsWidget, CreateListOfInputVarsWidget and ExtracellularManagerMainWidget
+begintemplate SpineSeedingMainWidget
+    
+    public show, onReseedOrDoneInChildHandler, dismissHandler
+    
+    external spmAllSpineSets
+    external nanoBranchesManager
+    external replaceItemInList, deleteSelectedItemFromBrowsedList, openDeck, closeDeck, addEmptyLabels, unmapIfNotNil
+    external eachItemInList
+    external enumColours
+    
+    objref mainBox, shapeBox
+    objref spineSeedingSubWidget
+    objref this
+    
+    isShowAllOrThisOnly = -1
+    
+    x = -1
+    isDisableSelectSetHandler = -1
+    
+    
+    proc init() {
+        spineSeedingSubWidget = new SpineSeedingSubWidget(this)
+        
+        isShowAllOrThisOnly = 1
+        
+        x = 110
+    }
+    
+    proc show() { local slotHeight localobj hBox, deck
+        
+        slotHeight = 190
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            xlabel("Sets of spines:")
+            xpanel()
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                // It turns out, the usage of two Deck-s with just 1 card below
+                // gives a nicer UI compared to other options (VBox, HBox or no-box)
+                deck = openDeck()
+                {
+                    spmAllSpineSets.browser("", "s")
+                    if (spmAllSpineSets.count() != 0) {
+                        spmAllSpineSets.select(0)
+                    }
+                    spmAllSpineSets.select_action("selectSetHandler()")     // Single click
+                    spmAllSpineSets.accept_action("editSetHandler()")       // Double click
+                }
+                closeDeck(deck, 0, 325, slotHeight)
+                deck = openDeck()
+                {
+                    xpanel("")
+                    xbutton("Add new set", "addNewSetHandler()")
+                    xlabel("")
+                    xbutton("Edit this set", "editSetHandler()")
+                    addEmptyLabels(5)
+                    xbutton("Delete this set", "deleteSetHandler()")
+                    xpanel()
+                }
+                closeDeck(deck, 0, 105, slotHeight)
+            }
+            hBox.intercept(0)
+            hBox.map()
+            xpanel("")
+            xlabel("")
+            xbutton("Reseed all sets of spines", "reseedAllSetsHandler()")
+            xlabel("")
+            xpanel()
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                xpanel("")
+                xbutton("Done", "doneHandler()")
+                xpanel()
+                xpanel("")
+                xradiobutton("Show all sets", "showAllOrThisOnlyChangedHandler(1)", isShowAllOrThisOnly)
+                xradiobutton("Show this set only", "showAllOrThisOnlyChangedHandler(0)", !isShowAllOrThisOnly)
+                xpanel()
+            }
+            hBox.intercept(0)
+            hBox.map()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler(0)")
+        mainBox.map("Manager of spine seeding", x, 100, -1, -1)
+        
+        deployMarkerPointProcesses()
+        
+        showAllOrThisOnlyChangedHandler(isShowAllOrThisOnly)
+        
+        isDisableSelectSetHandler = 0
+    }
+    
+    proc onReseedOrDoneInChildHandler() { local setIdx, isReseedOrDone localobj newItem
+        newItem = $o1
+        setIdx = $2
+        isReseedOrDone = $3
+        
+        isDisableSelectSetHandler = 1
+        {
+            replaceItemInList(spmAllSpineSets, newItem, setIdx, 1)
+        }
+        isDisableSelectSetHandler = 0
+        
+        if (isReseedOrDone) {
+            showLocationsUpdate()
+        }
+    }
+    
+    proc showLocationsUpdate() { local minIdx, maxIdx, colour, brush, size, idx localobj _shapeBox, shape, spineSet, protoSpine
+        strdef what, title, style, label
+        
+        if (isShowAllOrThisOnly) {
+            minIdx = 0
+            maxIdx = spmAllSpineSets.count() - 1
+            what = "all sets"
+        } else {
+            minIdx = spmAllSpineSets.selected()
+            maxIdx = minIdx
+            if (minIdx == -1) {
+                minIdx = 0
+            }
+            what = "this set only"
+        }
+        
+        sprint(title, "Spine locations (%s)", what)
+        
+        _shapeBox = new VBox()
+        _shapeBox.intercept(1)
+        {
+            shape = new Shape()
+            shape.exec_menu("View = plot")
+            
+            colour = enumColours.makeSureNotWhite2(enumColours.red + minIdx)
+            brush = 1
+            style = "o"
+            size = 5
+            
+            for idx = minIdx, maxIdx {
+                spineSet = spmAllSpineSets.o(idx)
+                sprint(label, "Set #%d", spineSet.idxForSpineSet)
+                shape.beginline(label, colour, brush)
+                
+                for eachItemInList(protoSpine, spineSet.protoSpineList) {
+                    shape.point_mark(protoSpine.markerPp, colour, style, size)
+                }
+                
+                colour = enumColours.makeSureNotWhite(colour + 1)
+            }
+        }
+        _shapeBox.intercept(0)
+        _shapeBox.map(title, x, 580, 300, 250)
+        
+        // !! we make the effect of proc showLocationsUpdate "atomic" this way to avoid "Segmentation violation" when
+        //    user toggles "Show this set only", holds LMB pressed on the list and quickly slides by its lines
+        //    causing proc showLocationsUpdate to be called too often;
+        //    a slightly worse solution would be to declare the single click handler with "1" arg like this:
+        //     spmAllSpineSets.select_action("selectSetHandler()", 1)
+        //    BUG: 2+ Shape-s can appear in the same VBox when user calls proc showLocationsUpdate too often
+        shapeBox = _shapeBox
+    }
+    
+    proc dismissHandler() { local isSkipReseeding localobj nil
+        isSkipReseeding = $1
+        
+        if (mainBox == nil) {
+            return
+        }
+        
+        if (!isSkipReseeding) {
+            // !! maybe need to inform user that we'll reseed rather than restore the old nanostructures
+            nanoBranchesManager.reseedBranchesWithLastUsedArgs()
+        }
+        
+        dismissChilds()
+        unmapIfNotNil(shapeBox)
+        
+        mainBox.unmap()
+        mainBox = nil
+        
+        destroyMarkerPointProcesses()
+    }
+    
+    // All next staff is private
+    
+    
+    proc selectSetHandler() {
+        if (isDisableSelectSetHandler) {
+            return
+        }
+        
+        dismissChilds()
+        
+        if (!isShowAllOrThisOnly) {
+            // !! maybe do nothing when user selects the same line (just to prevent the blinking of the shapeBox)
+            showLocationsUpdate()
+        }
+    }
+    
+    proc addNewSetHandler() { local newListItemIdx localobj newListItem
+        
+        dismissChilds()
+        
+        // Creating the new list item now rather than on "Done" in the child widget
+        // because we want to start the dynamic visualization for the new set of spines immediately (in the browsed List and on the Shape)
+        newListItem = new SpineSet()
+        newListItem.deployMarkerPointProcesses()
+        newListItemIdx = spmAllSpineSets.count()
+        spmAllSpineSets.append(newListItem)
+        
+        showLocationsUpdate()
+        
+        spineSeedingSubWidget.show(newListItem, newListItemIdx)     // --> onReseedOrDoneInChildHandler
+    }
+    
+    proc editSetHandler() { local spineSetIdx localobj selListItem
+        
+        dismissChilds()
+        
+        spineSetIdx = spmAllSpineSets.selected()
+        if (spineSetIdx == -1) {
+            return
+        }
+        
+        selListItem = spmAllSpineSets.o(spineSetIdx)
+        // !! maybe don't pass spineSetIdx below and in CreateListOfInputVarsWidget.correctBiophysOrTapVar
+        //    and make it so that selecting another item in the list would close the child widget automatically
+        spineSeedingSubWidget.show(selListItem, spineSetIdx)    // --> onReseedOrDoneInChildHandler
+    }
+    
+    proc deleteSetHandler() { local spineSetIdx
+        
+        dismissChilds()
+        
+        spineSetIdx = spmAllSpineSets.selected()
+        if (spineSetIdx == -1) {
+            return
+        }
+        
+        spmAllSpineSets.o(spineSetIdx).destroyMarkerPointProcesses()
+        deleteSelectedItemFromBrowsedList(spmAllSpineSets)
+        
+        showLocationsUpdate()
+    }
+    
+    proc reseedAllSetsHandler() { localobj spineSet
+        for eachItemInList(spineSet, spmAllSpineSets) {
+            spineSet.destroyMarkerPointProcesses()
+            spineSet.reseed()
+            spineSet.deployMarkerPointProcesses()
+        }
+        showLocationsUpdate()
+        refreshBrowsedList()
+    }
+    
+    // Just to refresh numSpines
+    // !! try to optimize and move to some common utils
+    proc refreshBrowsedList() { local selListItemIdx localobj tempList, item
+        tempList = new List()
+        for eachItemInList(item, spmAllSpineSets) {
+            tempList.append(item)
+        }
+        selListItemIdx = spmAllSpineSets.selected()
+        isDisableSelectSetHandler = 1
+        {
+            spmAllSpineSets.remove_all()
+            for eachItemInList(item, tempList) {
+                spmAllSpineSets.append(item)
+            }
+            spmAllSpineSets.select(selListItemIdx)
+        }
+        isDisableSelectSetHandler = 0
+    }
+    
+    proc doneHandler() {
+        dismissHandler(0)
+    }
+    
+    proc showAllOrThisOnlyChangedHandler() {
+        isShowAllOrThisOnly = $1
+        showLocationsUpdate()
+    }
+    
+    proc dismissChilds() {
+        spineSeedingSubWidget.dismissHandler()
+    }
+    
+    proc deployMarkerPointProcesses() { localobj spineSet
+        for eachItemInList(spineSet, spmAllSpineSets) {
+            spineSet.deployMarkerPointProcesses()
+        }
+    }
+    
+    proc destroyMarkerPointProcesses() { localobj spineSet
+        for eachItemInList(spineSet, spmAllSpineSets) {
+            spineSet.destroyMarkerPointProcesses()
+        }
+    }
+    
+endtemplate SpineSeedingMainWidget
+
+
+spineSeedingMainWidget = new SpineSeedingMainWidget()

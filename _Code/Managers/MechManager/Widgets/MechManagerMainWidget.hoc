@@ -1,0 +1,220 @@
+
+objref mmIcrHelper
+
+begintemplate MechManagerMainWidget
+
+    public show, compOpSelectHandler, mechOpSelectHandler, updateVisibleMechOpChilds, showAllComps, dismissHandler
+    
+    external unmapIfNotNil, dismissIfNotNil
+    external mmAllComps
+    external mwh, beih, mmIcrHelper
+    external eachItemInList, eachSecInListIfExists
+    external enumColours
+    
+    // !! maybe it would be better to encapsulate mmcoWidget into MechManagerMainWidget
+    external mmcoWidget, mmmowb
+    
+    objref mainBox, shapeBox
+    objref mmeibWidget
+    
+    compOpIdx = -1
+    mechOpIdx = -1
+    
+    objref this
+    
+    
+    proc init() {
+        compOpIdx = 0
+        mechOpIdx = 0
+        
+        mmeibWidget = new ExportImportBiophysicsWidget()
+    }
+    
+    proc show() { localobj hBox, compBox, mechBox
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                compBox = new Deck()    // Not VBox just to fill the remaining space below in cyan
+                compBox.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("Compartment* operations:")
+                    xradiobutton("Split 1 comp into 2", "compOpChangedHandler(0, 0)", compOpIdx == 0)
+                    xradiobutton("Merge 2+ comps into 1", "compOpChangedHandler(1, 0)", compOpIdx == 1)
+                    xradiobutton("Rename a comp", "compOpChangedHandler(2, 0)", compOpIdx == 2)
+                    xbutton("Select", "compOpSelectHandler(0)")
+                    xpanel()
+                }
+                compBox.intercept(0)
+                compBox.flip_to(0)
+                compBox.map()
+                mechBox = new Deck()    // Not VBox just to fill the remaining space below in cyan
+                mechBox.intercept(1)
+                {
+                    xpanel("")
+                    xlabel("Mechanism operations:")
+                    xradiobutton("Insert/uninsert mechs", "mechOpChangedHandler(0)", mechOpIdx == 0)
+                    xradiobutton("Define models for mechs' vars", "mechOpChangedHandler(1)", mechOpIdx == 1)
+                    xradiobutton("Review inhomogen vars", "mechOpChangedHandler(2)", mechOpIdx == 2)
+                    xradiobutton("Review stoch vars", "mechOpChangedHandler(3)", mechOpIdx == 3)
+                    xbutton("Select", "mechOpSelectHandler()")
+                    xpanel()
+                }
+                mechBox.intercept(0)
+                mechBox.flip_to(0)
+                mechBox.map()
+            }
+            hBox.intercept(0)
+            hBox.map()
+            xpanel("")
+            xlabel("* Here \"compartment\" is just a group of sects sharing the same biophys model")
+            xpanel()
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                createButtonInFirstColumn("Deep rescan**", "rescanHandler(1)", 54)
+                xpanel("")
+                xbutton("Light rescan***", "rescanHandler(2)")
+                xpanel()
+            }
+            hBox.intercept(0)
+            hBox.map()
+            xpanel("")
+            xlabel("** Click after creating or deleting any sections (as a side effect,")
+            xlabel("    all comp operations are discarded and all inhom models become Verbatim)")
+            xlabel("*** Click after changing any mechs outside this biophys manager, e.g. after")
+            xlabel("     Tools -> Distributed Mechs -> Managers -> Inserter or Homogen Spec")
+            xpanel()
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                createButtonInFirstColumn("Export biophysics", "beih.export(mmeibWidget)", 66)
+                xpanel("")
+                xbutton("Import biophysics", "beih.import(mmeibWidget)")
+                xpanel()
+            }
+            hBox.intercept(0)
+            hBox.map()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("Manager of biophysics", 30, 120, -1, -1)
+    }
+    
+    proc rescanHandler() { local enumRescanType
+        enumRescanType = $1
+        mmIcrHelper.rescanNow(enumRescanType)
+        if (enumRescanType == 1) {
+            compOpSelectHandler(1)
+        }
+        updateVisibleMechOpChilds()
+    }
+    
+    proc compOpSelectHandler() { local isCalledAfterCompOp
+        isCalledAfterCompOp = $1
+        compOpChangedHandler(compOpIdx, isCalledAfterCompOp)
+    }
+    
+    proc mechOpSelectHandler() {
+        mechOpChangedHandler(mechOpIdx)
+        
+        showAllComps()
+    }
+    
+    proc updateVisibleMechOpChilds() {
+        if (mmmowb.mainBox.ismapped()) {
+            mechOpSelectHandler()
+        }
+    }
+    
+    proc dismissHandler() {
+        dismissChilds()
+        mainBox.unmap()
+    }
+    
+    // All next staff is private
+    
+    
+    proc createButtonInFirstColumn() { localobj deck
+        strdef text, handlerHocCommand
+        
+        text = $s1
+        handlerHocCommand = $s2
+        width = $3
+        
+        // It turns out, the usage of Deck-s with just 1 card in the left column
+        // gives a nicer UI compared to other options (VBox or HBox)
+        deck = new Deck()
+        deck.intercept(1)
+        {
+            xpanel("")
+            xbutton(text, handlerHocCommand)
+            xpanel()
+        }
+        deck.intercept(0)
+        deck.flip_to(0)
+        deck.map("", -1, -1, width, 1)
+    }
+    
+    proc compOpChangedHandler() { local isCalledAfterCompOp localobj nil
+        compOpIdx = $1
+        isCalledAfterCompOp = $2
+        
+        dismissIfNotNil(mmcoWidget)
+        
+        if (compOpIdx == 1 && mmAllComps.count() == 1) {
+            if (!isCalledAfterCompOp) {
+                mwh.showMessageBox("There is only 1 compartment, so nothing to merge.", "Nothing to merge")
+            }
+            return
+        }
+        
+        if (mmcoWidget == nil) {
+            mmcoWidget = new MechManagerCompOpWidget(this)
+        } else {
+            // Empty by design, we won't destroy mmcoWidget because it could be the caller of this proc, and so its destruction can lead to Segmentation violation
+        }
+        mmcoWidget.show(compOpIdx)
+    }
+    
+    proc mechOpChangedHandler() {
+        mechOpIdx = $1
+        mmmowb.switchToOtherMechOpViewHandler(mechOpIdx)
+    }
+    
+    // !! strange: all sections shown on the Shape become black
+    //             after creating or deleting a section or changing "nseg" somewhere (from NEURON console)
+    // !! tiny BUG: called after "Light rescan" and "Import biophysics" unnecessarily
+    proc showAllComps() { local colour, brush, isReported localobj shape, comp
+        shapeBox = new VBox()
+        shapeBox.intercept(1)
+        {
+            shape = new Shape()
+            shape.exec_menu("Show Diam")
+            shape.exec_menu("View = plot")
+            colour = enumColours.red
+            brush = -1
+            isReported = 0
+            for eachItemInList(comp, mmAllComps) {
+                shape.beginline(comp.name, colour, brush)
+                for eachSecInListIfExists(comp.list_ref, &isReported) {
+                    shape.color(colour)
+                }
+                colour = enumColours.makeSureNotWhite(colour + 1)
+            }
+        }
+        shapeBox.intercept(0)
+        shapeBox.map("All compartments", 1335, 635, 300, 250)
+    }
+    
+    proc dismissChilds() {
+        unmapIfNotNil(shapeBox)
+        dismissIfNotNil(mmcoWidget)
+        mmmowb.dismissHandler()
+        mmeibWidget.dismissHandler()
+    }
+    
+endtemplate MechManagerMainWidget

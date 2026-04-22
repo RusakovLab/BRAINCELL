@@ -1,0 +1,216 @@
+
+begintemplate ManagersCommonUtils
+
+    public defineDistFuncHandler, defineStochFuncHandler, showCannotUninsertMechWarning, createApplyReminder, createEditorSubWidgetDigest, copyAllVarsValuesExceptInhom, setOneIfNeededIn_isMechVarTypeInhom, update_isMechVarTypeInhom, isMetaVar
+    
+    external mwh, math, mth, compUtils
+    external stringStartsWith, codeContractViolation
+    
+    
+    obfunc defineDistFuncHandler() { local enumDmPpFk, isGapJuncOrSyn, tapSetIdx, compIdx, mechIdx, varType, varIdx, arrayIndex, isBioOrTapEditor, isDisconnected, xMin, xMax localobj comp, varLibId, defineDistFuncSubWidget, nil
+        enumDmPpFk = $1
+        isGapJuncOrSyn = $2     // For taps only
+        tapSetIdx = $3          //
+        compIdx = $4
+        mechIdx = $5
+        varType = $6
+        varIdx = $7
+        arrayIndex = $8
+        
+        isBioOrTapEditor = (enumDmPpFk == 0)
+        
+        comp = compUtils.getComp(isBioOrTapEditor, isGapJuncOrSyn, tapSetIdx, compIdx)
+        
+        isDisconnected = comp.getDistRange(&xMin, &xMax)
+        if (isDisconnected) {
+            mwh.showWarningBox("Cannot edit inhomogeneity in this compartment", "because at least one its section doesn't have a topological connection with the distance centre.")
+            
+            // !! maybe overkill here: what if user just wants to review the verbatim inhom model for non-disconnected sections?
+            return nil
+        }
+        
+        varLibId = new VarLibId(enumDmPpFk, isGapJuncOrSyn, tapSetIdx, compIdx, mechIdx, varType, varIdx, arrayIndex)
+        defineDistFuncSubWidget = new InhomEditorSubWidget(varLibId, xMin, xMax)
+        defineDistFuncSubWidget.show()
+        
+        return defineDistFuncSubWidget
+    }
+    
+    obfunc defineStochFuncHandler() { local enumDmPpFk, isGapJuncOrSyn, tapSetIdx, compIdx, mechIdx, varType, varIdx, arrayIndex localobj varLibId, defineStochFuncSubWidget
+        enumDmPpFk = $1
+        isGapJuncOrSyn = $2     // For taps only
+        tapSetIdx = $3          //
+        compIdx = $4
+        mechIdx = $5
+        varType = $6
+        varIdx = $7
+        arrayIndex = $8
+        
+        varLibId = new VarLibId(enumDmPpFk, isGapJuncOrSyn, tapSetIdx, compIdx, mechIdx, varType, varIdx, arrayIndex)
+        defineStochFuncSubWidget = new StochEditorSubWidget(varLibId)
+        defineStochFuncSubWidget.show()
+        
+        return defineStochFuncSubWidget
+    }
+    
+    proc showCannotUninsertMechWarning() { local msgIdx
+        strdef mechName, msg
+        
+        mechName = $s1
+        msgIdx = $2
+        
+        if (msgIdx == 0) {
+            sprint(msg, "\"%s\" mech cannot be uninserted (NEURON restriction).", mechName)
+        } else if (msgIdx == 1) {
+            sprint(msg, "Once inserted, \"%s\" mech cannot be uninserted anymore (NEURON restriction).", mechName)
+        } else {
+            codeContractViolation()
+        }
+        mwh.showWarningBox(msg)
+    }
+    
+    proc createApplyReminder() { local isBioOrTapEditor, isGapJuncOrSyn, isOrLeave
+        strdef textTempl, targetName, textEnd, text
+        
+        isBioOrTapEditor = $1
+        isGapJuncOrSyn = $2     // For taps only
+        isOrLeave = $3
+        
+        textTempl = "No changes will be applied to %s until you click the \"Apply\" button%s"
+        
+        if (isBioOrTapEditor) {
+            targetName = "sections biophysics"
+        } else {
+            if (isGapJuncOrSyn) {
+                targetName = "gap junctions"
+            } else {
+                targetName = "synapses"
+            }
+        }
+        
+        if (isOrLeave) {
+            textEnd = " or leave this window."
+        } else {
+            textEnd = "."
+        }
+        
+        sprint(text, textTempl, targetName, textEnd)
+        
+        xlabel(text)
+    }
+    
+    proc createEditorSubWidgetDigest() { local enumDmPpFk, isGapJuncOrSyn, isBioOrTapEditor
+        strdef compName, mechName, varTypeName, varNameWithIndexAndUnits, compClassName, mechClassName, textTempl, text
+        
+        enumDmPpFk = $1
+        isGapJuncOrSyn = $2     // For taps only
+        compName = $s3
+        mechName = $s4
+        varTypeName = $s5
+        varNameWithIndexAndUnits = $s6
+        
+        isBioOrTapEditor = (enumDmPpFk == 0)
+        
+        if (isBioOrTapEditor) {
+            compClassName = "Compartment"
+            mechClassName = "Mechanism"
+        } else {
+            if (isGapJuncOrSyn) {
+                compClassName = "Gap junction type"
+            } else {
+                compClassName = "Synapse part"
+            }
+            mechClassName = "Point process"
+        }
+        
+        textTempl = "%s: %s"
+        
+        sprint(text, textTempl, compClassName, compName)
+        xlabel(text)
+        if (enumDmPpFk != 2) {
+            sprint(text, textTempl, mechClassName, mechName)
+            xlabel(text)
+        } else {
+            varTypeName = "Variable"
+        }
+        sprint(text, textTempl, varTypeName, varNameWithIndexAndUnits)
+        xlabel(text)
+    }
+    
+    proc copyAllVarsValuesExceptInhom() { local varIdx, arraySize, arrayIndex, varValue localobj srcMechStd, dstMechStd
+        strdef varName
+        
+        srcMechStd = $o1
+        dstMechStd = $o2
+        
+        for varIdx = 0, dstMechStd.count() - 1 {
+            arraySize = dstMechStd.name(varName, varIdx)
+            for arrayIndex = 0, arraySize - 1 {
+                varValue = srcMechStd.get(varName, arrayIndex)
+                if (!math.isNaN(varValue)) {
+                    // Rewriting only homogeneous variables
+                    dstMechStd.set(varName, varValue, arrayIndex)
+                }
+            }
+        }
+    }
+    
+    proc setOneIfNeededIn_isMechVarTypeInhom() { local mechIdx, varType, enumDmPpFk, varTypeIdx, numVars, varIdx, arraySize, arrayIndex, value localobj comp
+        strdef varName
+        
+        comp = $o1
+        mechIdx = $2
+        varType = $3
+        
+        enumDmPpFk = comp.enumDmPpFk
+        varTypeIdx = mth.convertVarTypeToVarTypeIdx(varType)
+        
+        numVars = mth.getNumMechVars(enumDmPpFk, mechIdx, varType)
+        for varIdx = 0, numVars - 1 {
+            arraySize = mth.getVarNameAndArraySize(enumDmPpFk, mechIdx, varType, varIdx, varName)
+            for arrayIndex = 0, arraySize - 1 {
+                value = comp.mechStds[mechIdx][varTypeIdx].get(varName, arrayIndex)
+                if (math.isNaN(value)) {
+                    comp.isMechVarTypeInhom[mechIdx][varTypeIdx] = 1
+                    return
+                }
+            }
+        }
+    }
+    
+    proc update_isMechVarTypeInhom() { local enumDmPpFk, numVarTypes, firstMechIdx, numMechs, lastMechIdx, mechIdx, varType, varTypeIdx localobj comp
+        comp = $o1
+        
+        enumDmPpFk = comp.enumDmPpFk
+        numVarTypes = mth.getNumVarTypes(enumDmPpFk)
+        
+        if (enumDmPpFk != 2) {
+            firstMechIdx = 0
+            numMechs = mth.getNumMechs(enumDmPpFk)
+            lastMechIdx = numMechs - 1
+        } else {
+            firstMechIdx = comp.fixedMechIdx
+            lastMechIdx = firstMechIdx
+        }
+        
+        for mechIdx = firstMechIdx, lastMechIdx {
+            for varType = 1, numVarTypes {      // 1: "PARAMETER", 2: "ASSIGNED", 3: "STATE"
+                varTypeIdx = mth.convertVarTypeToVarTypeIdx(varType)
+                comp.isMechVarTypeInhom[mechIdx][varTypeIdx] = 0
+                setOneIfNeededIn_isMechVarTypeInhom(comp, mechIdx, varType)
+            }
+        }
+    }
+    
+    // Keep in sync with ReducedManagersCommonUtils.isMetaVar
+    // !! maybe move to ManagersCommonUtilsForTaps
+    func isMetaVar() {
+        strdef varName
+        varName = $s1
+        return stringStartsWith(varName, "@")
+    }
+    
+endtemplate ManagersCommonUtils
+
+objref mcu
+mcu = new ManagersCommonUtils()

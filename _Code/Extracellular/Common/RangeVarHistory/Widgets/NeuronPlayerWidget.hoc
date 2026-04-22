@@ -1,0 +1,484 @@
+
+// !! onAnimationSettingsChanged:
+//  * maybe add a hint in this widget saying that user can use GridSlicerWidget -- all the changes are applied immediately (the same for 2D/3D switch in AnimationSettingsWidget)
+//  * we show this widget with not decimated lists, and then call onAnimationSettingsChanged - not optimal
+//  * it's not optimal to assign conc in all grid sects if we show only one grid slice
+
+
+
+// !! BUGs:
+// * the PlotShape shows all sections in yellow when deploying just 1 Na+ sphere src with a series of on-off pulses
+// * when user drags the slider to an edge, sometimes "t (ms)" and "Frame" get stuck on some middle value
+// * for long animations, the "up" and "down" mini-arrows for "Frame" make step > 1
+// * (?) the range var becomes static after "3D Rotate" even though the animation is ON
+
+// !! memos:
+// * dismiss lastUsedGridToWatchWidget from onPlayerShow
+// * don't forget to restore the old concentration in the sections when user closes NeuronPlayerWidget (but need to memorize it first);
+//   UPD: alternatively, we can use some temp membrane mech (for internal use only) with a single range var to show the animation of the recorded var
+
+// !! ideas:
+// * maybe make it possible to click on the PlotShape to make an "instant" Graph of the var vs time for the selected segment
+// * if lastUsedGridToWatchWidget.gridRegion.is3dOr2dGrid, maybe make it possible to show only one layer of the grid (and let user choose the layer plane and the layer number)
+// * try to use plotShape.flush() in "proc updatePlotShape" for higher performance
+// * hide "Src marker size" when the sources are not shown
+// * hide "Grid sec diam" when the grid is not shown
+
+begintemplate NeuronPlayerWidget
+
+    public onPlayerInit, onPlayerShow, onAnimationSettingsChanged, dismissHandler
+    
+    // Just a workaround to avoid the error in GraphUtils.parseVarsFromTheGraph
+    public interval, frameTime, frameIdx_1Based
+    
+    external getCellAndGridSectsLists, getRecSectsListAndNumSegms, assignRangeVarFromRecord
+    external listOfSecRefToSecList, concatenateTwoLists, unmapIfNotNil, codeContractViolation
+    external math, mwh, plotShapeUtils, graphUtils, gridOfSections
+    external lastUsedGridToWatchWidget
+    external pyObj
+    external enumBinFileTypes
+    
+    objref mainBox, plotShape
+    
+    enumShowCellGridBoth = -1
+    isShowAllSrcs = -1
+    isAnimated = -1
+    interval = -1           // s
+    frameTime = -1          // ms
+    frameIdx_1Based = -1
+    // !! we use a different var for the slider to avoid the freezing problem for long animations caused by two factors:
+    //    the slider has fixed resolution (0.01 of the range), we round the frame index to the nearest integer
+    frameIdxForSlider_1Based = -1
+    
+    // !! maybe get rid of listRec_ref in favour of the other two
+    objref listRec_ref
+    objref listOfListOfSecRef, listOfListOfSecRef_3dScene
+    
+    isOutsideInDiffusion = -1
+    objref shapeShowHelper
+    objref timer
+    
+    
+    proc init() {
+        
+        isOutsideInDiffusion = $1
+        shapeShowHelper = $o2
+        
+        // Defaults
+        isShowAllSrcs = isOutsideInDiffusion
+        // !! maybe stick to "FPS" instead of "interval" (and try to get the display refresh rate info with Python)
+        interval = 0.1      // s
+        
+        timer = new Timer("onTimerStep()")
+        
+        units(&interval, "s")
+        units(&frameTime, units("t"))
+        
+        variable_domain(&interval, 0.001, 1)    // s
+    }
+    
+    // The recorded animation info
+    objref _rangeVar
+    objref _timeGrid
+    _numFrames = -1
+    strdef _varNameWithIndex
+    _rangeVar_min = -1
+    _rangeVar_max = -1
+    
+    _isCancel = -1
+    
+    proc onPlayerInit() { local time_min, time_max localobj gridRegion
+        
+        dismissHandler()
+        
+        _rangeVar = $o1
+        _timeGrid = $o2
+        _varNameWithIndex = $s3
+        _rangeVar_min = $4
+        _rangeVar_max = $5
+        
+        // Default
+        frameIdx_1Based = 1
+        
+        _numFrames = pyObj.len(_timeGrid)
+        time_min = pyObj.getArrayElem(_timeGrid, 0)
+        time_max = pyObj.getArrayElem(_timeGrid, _numFrames - 1)
+        
+        setTimeAndFrameIdxForSlider()
+        
+        listOfListOfSecRef = new List()
+        _isCancel = prepareListsOfSecRefs()     // --> listOfListOfSecRef
+        if (_isCancel) {
+            return
+        }
+        
+        listOfListOfSecRef_3dScene = new List()
+        concatenateTwoLists(listOfListOfSecRef_3dScene, listOfListOfSecRef)
+        
+        gridRegion = lastUsedGridToWatchWidget.gridRegion
+        if (gridRegion.is3dOr2dGrid) {
+            shapeShowHelper.viewDirIdx = 0      // 0: XY
+        } else {
+            shapeShowHelper.viewDirIdx = gridRegion.twoDimGridPlaneIdx
+        }
+        
+        variable_domain(&frameTime, time_min, time_max)
+        variable_domain(&frameIdx_1Based, 1, _numFrames)
+    }
+    
+    proc onPlayerShow() { local enumWhereToWatch localobj hBox, nil
+        strdef text
+        
+        if (_isCancel) {
+            return
+        }
+        
+        if (!isOutsideInDiffusion && gridOfSections == nil) {
+            codeContractViolation()
+        }
+        
+        enumWhereToWatch = lastUsedGridToWatchWidget.enumWhereToWatch
+        if (isOutsideInDiffusion) {
+            enumShowCellGridBoth = enumWhereToWatch
+        } else {
+            enumShowCellGridBoth = 2
+        }
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            xlabel("Visual style settings:")
+            if (isOutsideInDiffusion) {
+                xpvalue("Src marker size", &shapeShowHelper.markerSize, 1, "updatePlotShape()")
+            }
+            if (gridOfSections != nil) {
+                // !! don't remove because the up and down mini-arrows for "gridSecDiam" won't work
+                // !! BUG: sometimes they don't work anyway after switching the projection for very anisotropic grids
+                gridOfSections.applyNewGridSecDiam(shapeShowHelper.viewDirIdx)
+                
+                xpvalue("Grid sec diam", &gridOfSections.gridSecDiam, 1, "gridOfSections.applyNewGridSecDiam()")
+            }
+            xpanel()
+            
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                xpanel("")
+                xradiobutton("XY projection", "viewDirectionChangedHandler(0)", shapeShowHelper.viewDirIdx == 0)
+                xradiobutton("ZY projection", "viewDirectionChangedHandler(1)", shapeShowHelper.viewDirIdx == 1)
+                xradiobutton("XZ projection", "viewDirectionChangedHandler(2)", shapeShowHelper.viewDirIdx == 2)
+                xpanel()
+                if (gridOfSections != nil) {
+                    xpanel("")
+                    if (enumWhereToWatch == 0 || enumWhereToWatch == 2) {
+                        text = "Show cell"
+                    } else if (enumWhereToWatch == 1) {
+                        text = "Show cell (static)"
+                    } else {
+                        codeContractViolation()
+                    }
+                    xradiobutton(text, "showCellGridBothChangedHandler(0)", enumShowCellGridBoth == 0)
+                    xradiobutton("Show grid", "showCellGridBothChangedHandler(1)", enumShowCellGridBoth == 1)
+                    xradiobutton("Show both", "showCellGridBothChangedHandler(2)", enumShowCellGridBoth == 2)
+                    xpanel()
+                }
+                if (isOutsideInDiffusion) {
+                    xpanel("")
+                    xradiobutton("Show all srcs for all species", "showAllSrcsChangedHandler(1)", isShowAllSrcs)
+                    xradiobutton("Hide all srcs for all species", "showAllSrcsChangedHandler(0)", !isShowAllSrcs)
+                    xpanel()
+                }
+            }
+            hBox.intercept(0)
+            hBox.map()
+            
+            plotShape = new PlotShape(listOfListOfSecRef.o(enumShowCellGridBoth))
+            shapeShowHelper.setShape(plotShape)
+            plotShape.exec_menu("Show Diam")
+            // !! maybe remove the unnecessary menu items
+            
+            graphUtils.addPlotDynamicsMenuItem(plotShape, graphUtils.slotIdxs[4], _varNameWithIndex, _varNameWithIndex, 1)
+            
+            xpanel("")
+            xcheckbox("Animate / Pause", &isAnimated, "animateCheckBoxHandler()")
+            xlabel("")
+            // !! maybe rename to "Seconds per step" (see "Movie Run") or "Scrn update invl" (see "RunControl")
+            xpvalue("Interval", &interval, 1, "intervalChangedHandler()")
+            xlabel("")
+            // !! cannot hide the unwanted checkboxes without hiding the wanted up/down mini-buttons
+            xpvalue("t", &frameTime, 1, "timeChangedHandler()")
+            xpvalue("Frame", &frameIdx_1Based, 1, "frameChangedHandler(frameIdx_1Based)")
+            xslider(&frameIdxForSlider_1Based, 1, _numFrames, "frameChangedHandler(frameIdxForSlider_1Based)", 0, 1)
+            // !! xslider(&var, [low, high], ["send_cmd"], [vert], [slow])
+            // xslider(&frameIdxForSlider_1Based, 1, _numFrames, "frameChangedHandler(frameIdxForSlider_1Based)")
+            if (!isOutsideInDiffusion) {
+                xlabel("")
+            }
+            xpanel()
+            if (isOutsideInDiffusion) {
+                xpanel("")
+                xlabel("Warnings:")
+                xlabel("1. The nanogeometry is neither recorded nor shown on the PlotShape above.")
+                xlabel("2. \"3D Rotate\" leads to incorrect presentation of the extracellular sources")
+                xlabel("     (toggling \"XY/ZY/XZ projection\" is recommended).")
+                xpanel()
+            }
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("NEURON player", 1200, 260, -1, -1)     // !! review the name (not to confuse with NEURON native panel names)
+        
+        // !! don't call gridOfSections.applyNewGridSecDiam again and don't update the PlotShape twice below (see GridToWatchWidget)
+        
+        viewDirectionChangedHandler(shapeShowHelper.viewDirIdx)
+        
+        intervalChangedHandler()
+        
+        isAnimated = 1
+        // animateCheckBoxHandler()     // !! will be called in onAnimationSettingsChanged shortly downstream
+    }
+    
+    proc onAnimationSettingsChanged() { local is2dOr3D, projIdx, isOneLayerOrMean, sliceIdx_1Based, isStopAnimation localobj nil
+        is2dOr3D = $1
+        projIdx = $2
+        isOneLayerOrMean = $3
+        sliceIdx_1Based = $4
+        isStopAnimation = $5
+        
+        if (mainBox == nil) {           // Don't combine ...
+            return
+        }
+        if (!mainBox.ismapped()) {      // ... into on IF
+            return
+        }
+        
+        listOfListOfSecRef.remove_all()
+        concatenateTwoLists(listOfListOfSecRef, listOfListOfSecRef_3dScene)
+        
+        if (gridOfSections != nil && is2dOr3D) {
+            if (!isOneLayerOrMean) {
+                // !! we hit this warning even though user selected other anim module (but NeuronPlayerWidget is still shown)
+                mwh.showNotImplementedWarning("Cannot show \"Mean by X/Y/Z (all layers)\" with NEURON animation module.", "\"One layer\" will be used instead.")
+            }
+            prepareListsOfSecRefsForGridSlice(projIdx, sliceIdx_1Based - 1)     // --> listOfListOfSecRef
+        }
+        
+        // !! maybe don't call this here if enumShowCellGridBoth == 0
+        showCellGridBothChangedHandler(enumShowCellGridBoth)
+        
+        if (isStopAnimation) {
+            isAnimated = 0
+        }
+        animateCheckBoxHandler()
+    }
+    
+    proc dismissHandler() { localobj nil
+        
+        isAnimated = 0
+        animateCheckBoxHandler()
+        
+        _rangeVar = nil
+        _timeGrid = nil
+        listRec_ref = nil
+        listOfListOfSecRef = nil
+        listOfListOfSecRef_3dScene = nil
+        
+        shapeShowHelper.dismissShape()
+        
+        unmapIfNotNil(mainBox)
+    }
+    
+    // All next staff is private
+    
+    
+    // !! code dup with prepareListsOfSecRefsForGridSlice
+    func prepareListsOfSecRefs() { local binFileType, numRecSegms localobj listCell_ref, listGrid_ref, listBoth_ref
+        
+        if (isOutsideInDiffusion) {
+            binFileType = enumBinFileTypes.oid
+        } else {
+            binFileType = enumBinFileTypes.iod_b
+        }
+        
+        listRec_ref = getRecSectsListAndNumSegms(binFileType, &numRecSegms)
+        
+        if (numRecSegms != pyObj.len(pyObj.getArrayElem(_rangeVar, 0))) {
+            mwh.showWarningBox("The recorded animation cannot be shown with \"NEURON\" animation module until you have exactly the same cell and/or grid.")
+            // !! some ideas:
+            // * ideally, we need to check for dirty geometry rather than modified "nseg",
+            //   and this can be done easily for the grid via GridRegion.isDirty flag
+            // * if enumWhereToWatch > 0 and user destroyed the grid, we can deploy it again rather than stop here
+            return 1
+        }
+        
+        listCell_ref = new List()
+        listGrid_ref = new List()
+        getCellAndGridSectsLists(isOutsideInDiffusion, listCell_ref, listGrid_ref)
+        
+        listBoth_ref = new List()
+        concatenateTwoLists(listBoth_ref, listGrid_ref)     // The order matters here:
+        concatenateTwoLists(listBoth_ref, listCell_ref)     // this order means that we show the cell in front of the grid
+        
+        listOfListOfSecRef.append(listOfSecRefToSecList(listCell_ref))
+        listOfListOfSecRef.append(listOfSecRefToSecList(listGrid_ref))
+        listOfListOfSecRef.append(listOfSecRefToSecList(listBoth_ref))
+        
+        return 0
+    }
+    
+    // !! code dup with prepareListsOfSecRefs
+    proc prepareListsOfSecRefsForGridSlice() { local projIdx, sliceIdx localobj listCell_ref, listGrid_ref, listBoth_ref
+        projIdx = $1
+        sliceIdx = $2
+        
+        listCell_ref = new List()
+        listGrid_ref = new List()
+        getCellAndGridSectsLists(isOutsideInDiffusion, listCell_ref, listGrid_ref)  // !! call other proc here because the last arg is not used (it's rewritten just below)
+        
+        listGrid_ref = gridOfSections.getSliceSectsList(projIdx, sliceIdx)
+        
+        listBoth_ref = new List()
+        concatenateTwoLists(listBoth_ref, listGrid_ref)     // The order matters here:
+        concatenateTwoLists(listBoth_ref, listCell_ref)     // this order means that we show the cell in front of the grid
+        
+        listOfListOfSecRef.remove_all()
+        listOfListOfSecRef.append(listOfSecRefToSecList(listCell_ref))
+        listOfListOfSecRef.append(listOfSecRefToSecList(listGrid_ref))
+        listOfListOfSecRef.append(listOfSecRefToSecList(listBoth_ref))
+    }
+    
+    proc viewDirectionChangedHandler() { localobj nil
+        shapeShowHelper.viewDirIdx = $1
+        
+        if (gridOfSections != nil) {
+            gridOfSections.applyNewGridSecDiam(shapeShowHelper.viewDirIdx)
+        }
+        
+        plotShapeUtils.setViewDir(plotShape, shapeShowHelper.viewDirIdx)
+        plotShape.exec_menu("View = plot")
+        
+        updatePlotShape()
+    }
+    
+    proc showCellGridBothChangedHandler() {
+        enumShowCellGridBoth = $1
+        
+        plotShape.observe(listOfListOfSecRef.o(enumShowCellGridBoth))
+    }
+    
+    proc showAllSrcsChangedHandler() {
+        isShowAllSrcs = $1
+        
+        updatePlotShape()
+    }
+    
+    proc animateCheckBoxHandler() {
+        if (isAnimated) {
+            timer.start()
+        } else {
+            timer.end()
+        }
+    }
+    
+    proc intervalChangedHandler() { local isAnimated_old
+        isAnimated_old = isAnimated
+        
+        if (isAnimated) {
+            isAnimated = 0
+            animateCheckBoxHandler()
+        }
+        
+        timer.seconds(interval)
+        
+        if (isAnimated_old) {
+            isAnimated = 1
+            animateCheckBoxHandler()
+        }
+    }
+    
+    _frameTime_last = -1    // ms
+    
+    proc timeChangedHandler() { local frameIdx_1Based_new
+        isAnimated = 0
+        animateCheckBoxHandler()
+        
+        frameIdx_1Based_new = 1 + pyObj.getIdxInSortedArray(_timeGrid, frameTime)
+        
+        // !! a workaround for the problem that the "down" mini-arrow for "t (ms)" didn't work
+        //    (still have a problem that clicking this button we never step several frames in contrast to the "up" mini-arrow)
+        if (frameTime < _frameTime_last && frameIdx_1Based_new == frameIdx_1Based) {
+            frameIdx_1Based_new = math.max(1, frameIdx_1Based_new - 1)
+        }
+        
+        frameIdx_1Based = frameIdx_1Based_new
+        setTimeAndFrameIdxForSlider()
+        
+        showOneFrame()
+    }
+    
+    proc frameChangedHandler() { local _frameIdx_1Based
+        _frameIdx_1Based = $1
+        
+        isAnimated = 0
+        animateCheckBoxHandler()
+        
+        frameIdx_1Based = math.round(_frameIdx_1Based)
+        setTimeAndFrameIdxForSlider()
+        
+        showOneFrame()
+    }
+    
+    // !! code dup with GridToWatchWidget
+    proc updatePlotShape() {
+        if (0) {
+            // !! much faster, but the ECSs labels step down each time we call "proc updatePlotShape"
+            plotShape.erase()
+        } else {
+            plotShape.erase_all()
+            plotShape.observe(listOfListOfSecRef.o(enumShowCellGridBoth))
+        }
+        
+        if (isShowAllSrcs) {
+            shapeShowHelper.showAllSrcs()
+        }
+        
+        plotShape.variable(_varNameWithIndex)
+        plotShape.scale(_rangeVar_min, _rangeVar_max)
+        plotShape.exec_menu("Space Plot")   // !! for some reason, without this the colourbar is not shown
+        plotShape.exec_menu("Shape Plot")
+    }
+    
+    // NEURON never executes two calls of this proc in parallel
+    proc onTimerStep() {
+        showOneFrame()
+        
+        if (frameIdx_1Based == _numFrames) {
+            frameIdx_1Based = 1
+        } else {
+            frameIdx_1Based += 1
+        }
+        setTimeAndFrameIdxForSlider()
+    }
+    
+    proc showOneFrame() { localobj oneFrame, nil
+        if (_rangeVar == nil) {
+            return
+        }
+        oneFrame = pyObj.getArrayElem(_rangeVar, frameIdx_1Based - 1)
+        assignRangeVarFromRecord(listRec_ref, _varNameWithIndex, oneFrame)
+        
+        plotShape.flush()
+        doNotify()
+    }
+    
+    proc setTimeAndFrameIdxForSlider() { localobj nil
+        if (_timeGrid == nil) {
+            return
+        }
+        frameTime = pyObj.getArrayElem(_timeGrid, frameIdx_1Based - 1)
+        _frameTime_last = frameTime
+        frameIdxForSlider_1Based = frameIdx_1Based
+    }
+    
+endtemplate NeuronPlayerWidget

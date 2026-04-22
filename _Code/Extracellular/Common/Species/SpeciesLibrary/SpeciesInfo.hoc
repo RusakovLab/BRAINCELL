@@ -1,0 +1,62 @@
+
+// !! can I merge this template with SpeciesListItem?
+begintemplate SpeciesInfo
+
+    public packToVec, unpackFromVec
+    public suffix, diff, isEnableUptake, t_alpha, uptakeReversalConc
+    
+    external pyObj, math
+    
+    strdef suffix
+    diff = -1               //
+    isEnableUptake = -1     // If outside-in diffusion, then for "point" shape and ("on-off" or "spike") dynamics only
+    t_alpha = -1            //
+    uptakeReversalConc = -1     // For inside-out diffusion only
+    
+    // !! think about storing flat speciesIdx here
+    
+    
+    proc init() { local inf
+        strdef ionMechName
+        
+        ionMechName = $s1
+        diff = $2               // !! was: 1 (Deff in legacy Diffusion3D.hoc)
+        isEnableUptake = $3
+        t_alpha = $4
+        uptakeReversalConc = $5
+        
+        // !! move this util to a better place
+        suffix = pyObj.ms_ionMechNameToSuffix(ionMechName)
+        
+        units(&diff, "um2/ms")
+        units(&t_alpha, "ms")
+        units(&uptakeReversalConc, "mM")
+        
+        inf = math.inf
+        variable_domain(&diff, 0, inf)
+        variable_domain(&t_alpha, float_epsilon, inf)
+    }
+    
+    // Used for _OutsideInDiffHelper.mod and for nano export
+    obfunc packToVec() { localobj vec
+        vec = new Vector(3)
+        vec.x(0) = diff
+        vec.x(1) = isEnableUptake
+        vec.x(2) = t_alpha
+        // No "uptakeReversalConc" here because (1) it's not used for outside-in diffusion and (2) we don't export anything for inside-out diffusion
+        return vec
+    }
+    
+    // Used for nano import
+    func unpackFromVec() { local idx localobj vec
+        vec = $o1
+        idx = $2
+        diff = vec.x(idx)
+        isEnableUptake = vec.x(idx + 1)
+        t_alpha = vec.x(idx + 2)
+        // "uptakeReversalConc" was initialized in the ctor
+        idx += 3
+        return idx
+    }
+    
+endtemplate SpeciesInfo

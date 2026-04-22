@@ -1,0 +1,21 @@
+﻿<Window x:Class="RestartApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:RestartApp"
+        mc:Ignorable="d"
+        Title="RestartApp" Height="90" Width="220" Closing="Window_Closing">
+    <Grid>
+        <DockPanel>
+            <Menu DockPanel.Dock="Top">
+                <MenuItem Header="_File"
+                          Click="SelectHocOrPyFile_Click"/>
+            </Menu>
+        </DockPanel>
+        <Label x:Name="HocOrPyFileNameLabel" Content="*" HorizontalAlignment="Right" Margin="0,-4,4,0"/>
+        <Button x:Name="RestartButton" Content="Restart" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10,0,0,10" Width="65" Click="RestartButton_Click"/>
+        <Button x:Name="CloseButton" Content="Close" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,10,10" Width="65" Click="CloseButton_Click"/>
+
+    </Grid>
+</Window>

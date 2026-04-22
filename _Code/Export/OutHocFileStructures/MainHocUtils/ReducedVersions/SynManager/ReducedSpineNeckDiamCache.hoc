@@ -1,0 +1,26 @@
+
+begintemplate ReducedSpineNeckDiamCache
+
+    public getCachedDiam
+    public diamsVec
+    
+    external isAstrocyteOrNeuron
+    external codeContractViolation
+    
+    objref diamsVec
+    
+    
+    proc init() {
+        diamsVec = $o1
+        
+        if (isAstrocyteOrNeuron) {
+            codeContractViolation()
+        }
+    }
+    
+    func getCachedDiam() { local spineIdx
+        spineIdx = $1
+        return diamsVec.x(spineIdx)
+    }
+    
+endtemplate ReducedSpineNeckDiamCache

@@ -1,0 +1,115 @@
+
+begintemplate SimFrequencyElectricalSimulation
+    
+    public preShowCheck, show, preRun, preContinue, postRun, simDismissHandler
+    public biophysJsonFileNameOrEmpty, isCustomProcAdvance, isAltRunControl
+    
+    // Just a workaround to avoid the error in GraphUtils.parseVarsFromTheGraph
+    public stimdel, stimdur, stimamp, stimfreqency
+    
+    external altRunControlWidget
+    external tstop
+    external unmapIfNotNil
+    external soma_ref
+    
+    strdef biophysJsonFileNameOrEmpty
+    isCustomProcAdvance = -1
+    isAltRunControl = -1
+    
+    // UI
+    objref vBoxFrequencySimulations
+    
+    // IClampSin on soma
+    objref stimFreq
+    
+    
+    proc init() {
+        biophysJsonFileNameOrEmpty = ""
+        isCustomProcAdvance = 0
+        isAltRunControl = 1
+    }
+    
+    func preShowCheck() {
+        return 0
+    }
+    
+    // Opens Frequency Electrical Simulation window.
+    proc show() {
+        initParamsFrequency()
+        showFrequencyUi()
+    }
+    
+    func preRun() {
+        // !! it would be better to split "proc simulateFrequency" into two parts and move the first one to "proc show":
+        //    part 1 - creation of stimFreq (it will be destroyed in "proc simDismissHandler")
+        //    part 2 - initialization of stimFreq based on GUI
+        simulateFrequency(stimdel, stimdur, stimfreqency, stimamp, stimphase)
+        return 0
+    }
+    
+    func preContinue() {
+        return 0
+    }
+    
+    proc postRun() {
+        // Empty by design
+    }
+    
+    proc simDismissHandler() {
+        
+        unmapIfNotNil(vBoxFrequencySimulations)
+        
+        // Remove IClampSin after simulation
+        objref stimFreq
+    }
+    
+    // All next staff is private
+    
+    
+    // Sets IClampSin params on the soma.
+    // $1 - Delay
+    // $2 - Duration
+    // $3 - Frequency
+    // $4 - Amplitude
+    // $5 - Phase
+    proc simulateFrequency()  {
+        soma_ref.o(0).sec {
+            stimFreq = new IClampSin(0.5)
+            stimFreq.del = $1       // ms
+            stimFreq.dur = $2       // ms
+            stimFreq.freq = $3      // Hz
+            stimFreq.amp = $4       // nA
+            stimFreq.phase = $5     // rad
+        }
+    }
+    
+    // Inits UI and simulation parameters.
+    proc initParamsFrequency() {
+        stimdel = 100000            // ms
+        stimdur = 0                 // ms
+        stimfreqency = 0.00000001   // Hz
+        stimamp = 0                 // nA
+        stimphase = 1               // rad
+    }
+    
+    // Shows Frequency Electrical Simulation window.
+    proc showFrequencyUi() { // Voltage Sin  Clamp of Soma, set of parameters  
+        vBoxFrequencySimulations = new VBox()
+        vBoxFrequencySimulations.intercept(1)
+        {
+            xpanel("")
+            xlabel("Sinusoidal current parameters ")
+            xpvalue("Delay of current (ms)", &stimdel, 1)
+            xpvalue("Duration of current (ms)", &stimdur, 1)
+            xpvalue("Amplitude of current (nA)", &stimamp, 1)
+            xpvalue("Frequency of Sinusoid (Hz)", &stimfreqency, 1)
+            xlabel("---------------------------------------------------------------------------------------------------------")
+            xpvalue("Simulation time (ms)", &tstop, 1)
+            xbutton("Run simulation", "altRunControlWidget.initAndRunHandler()")
+            xpanel()
+        }
+        vBoxFrequencySimulations.intercept(0)
+        vBoxFrequencySimulations.map("Frequency Stimulation into soma")
+    }
+    
+endtemplate SimFrequencyElectricalSimulation

@@ -1,0 +1,206 @@
+
+// !! some code dupl. with SynSetsWidget, SpineSeedingMainWidget, CreateListOfInputVarsWidget and ExtracellularManagerMainWidget
+begintemplate GapJuncSetsWidget
+    
+    public show, onApplyInChildHandler, dismissHandler
+    
+    external isAstrocyteOrNeuron
+    external gjmAllGapJuncSets
+    external mwh, mcu4t, inhomAndStochLibrary
+    external cacheTotalSecLen, getMaxDistForCell, deleteSelectedItemFromBrowsedList, openDeck, closeDeck, getIfYouModifyGeomHint, addEmptyLabels, unmapIfNotNil, dismissIfNotNil, codeContractViolation
+    external pyObj
+    external gapJuncManagerMainWidget
+    
+    objref mainBox, shapeBox    // !! shapeBox is not used now
+    
+    isShowAllOrThisOnly = -1    // !!
+    
+    objref this
+    
+    
+    proc init() {
+        gapJuncManagerMainWidget = new GapJuncManagerMainWidget(this)
+    }
+    
+    proc show() { local slotHeight, numSpacers localobj hBox, deck
+        strdef text
+        
+        dismissHandler()
+        
+        slotHeight = 190
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            xlabel("Sets of gap junctions:")
+            xpanel()
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                // It turns out, the usage of two Deck-s with just 1 card below
+                // gives a nicer UI compared to other options (VBox, HBox or no-box)
+                deck = openDeck()
+                {
+                    gjmAllGapJuncSets.browser("", "s")
+                    if (gjmAllGapJuncSets.count() != 0) {
+                        gjmAllGapJuncSets.select(0)
+                    }
+                    gjmAllGapJuncSets.select_action("selectSetHandler()")   // Single click
+                    gjmAllGapJuncSets.accept_action("editSetHandler()")     // Double click
+                }
+                closeDeck(deck, 0, 300, slotHeight)
+                deck = openDeck()
+                {
+                    xpanel("")
+                    if (isAstrocyteOrNeuron) {
+                        xbutton("Add new set of Ext GJs (default)", "addNewExtSetHandler()")
+                        xbutton("Add new set of Int GJs (default)", "addNewIntSetHandler()")
+                    } else {
+                        xbutton("Add new set (default)", "addNewExtSetHandler()")
+                    }
+                    xlabel("")
+                    xbutton("Edit this set", "editSetHandler()")
+                    numSpacers = 5 - isAstrocyteOrNeuron
+                    addEmptyLabels(numSpacers)
+                    xbutton("Delete this set", "deleteSetHandler()")
+                    xpanel()
+                }
+                closeDeck(deck, 0, 130, slotHeight)
+            }
+            hBox.intercept(0)
+            hBox.map()
+            if (isAstrocyteOrNeuron) {
+                // Add the warning related to pyObj.intGapJuncPtrSeedingHelper lifecycle
+                xpanel("")
+                getIfYouModifyGeomHint(text)
+                sprint(text, "Warning: %s", text)
+                xlabel(text)
+                xlabel("                then close this widget and open again.")
+                xpanel()
+            }
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                xpanel("")
+                xbutton("Done", "doneHandler()")
+                xpanel()
+                xpanel("")
+                // !!
+                xradiobutton("Show all sets", "showAllOrThisOnlyChangedHandler(1)", isShowAllOrThisOnly)
+                xradiobutton("Show this set only", "showAllOrThisOnlyChangedHandler(0)", !isShowAllOrThisOnly)
+                xpanel()
+            }
+            hBox.intercept(0)
+            hBox.map()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("Manager of gap junction sets", 25, 125, -1, -1)
+        
+        // !! showAllOrThisOnlyChangedHandler(isShowAllOrThisOnly)
+        
+        cacheTotalSecLen()
+        
+        if (isAstrocyteOrNeuron) {
+            pyObj.intGapJuncPtrSeedingHelper.cacheAllSegms3DCoords()
+        }
+    }
+    
+    proc onApplyInChildHandler() { local gapJuncSetIdx
+        gapJuncSetIdx = $1
+        mcu4t.updateItemInShownTapSetsList(gjmAllGapJuncSets, gapJuncSetIdx)
+    }
+    
+    proc dismissHandler() {
+        dismissChilds()
+        unmapIfNotNil(mainBox)
+        
+        if (isAstrocyteOrNeuron) {
+            pyObj.intGapJuncPtrSeedingHelper.destroyCache()
+        }
+    }
+    
+    // All next staff is private
+    
+    
+    proc selectSetHandler() {
+        // !! this closes the child widget unnecessarily when user clicks "Apply" on it
+        // dismissChilds()
+        
+        // !! update shapeBox here
+        // mwh.showNotImplementedWarning()
+    }
+    
+    proc addNewExtSetHandler() {
+        showGapJuncManagerMainWidget(1, 1)
+    }
+    
+    proc addNewIntSetHandler() {
+        showGapJuncManagerMainWidget(1, 0)
+    }
+    
+    proc editSetHandler() {
+        showGapJuncManagerMainWidget(0)
+    }
+    
+    proc deleteSetHandler() { local gapJuncSetIdx
+        dismissChilds()
+        
+        gapJuncSetIdx = gjmAllGapJuncSets.selected()
+        inhomAndStochLibrary.onGapJuncSetDelete(gapJuncSetIdx)
+        gjmAllGapJuncSets.o(gapJuncSetIdx).onJustBeforeDestruction()
+        deleteSelectedItemFromBrowsedList(gjmAllGapJuncSets)
+    }
+    
+    proc showAllOrThisOnlyChangedHandler() {
+        isShowAllOrThisOnly = $1
+        
+        // !!
+        mwh.showNotImplementedWarning()
+    }
+    
+    proc doneHandler() {
+        dismissHandler()
+    }
+    
+    proc showGapJuncManagerMainWidget() { local numArg, isAddOrEdit, isExtOrInt, gapJuncSetIdx, maxDistForCell localobj gapJuncSet
+        
+        numArg = numarg()
+        if (numArg < 1 || numArg > 2) {
+            codeContractViolation()
+        }
+        
+        isAddOrEdit = $1
+        if ((numArg == 2) != isAddOrEdit) {
+            codeContractViolation()
+        }
+        
+        if (isAddOrEdit) {
+            isExtOrInt = $2
+        }
+        
+        dismissChilds()
+        
+        if (isAddOrEdit) {
+            gapJuncSet = new GapJuncSet(isExtOrInt)
+            gjmAllGapJuncSets.append(gapJuncSet)
+            gapJuncSetIdx = gjmAllGapJuncSets.count() - 1
+        } else {
+            gapJuncSetIdx = gjmAllGapJuncSets.selected()
+            if (gapJuncSetIdx == -1) {
+                return
+            }
+        }
+        
+        getMaxDistForCell(&maxDistForCell)
+        
+        gapJuncManagerMainWidget.show(gapJuncSetIdx, maxDistForCell)    // --> onApplyInChildHandler
+    }
+    
+    proc dismissChilds() {
+        dismissIfNotNil(gapJuncManagerMainWidget)
+        unmapIfNotNil(shapeBox)
+    }
+    
+endtemplate GapJuncSetsWidget

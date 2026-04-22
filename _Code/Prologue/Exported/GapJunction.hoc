@@ -1,0 +1,118 @@
+
+begintemplate GapJunction
+    
+    public sec_ref, connectionPoint, dist, otherSec_ref, otherConnectionPoint
+    public sngPp, ptrMarkerPp, extValue
+    public isExtOrInt, getPointProcess, changeLocation, changeStructure, calcAndCacheDist, deployPtrMarkerPp, destroyPtrMarkerPp
+    
+    external codeContractViolation
+    external enumGapJuncPpRoles
+    
+    // Gap junc PP location info
+    objref sec_ref
+    connectionPoint = -1
+    dist = -1
+    
+    // The pointer location info (for internal GJs only)
+    objref otherSec_ref
+    otherConnectionPoint = -1
+    
+    objref sngPp
+    objref ptrMarkerPp      // For internal GJs only
+    extValue = -1           // For external GJs only
+    
+    
+    proc init() { local numArg
+        numArg = numarg()
+        if (numArg == 2) {
+            sec_ref = $o1
+            connectionPoint = $2
+        } else if (numArg == 3) {
+            sngPp = $o1
+            sec_ref = $o2
+            connectionPoint = $3
+        } else if (numArg == 4) {
+            sec_ref = $o1
+            connectionPoint = $2
+            otherSec_ref = $o3
+            otherConnectionPoint = $4
+        } else if (numArg == 5) {
+            sngPp = $o1
+            sec_ref = $o2
+            connectionPoint = $3
+            otherSec_ref = $o4
+            otherConnectionPoint = $5
+        } else {
+            codeContractViolation()
+        }
+        calcAndCacheDist()
+        
+        // !! remove this assignment
+        // !! BUG: not in sync with FakeMechanismStandardForExtValue ctor
+        extValue = 12.34        // !! just for test
+    }
+    
+    func isExtOrInt() { localobj nil
+        return (otherSec_ref == nil)
+    }
+    
+    // !! rename to getGapJuncPart
+    obfunc getPointProcess() { local enumPpRole
+        enumPpRole = $1
+        if (enumPpRole == enumGapJuncPpRoles.sngPp) {
+            return sngPp
+        } else if (enumPpRole == enumGapJuncPpRoles.ptrMarkerPp) {
+            return ptrMarkerPp
+        } else if (enumPpRole == enumGapJuncPpRoles.extValue) {
+            return new Pointer(&extValue)
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    proc changeLocation() { local numArg localobj nil
+        numArg = numarg()
+        if (numArg != 2 && numArg != 4) {
+            codeContractViolation()
+        }
+        
+        sec_ref = $o1
+        connectionPoint = $2
+        if (numArg == 4) {
+            otherSec_ref = $o3
+            otherConnectionPoint = $4
+        } else {
+            otherSec_ref = nil
+            otherConnectionPoint = -1
+        }
+        
+        calcAndCacheDist()
+    }
+    
+    proc changeStructure() {
+        sngPp = $o1
+    }
+    
+    proc calcAndCacheDist() {
+        sec_ref.sec {
+            dist = distance(connectionPoint)
+        }
+    }
+    
+    proc deployPtrMarkerPp() { localobj nil
+        if (ptrMarkerPp != nil) {
+            codeContractViolation()
+        }
+        otherSec_ref.sec {
+            ptrMarkerPp = new PointProcessMark(otherConnectionPoint)
+        }
+    }
+    
+    proc destroyPtrMarkerPp() { localobj nil
+        if (ptrMarkerPp == nil) {
+            codeContractViolation()
+        }
+        ptrMarkerPp = nil
+    }
+    
+endtemplate GapJunction

@@ -1,0 +1,157 @@
+
+loadIfNotDeclared("EnumGapJuncCompIdxs", "../Managers/GapJuncManager/Exported/GapJuncEnums.hoc", 1)
+loadIfNotDeclared("GapJunction", "Exported/GapJunction.hoc", 1)
+
+
+gjmDefMaxNumGapJuncsPerSec = 10
+gjmDefMaxRadiusForIntGapJuncsForAstrocyte = 20  // um
+
+if (isAstrocyteOrNeuron) {
+    _defApproxNumWantedExtGapJuncs = 350
+    _defApproxNumWantedIntGapJuncs = 100
+} else {
+    _defApproxNumWantedExtGapJuncs = 100
+    _defApproxNumWantedIntGapJuncs = -1
+}
+
+
+objref randomGapJuncSeeder
+randomGapJuncSeeder = rngUtils.getFor_gapJuncSeeder()
+
+
+objref _sngPp
+_connectionPoint = -1
+
+// Create, init and connect all default gap junctions; the number is probabilistic
+// Called each time after astrocyte nanogeometry reseeding; never called after locking the "Where to Seed the Nanostructures" panel
+// !! keep in sync with GapJuncSet.applyChangesToLoc, NanoBranchesManager.reseedBranches and SpineSet.reseed
+obfunc reseedDefaultGapJuncs() { local isExtOrInt, minSeedingDistance, slotIdx, controlFactor, invNormFactor, otherConnectionPoint localobj allGapJuncs, sec_ref, gapJunc, otherSec_ref, nil
+    
+    isExtOrInt = $1
+    
+    if (!isAstrocyteOrNeuron && !isExtOrInt) {
+        codeContractViolation()
+    }
+    
+    allGapJuncs = new List()
+    
+    minSeedingDistance = getDefMinSeedingDistanceForGapJuncs(isExtOrInt)
+    
+    forall {
+        if (isAstrocyteOrNeuron && isExtOrInt) {
+            insert ca_ion   // For "GapCaExtr" PP
+        }
+        
+        for slotIdx = 0, gjmDefMaxNumGapJuncsPerSec - 1 {
+            _connectionPoint = (slotIdx + 0.5) / gjmDefMaxNumGapJuncsPerSec
+            
+            controlFactor = minSeedingDistance * gjmDefMaxNumGapJuncsPerSec
+            invNormFactor = L / controlFactor                           // !! this can be > 1
+            if (randomGapJuncSeeder.uniform(0, 1) < invNormFactor) {    // !! use .repick() for performance
+                sec_ref = new SectionRef()
+                
+                if (isExtOrInt) {
+                    if (isAstrocyteOrNeuron) {
+                        execute("_sngPp = new GapCaExtr(_connectionPoint)")      // "execute"-ing to avoid "GapCaExtr is not a template" error for neuron
+                    } else {
+                        execute("_sngPp = new Gap_neuron(_connectionPoint)")     // "execute"-ing to avoid "Gap_neuron is not a template" error for astrocyte
+                    }
+                    gapJunc = new GapJunction(_sngPp, sec_ref, _connectionPoint)
+                } else {
+                    _sngPp = new Gap(_connectionPoint)
+                    chooseRandomLocationForIntGapJuncPointer(sec_ref, _connectionPoint, gjmDefMaxRadiusForIntGapJuncsForAstrocyte, otherSec_ref, &otherConnectionPoint)
+                    otherSec_ref.sec {
+                        setpointer _sngPp.vgap, v(otherConnectionPoint)
+                    }
+                    gapJunc = new GapJunction(_sngPp, sec_ref, _connectionPoint, otherSec_ref, otherConnectionPoint)
+                }
+                
+                allGapJuncs.append(gapJunc)
+            }
+        }
+    }
+    
+    _sngPp = nil
+    
+    return allGapJuncs
+}
+
+_totalSecLen = -1
+
+proc cacheTotalSecLen() {
+    _totalSecLen = 0
+    forall {
+        _totalSecLen += L
+    }
+}
+
+func getDefMinSeedingDistanceForGapJuncs() { local isExtOrInt, approxNumWantedGapJuncs
+    isExtOrInt = $1
+    if (isExtOrInt) {
+        approxNumWantedGapJuncs = _defApproxNumWantedExtGapJuncs
+    } else {
+        approxNumWantedGapJuncs = _defApproxNumWantedIntGapJuncs
+    }
+    return _totalSecLen / approxNumWantedGapJuncs   // !! -1 ??
+}
+
+proc chooseRandomLocationForIntGapJuncPointer() { local _connectionPoint, maxRadiusForIntGapJuncs, xPP, yPP, zPP, xPtrWanted, yPtrWanted, zPtrWanted, otherConnectionPoint localobj sec_ref, otherSecList_ref, otherSec_ref
+    
+    sec_ref = $o1
+    _connectionPoint = $2
+    maxRadiusForIntGapJuncs = $3
+    
+    if (!isAstrocyteOrNeuron) {
+        codeContractViolation()
+    }
+    
+    _getSegm3DCoords(sec_ref, _connectionPoint, &xPP, &yPP, &zPP)
+    
+    geomMath.rndPt3D_unifByVolumeInSphere(randomGapJuncSeeder, xPP, yPP, zPP, maxRadiusForIntGapJuncs, &xPtrWanted, &yPtrWanted, &zPtrWanted)
+    
+    otherSecList_ref = new List()   // !! is there a better way to return "otherSec_ref" from Python?
+    otherConnectionPoint = pyObj.intGapJuncPtrSeedingHelper.findSegmClosestToThis3DPoint(xPtrWanted, yPtrWanted, zPtrWanted, otherSecList_ref)
+    otherSec_ref = otherSecList_ref.o(0)
+    
+    $o4 = otherSec_ref
+    $&5 = otherConnectionPoint
+}
+
+
+// !! major code dup. with interpEachSegmCentreCoordsFromSec3DPointCoords
+// See also: "%NEURONHOME%\lib\python\neuron\__init__.py" -> _get_3d_pt
+proc _getSegm3DCoords() { local _connectionPoint, numPts, ptIdx localobj sec_ref, x3d_vec, y3d_vec, z3d_vec, u3d_vec, uSegm_vec, xSegm_vec, ySegm_vec, zSegm_vec
+    
+    sec_ref = $o1
+    _connectionPoint = $2
+    
+    numPts = n3d()
+    
+    x3d_vec = new Vector(numPts)
+    y3d_vec = new Vector(numPts)
+    z3d_vec = new Vector(numPts)
+    u3d_vec = new Vector(numPts)
+    
+    sec_ref.sec {
+        for ptIdx = 0, numPts - 1 {
+            x3d_vec.x[ptIdx] = x3d(ptIdx)
+            y3d_vec.x[ptIdx] = y3d(ptIdx)
+            z3d_vec.x[ptIdx] = z3d(ptIdx)
+            u3d_vec.x[ptIdx] = arc3d(ptIdx) / L
+        }
+    }
+    
+    uSegm_vec = createVecOfVals(_connectionPoint)
+    
+    xSegm_vec = new Vector(1)
+    ySegm_vec = new Vector(1)
+    zSegm_vec = new Vector(1)
+    
+    xSegm_vec.interpolate(uSegm_vec, u3d_vec, x3d_vec)
+    ySegm_vec.interpolate(uSegm_vec, u3d_vec, y3d_vec)
+    zSegm_vec.interpolate(uSegm_vec, u3d_vec, z3d_vec)
+    
+    $&3 = xSegm_vec.x[0]
+    $&4 = ySegm_vec.x[0]
+    $&5 = zSegm_vec.x[0]
+}

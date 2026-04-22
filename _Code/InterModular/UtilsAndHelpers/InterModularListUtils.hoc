@@ -1,0 +1,144 @@
+
+{ load_file("../Exported/InterModularListUtils_Exported.hoc") }
+
+// Append all items from the second list to the first one
+// $o1 (in/out) - The first List
+// $o2 - The second List
+proc concatenateTwoLists() { localobj list1, list2, item2
+    list1 = $o1
+    list2 = $o2
+    for eachItemInList(item2, list2) {
+        list1.append(item2)
+    }
+}
+
+proc replaceItemInList() { local numArg, idx, isSelect localobj list, item
+    numArg = numarg()
+    if (numArg < 3 || numArg > 4) {
+        codeContractViolation()
+    }
+    
+    list = $o1
+    item = $o2
+    idx = $3
+    
+    if (numArg == 4) {
+        isSelect = $4
+    } else {
+        isSelect = 0
+    }
+    
+    // list.o(idx) = item       // Error
+    list.remove(idx)            // As a side effect, the item won't be selected anymore (for a browsed list)
+    list.insrt(idx, item)
+    
+    if (isSelect) {
+        list.select(idx)
+    }
+}
+
+// $o1 (in/out) - The list to analyze which must contain objects with public "s" field
+// $s2 - The string to find
+// Returns: The index or -1 if not found
+func findItemInListByString() { local idx localobj list
+    strdef strToFind
+    
+    list = $o1
+    strToFind = $s2
+    
+    for idx = 0, list.count() - 1 {
+        if (stringsEqual(list.o(idx).s, strToFind)) {
+            return idx
+        }
+    }
+    
+    return -1
+}
+
+// $o1 (in/out) - The list to analyze which must contain objects with public "s" field
+// $s2 - The string to find
+// Returns: The index
+// Raises: codeContractViolation if not found
+func findItemInListByStringAndSelect() { local idxOrMinus1 localobj list
+    strdef strToFind
+    
+    list = $o1
+    strToFind = $s2
+    
+    idxOrMinus1 = findItemInListByString(list, strToFind)
+    if (idxOrMinus1 == -1) {
+        codeContractViolation()
+    }
+    
+    list.select(idxOrMinus1)
+    
+    return idxOrMinus1
+}
+
+// Find and remove the item from the List; do nothing or raise an error if it's not there
+// $o1 - The List to remove from
+// $o2 - The item to remove
+// $3 (optional) - 0/1 flag specifying whether to raise an error if the item is not found; the default is 0
+// !! remove 3rd arg making it 1 constantly
+proc removeItemFromList() { local numArg, isErrorIfNotFound, idxOrMinus1, isFound localobj list, item
+    
+    numArg = numarg()
+    if (numArg < 2 || numArg > 3) {
+        codeContractViolation()
+    }
+    
+    list = $o1
+    item = $o2
+    
+    if (numArg == 3) {
+        isErrorIfNotFound = $3
+    } else {
+        isErrorIfNotFound = 0
+    }
+    
+    idxOrMinus1 = list.index(item)
+    isFound = (idxOrMinus1 != -1)
+    if (isFound) {
+        list.remove(idxOrMinus1)
+    } else if (isErrorIfNotFound) {
+        codeContractViolation()
+    }
+}
+
+proc deleteSelectedItemFromBrowsedList() { local selItemIdx localobj list
+    list = $o1
+    
+    selItemIdx = list.selected()
+    if (selItemIdx == -1) {
+        // The list is empty
+        return
+    }
+    
+    list.remove(selItemIdx)
+    
+    if (list.count() == 0) {
+        return
+    }
+    selItemIdx -= 1
+    if (selItemIdx == -1) {
+        selItemIdx = 0
+    }
+    list.select(selItemIdx)
+}
+
+begintemplate ItemOfFilteredBrowsedList
+
+    public idx, s
+    
+    idx = -1
+    strdef s
+    
+    proc init() {
+        idx = $1
+        s = $s2
+    }
+    
+endtemplate ItemOfFilteredBrowsedList
+
+
+// See also: createListOfStrs

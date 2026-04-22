@@ -1,0 +1,204 @@
+
+// !! BUG: func analyzeCellBoundingBox is called twice when we show InsideOutDiffManagerMainWidget
+
+// !! look for ".nearest(x, y)" everywhere in the project and use cbbUtils.minDistSqThresh
+
+
+strdef gridSecStartMarker
+gridSecStartMarker = "GridOfSections["      // !! fragile
+
+
+proc _getCellBoundingBox() { codeContractViolation() }
+
+begintemplate CellBoundingBoxUtils
+
+    public analyzeCellBoundingBox, getX, getY, getZ, getNearestAnchorPointIdxOrMinus1
+    
+    external  _getCellBoundingBox, codeContractViolation
+    external math
+    
+    xCnt = -1
+    yCnt = -1
+    zCnt = -1
+    dx = -1
+    dy = -1
+    dz = -1
+    
+    minDistSqThresh = -1
+    
+    
+    func analyzeCellBoundingBox() { local numArg, xMin, yMin, zMin, xMax, yMax, zMax, Dx, Dy, Dz, D
+        
+        numArg = numarg()
+        if (numArg != 0 && numArg != 6 && numArg != 9) {
+            codeContractViolation()
+        }
+        
+        _getCellBoundingBox(&xMin, &yMin, &zMin, &xMax, &yMax, &zMax)
+        
+        D = analyzeCellDimensionsAndCacheMinDistSqThresh(xMin, yMin, zMin, xMax, yMax, zMax, &Dx, &Dy, &Dz)
+        
+        xCnt = (xMin + xMax) / 2
+        yCnt = (yMin + yMax) / 2
+        zCnt = (zMin + zMax) / 2
+        dx = Dx / 2
+        dy = Dy / 2
+        dz = Dz / 2
+        
+        if (numArg >= 6) {
+            $&1 = xMin
+            $&2 = yMin
+            $&3 = zMin
+            $&4 = xMax
+            $&5 = yMax
+            $&6 = zMax
+        }
+        
+        if (numArg == 9) {
+            $&7 = Dx
+            $&8 = Dy
+            $&9 = Dz
+        }
+        
+        return D
+    }
+    
+    func getX() {
+        return xCnt + $1 * dx
+    }
+    
+    func getY() {
+        return yCnt + $1 * dy
+    }
+    
+    func getZ() {
+        return zCnt + $1 * dz
+    }
+    
+    // in: distSqVec OR distSq1, distSq2, distSq3, ...
+    func getNearestAnchorPointIdxOrMinus1() { local numArg, minDistSq, selApIdx, numPts, i, distSq localobj distSqVec
+        
+        numArg = numarg()
+        if (numArg == 0) {
+            codeContractViolation()
+        }
+        
+        minDistSq = math.inf
+        selApIdx = -1
+        
+        if (numArg == 1) {
+            distSqVec = $o1
+            numPts = distSqVec.size()
+            if (numPts < 2) {
+                codeContractViolation()
+            }
+            for i = 0, numPts - 1 {
+                distSq = distSqVec.x[i]
+                if (distSq < minDistSq) {
+                    minDistSq = distSq
+                    selApIdx = i
+                }
+            }
+        } else {
+            for i = 1, numArg {
+                distSq = $i
+                if (distSq < minDistSq) {
+                    minDistSq = distSq
+                    selApIdx = i - 1
+                }
+            }
+        }
+        
+        if (minDistSq > minDistSqThresh) {
+            selApIdx = -1
+        }
+        
+        return selApIdx
+    }
+    
+    // All next staff is private
+    
+    
+    func analyzeCellDimensionsAndCacheMinDistSqThresh() { local xMin, yMin, zMin, xMax, yMax, zMax, D, nndDims, Dx, Dy, Dz
+        
+        xMin = $1
+        yMin = $2
+        zMin = $3
+        xMax = $4
+        yMax = $5
+        zMax = $6
+        
+        D = 1       // Size of a side for the equivalent cube / square having the same volume / area as the cell bounding box
+        nndDims = 0     // The number of non-degenerate cell dimensions
+        Dx = analyzeOneDimension(xMin, xMax, &D, &nndDims)
+        Dy = analyzeOneDimension(yMin, yMax, &D, &nndDims)
+        Dz = analyzeOneDimension(zMin, zMax, &D, &nndDims)
+        if (nndDims > 0) {
+            D = D ^ (1 / nndDims)
+        } else {
+            // Preventing "division by zero"
+            D = 1
+        }
+        
+        $&7 = Dx
+        $&8 = Dy
+        $&9 = Dz
+        
+        // !! when user interacts with the anchor points, we use this heuristic
+        //    just to make LMB press precision independent on the cell size
+        minDistSqThresh = (0.25 * D) ^ 2
+        
+        return D
+    }
+    
+    func analyzeOneDimension() { local uMin, uMax, Du
+        uMin = $1
+        uMax = $2
+        Du = uMax - uMin
+        if (Du != 0) {
+            $&3 *= Du
+            $&4 += 1
+        }
+        return Du
+    }
+    
+endtemplate CellBoundingBoxUtils
+
+
+objref cbbUtils
+cbbUtils = new CellBoundingBoxUtils()
+
+
+// !! maybe use segment centres instead of 3D points (see interpEachSegmCentreCoordsFromSec3DPointCoords)
+// !! maybe skip nanogeometry for better performance
+proc _getCellBoundingBox() { local inf, xMin, yMin, zMin, xMax, yMax, zMax, numPts, ptIdx
+    strdef secName
+    
+    inf = math.inf
+    xMin = inf
+    yMin = inf
+    zMin = inf
+    xMax = -inf
+    yMax = -inf
+    zMax = -inf
+    
+    forall {
+        secName = secname()
+        if (stringStartsWith(secName, gridSecStartMarker)) {
+            continue
+        }
+        numPts = n3d()
+        for ptIdx = 0, numPts - 1 {
+            math.updateMinMax(&xMin, &xMax, x3d(ptIdx))
+            math.updateMinMax(&yMin, &yMax, y3d(ptIdx))
+            math.updateMinMax(&zMin, &zMax, z3d(ptIdx))
+        }
+    }
+    
+    $&1 = xMin
+    $&2 = yMin
+    $&3 = zMin
+    $&4 = xMax
+    $&5 = yMax
+    $&6 = zMax
+}

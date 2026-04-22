@@ -1,0 +1,263 @@
+{
+    "Soma": {
+        "capacitance": {},
+        "pas": {
+            "PARAMETER": {
+                "e_pas (mV)": -82.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {},
+        "ca_ion": {},
+        "cad": {},
+        "nadifl": {},
+        "NaKpump": {
+            "PARAMETER": {
+                "Kmnai_NaKpump (mM)": 50.0
+            }
+        },
+        "spike": {
+            "PARAMETER": {
+                "gnabar_spike (mho/cm2)": 0.065,
+                "gkbar_spike (mho/cm2)": 0.035,
+                "gcabar_spike (mho/cm2)": 0.0015,
+                "gkcbar_spike (mho/cm2)": 0.00015
+            }
+        }
+    },
+    "Dendrites": {
+        "capacitance": {
+            "PARAMETER": {
+                "cm (uF/cm2)": 0.8
+            }
+        },
+        "pas": {
+            "PARAMETER": {
+                "g_pas (S/cm2)": 0.0001,
+                "e_pas (mV)": -85.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {}
+    },
+    "Spine Neck": {
+        "capacitance": {},
+        "pas": {
+            "PARAMETER": {
+                "g_pas (S/cm2)": 0.0001,
+                "e_pas (mV)": -65.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {}
+    },
+    "Spine Head": {
+        "capacitance": {},
+        "pas": {
+            "PARAMETER": {
+                "g_pas (S/cm2)": 0.0001,
+                "e_pas (mV)": -65.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {}
+    },
+    "Axon \\ AISPs": {
+        "capacitance": {},
+        "pas": {
+            "PARAMETER": {
+                "e_pas (mV)": -82.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {},
+        "ca_ion": {},
+        "cad": {},
+        "nadifl": {},
+        "NaKpump": {
+            "PARAMETER": {
+                "Kmnai_NaKpump (mM)": 50.0
+            }
+        },
+        "spike": {
+            "PARAMETER": {
+                "gnabar_spike (mho/cm2)": 0.325,
+                "gkbar_spike (mho/cm2)": 0.175,
+                "gcabar_spike (mho/cm2)": 0.0015,
+                "gkcbar_spike (mho/cm2)": 0.00015
+            }
+        }
+    },
+    "Axon \\ AISDs": {
+        "capacitance": {},
+        "pas": {
+            "PARAMETER": {
+                "e_pas (mV)": -82.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {},
+        "ca_ion": {},
+        "cad": {},
+        "nadifl": {},
+        "NaKpump": {
+            "PARAMETER": {
+                "Kmnai_NaKpump (mM)": 50.0
+            }
+        },
+        "spike": {
+            "PARAMETER": {
+                "gnabar_spike (mho/cm2)": 0.42,
+                "gkbar_spike (mho/cm2)": 0.25,
+                "gabar_spike (mho/cm2)": 0.25,
+                "gcabar_spike (mho/cm2)": 0.00075,
+                "gkcbar_spike (mho/cm2)": 0.00011
+            }
+        }
+    },
+    "Axon \\ Before First Schwann": {
+        "capacitance": {
+            "PARAMETER": {
+                "cm (uF/cm2)": 0.9
+            }
+        },
+        "pas": {
+            "PARAMETER": {
+                "e_pas (mV)": -82.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {},
+        "ca_ion": {},
+        "cad": {},
+        "nadifl": {},
+        "NaKpump": {
+            "PARAMETER": {
+                "Kmnai_NaKpump (mM)": 50.0
+            }
+        },
+        "spike": {
+            "PARAMETER": {
+                "gnabar_spike (mho/cm2)": 0.42,
+                "gkbar_spike (mho/cm2)": 0.25,
+                "gabar_spike (mho/cm2)": 0.25,
+                "gcabar_spike (mho/cm2)": 0.00075,
+                "gkcbar_spike (mho/cm2)": 0.00011
+            }
+        }
+    },
+    "Axon \\ Under Schwann": {
+        "capacitance": {
+            "PARAMETER": {
+                "cm (uF/cm2)": 0.9
+            }
+        },
+        "pas": {
+            "PARAMETER": {
+                "g_pas (S/cm2)": 0.0001,
+                "e_pas (mV)": -82.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {},
+        "hh": {
+            "PARAMETER": {
+                "gnabar_hh (S/cm2)": 0.07,
+                "gkbar_hh (S/cm2)": 0.0016
+            }
+        },
+        "ca_ion": {},
+        "nadifl": {},
+        "NaKpump": {}
+    },
+    "Axon \\ Nodes of Ranvier": {
+        "capacitance": {
+            "PARAMETER": {
+                "cm (uF/cm2)": 0.9
+            }
+        },
+        "pas": {
+            "PARAMETER": {
+                "e_pas (mV)": -82.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {},
+        "ca_ion": {},
+        "nadifl": {},
+        "NaKpump": {
+            "PARAMETER": {
+                "Kmnai_NaKpump (mM)": 50.0
+            }
+        },
+        "spike": {
+            "PARAMETER": {
+                "gnabar_spike (mho/cm2)": 0.42,
+                "gkbar_spike (mho/cm2)": 0.45,
+                "gabar_spike (mho/cm2)": 0.45
+            }
+        }
+    },
+    "Axon \\ After Last Schwann": {
+        "capacitance": {
+            "PARAMETER": {
+                "cm (uF/cm2)": 0.9
+            }
+        },
+        "pas": {
+            "PARAMETER": {
+                "e_pas (mV)": -82.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {},
+        "hh": {
+            "PARAMETER": {
+                "gnabar_hh (S/cm2)": 0.36,
+                "gkbar_hh (S/cm2)": 0.008
+            }
+        },
+        "nadifl": {},
+        "NaKpump": {
+            "PARAMETER": {
+                "Kmnai_NaKpump (mM)": 50.0
+            }
+        }
+    },
+    "Axon \\ Insulators": {
+        "capacitance": {
+            "PARAMETER": {
+                "cm (uF/cm2)": 1e-09
+            }
+        },
+        "pas": {
+            "PARAMETER": {
+                "g_pas (S/cm2)": 1e-08,
+                "e_pas (mV)": -82.0
+            }
+        },
+        "na_ion": {},
+        "nadifl": {}
+    },
+    "Axon \\ Schwann Cells": {
+        "capacitance": {},
+        "pas": {
+            "PARAMETER": {
+                "e_pas (mV)": -100.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {},
+        "kir4": {
+            "PARAMETER": {
+                "gkir_kir4 (mS/cm2)": 1.44,
+                "NormK_kir4": 0.91
+            }
+        },
+        "NaKpump": {
+            "PARAMETER": {
+                "Kmnai_NaKpump (mM)": 50.0
+            }
+        }
+    }
+}

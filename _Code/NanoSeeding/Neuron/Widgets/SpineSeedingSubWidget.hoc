@@ -1,0 +1,161 @@
+
+begintemplate SpineSeedingSubWidget
+    
+    public show, onDoneInSectionsSelectorWidget, dismissHandler
+    
+    external seedingDensityWidget
+    external isAnyDisconSecsInList, showSeedingDensityWidget, createEmptyPanel, unmapIfNotNil, dismissIfNotNil, codeContractViolation
+    
+    objref mainBox, deck
+    objref parentWidget
+    objref ssSubWidget
+    
+    objref spineSet
+    selListItemIdx = -1
+    
+    isReseedingRequired = -1
+    
+    objref this
+    
+    
+    proc init() {
+        parentWidget = $o1
+    }
+    
+    // !! code dup. with GapJuncManagerMainWidget and MainUI
+    proc show() { local isAllOrSomeDendsSeeded localobj hBox
+        
+        spineSet = $o1
+        selListItemIdx = $2
+        
+        if (selListItemIdx == -1) {
+            codeContractViolation()
+        }
+        
+        isAllOrSomeDendsSeeded = spineSet.isAllOrSomeDendsSeeded
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            xlabel("Where to seed the spines:")
+            xpanel()
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                xpanel("")
+                xradiobutton("All dendrites", "whereToSeedChangedHandler(1)", isAllOrSomeDendsSeeded)
+                xradiobutton("Some dendrites (I will select them)", "whereToSeedChangedHandler(0)", !isAllOrSomeDendsSeeded)
+                xpanel()
+                deck = new Deck()
+                deck.intercept(1)
+                {
+                    createEmptyPanel()
+                    xpanel("")
+                    xbutton("Select", "selectSectionsHandler()")
+                    xpanel()
+                }
+                deck.intercept(0)
+                // deck.flip_to(*)  // Will be done later in whereToSeedChangedHandler
+                deck.map()
+            }
+            hBox.intercept(0)
+            hBox.map()
+            xpanel("")
+            xlabel("How dense to seed the spines:")
+            xpanel()
+            xpanel("")
+            xpvalue("Max numb spines per section", &spineSet.maxNumSpinesPerSec, 1, "isReseedingRequired = 1")
+            xbutton("Edit Min distribution over branches for spines", "_showSeedingDensityWidget()")
+            xpanel()
+            xpanel("")
+            xlabel("")
+            xbutton("Reseed this set of spines", "reseedThisSetHandler()")
+            xlabel("")
+            xbutton("Apply", "applyHandler()")
+            xpanel()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("One set of spines", 700, 100, -1, -1)
+        
+        whereToSeedChangedHandler(isAllOrSomeDendsSeeded)
+        
+        isReseedingRequired = 0
+    }
+    
+    proc onDoneInSectionsSelectorWidget() {
+        spineSet.seededDendrites_ref = $o1
+        
+        isReseedingRequired = 1
+    }
+    
+    proc dismissHandler() {
+        dismissChilds()
+        unmapIfNotNil(mainBox)
+    }
+    
+    // All next staff is private
+    
+    
+    proc whereToSeedChangedHandler() { local isAllOrSomeDendsSeeded, cardIdx
+        isAllOrSomeDendsSeeded = $1
+        
+        dismissIfNotNil(ssSubWidget)
+        spineSet.isAllOrSomeDendsSeeded = isAllOrSomeDendsSeeded
+        cardIdx = 1 - isAllOrSomeDendsSeeded
+        deck.flip_to(cardIdx)
+        
+        isReseedingRequired = 1
+    }
+    
+    proc selectSectionsHandler() { localobj seeded_ref
+        dismissChilds()
+        
+        seeded_ref = spineSet.getSeededSecList()
+        ssSubWidget = new SectionsSelectorWidget(1, seeded_ref, this)
+        
+        ssSubWidget.show(1055, 100)     // --> onDoneInSectionsSelectorWidget
+    }
+    
+    proc _showSeedingDensityWidget() { local isUniformOnly localobj list_ref
+        dismissChilds()
+        
+        list_ref = spineSet.getSeededSecList()
+        isUniformOnly = isAnyDisconSecsInList(list_ref)
+        
+        showSeedingDensityWidget(spineSet.seedingDensityHelper, isUniformOnly, 1055, 100)
+        
+        isReseedingRequired = 1
+    }
+    
+    proc reseedThisSetHandler() {
+        spineSet.destroyMarkerPointProcesses()
+        spineSet.reseed()
+        spineSet.deployMarkerPointProcesses()
+        callParentHandler(1)
+        
+        isReseedingRequired = 0
+    }
+    
+    proc applyHandler() {
+        if (isReseedingRequired) {
+            reseedThisSetHandler()      // This sets isReseedingRequired = 0
+        } else {
+            spineSet.prepareShownString()
+            callParentHandler(0)
+        }
+        dismissHandler()
+    }
+    
+    proc callParentHandler() { local isReseedOrDone
+        isReseedOrDone = $1
+        parentWidget.onReseedOrDoneInChildHandler(spineSet, selListItemIdx, isReseedOrDone)
+    }
+    
+    proc dismissChilds() {
+        dismissIfNotNil(ssSubWidget)
+        dismissIfNotNil(seedingDensityWidget)
+    }
+    
+endtemplate SpineSeedingSubWidget

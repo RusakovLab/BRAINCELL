@@ -1,0 +1,34 @@
+
+begintemplate MainUiDiffStatusIndicationHelper
+    
+    public updateStatus, setOutsideInDiffStatus
+    public btnLEDs, oidCheckBoxState
+    
+    external getExtracellularSourcesStatus
+    
+    double btnLEDs[2]
+    oidCheckBoxState = -1
+    
+    
+    proc updateStatus() { local isOutsideInDiff, isInsideOutDiff, isEnabled
+        isOutsideInDiff = $1
+        isInsideOutDiff = $2
+        if (isOutsideInDiff) {
+            isEnabled = getExtracellularSourcesStatus()
+            setOutsideInDiffStatus(isEnabled)
+        }
+        if (isInsideOutDiff) {
+            btnLEDs[1] = 0      // !! just a temp stub
+        }
+    }
+    
+    proc setOutsideInDiffStatus() { local isEnabled
+        isEnabled = $1
+        btnLEDs[0] = isEnabled
+        oidCheckBoxState = isEnabled
+    }
+    
+endtemplate MainUiDiffStatusIndicationHelper
+
+
+mainUiDiffIndicHelper = new MainUiDiffStatusIndicationHelper()

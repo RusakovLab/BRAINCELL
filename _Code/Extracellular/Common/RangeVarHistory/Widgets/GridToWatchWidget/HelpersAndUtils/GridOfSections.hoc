@@ -1,0 +1,264 @@
+
+// !! some ideas:
+// * try to decrease the number of grid sections creating the ones with nseg > 1;
+// * try not to destroy the old grid sections, but reuse them for the new grid
+
+begintemplate GridOfSections
+
+    public theGrid      // Just so user can plot a range var vs time
+    public gridSecDiam
+    public applyNewGridSecDiam
+    public getSliceSectsList
+    
+    external math
+    external codeContractViolation
+    
+    nx = -1     // !! maybe use double[3] instead of 3 scalars and then optimize proc getNumPts etc.
+    ny = -1     //
+    nz = -1     //
+    
+    dxOrMinus1 = -1
+    dyOrMinus1 = -1
+    dzOrMinus1 = -1
+    
+    create theGrid[1][1][1]
+    gridSecDiam = -1        // um
+    
+    
+    proc init() { local numArg, is3dOr2dGrid, twoDimGridPlaneIdx, _nx, _ny, _nz, inf localobj listOfPts, xyzCentre, xyzRange
+        
+        numArg = numarg()
+        
+        gridSecDiam = float_epsilon     // um
+        
+        if (numArg == 1) {
+            listOfPts = $o1
+            initForListOfPts(listOfPts)
+        } else if (numArg == 7) {
+            is3dOr2dGrid = $1
+            twoDimGridPlaneIdx = $2
+            xyzCentre = $o3
+            xyzRange = $o4
+            _nx = $5
+            _ny = $6
+            _nz = $7
+            initForRegularGrid(is3dOr2dGrid, twoDimGridPlaneIdx, xyzCentre, xyzRange, _nx, _ny, _nz)
+        } else {
+            codeContractViolation()
+        }
+        
+        inf = math.inf
+        variable_domain(&gridSecDiam, float_epsilon, inf)
+        
+        units(&gridSecDiam, units("L"))
+    }
+    
+    proc applyNewGridSecDiam() { local numArg, viewDirIdx, du1, du2, i, j, k
+        numArg = numarg()
+        
+        if (numArg == 1) {
+            viewDirIdx = $1
+            
+            if (viewDirIdx == 0) {          // 0: XY
+                du1 = dxOrMinus1
+                du2 = dyOrMinus1
+            } else if (viewDirIdx == 1) {   // 1: ZY
+                du1 = dzOrMinus1
+                du2 = dyOrMinus1
+            } else if (viewDirIdx == 2) {   // 2: XZ
+                du1 = dxOrMinus1
+                du2 = dzOrMinus1
+            } else {
+                codeContractViolation()
+            }
+            
+            gridSecDiam = abs(du1 * du2) / sqrt(du1 ^ 2 + du2 ^ 2)
+        } else if (numArg != 0) {
+            codeContractViolation()
+        }
+        
+        for i = 0, nx - 1 {
+            for j = 0, ny - 1 {
+                for k = 0, nz - 1 {
+                    theGrid[i][j][k] {
+                        diam = gridSecDiam
+                    }
+                }
+            }
+        }
+    }
+    
+    obfunc getSliceSectsList() { local projIdx, sliceIdx, nu1, nu2, u1, u2, i, j, k localobj list_ref
+        projIdx = $1
+        sliceIdx = $2
+        
+        list_ref = new List()
+        
+        getNumPts(projIdx, &nu1, &nu2)
+        
+        for u1 = 0, nu1 - 1 {
+            for u2 = 0, nu2 - 1 {
+                get3dIdxs(u1, u2, projIdx, sliceIdx, &i, &j, &k)
+                theGrid[i][j][k] {
+                    list_ref.append(new SectionRef())
+                }
+            }
+        }
+        
+        return list_ref
+    }
+    
+    // All next staff is private
+    
+    
+    proc initForListOfPts() { local dxHalf, dyHalf, dzHalf, i localobj listOfPts, pt
+        
+        listOfPts = $o1
+        
+        nx = listOfPts.count()
+        ny = 1
+        nz = 1
+        
+        create theGrid[nx][ny][nz]
+        
+        dxOrMinus1 = -1
+        dyOrMinus1 = -1
+        dzOrMinus1 = -1
+        dxHalf = dxOrMinus1 / 2
+        dyHalf = dyOrMinus1 / 2
+        dzHalf = dzOrMinus1 / 2
+        
+        for i = 0, nx - 1 {
+            pt = listOfPts.o(i)
+            theGrid[i][0][0] {
+                initThisSec(pt.x, pt.y, pt.z, dxHalf, dyHalf, dzHalf)
+            }
+        }
+    }
+    
+    // !! a lot of code dup. with py:RxdBackend._getGridParams (need to extract a common util)
+    proc initForRegularGrid() { local is3dOr2dGrid, twoDimGridPlaneIdx, xMin, xMax, yMin, yMax, zMin, zMax, dxHalf, dyHalf, dzHalf, i, x, j, y, k, z localobj xyzCentre, xyzRange
+        
+        is3dOr2dGrid = $1
+        twoDimGridPlaneIdx = $2
+        xyzCentre = $o3
+        xyzRange = $o4
+        nx = $5
+        ny = $6
+        nz = $7
+        
+        xMin = xyzCentre.x[0] - xyzRange.x[0] / 2
+        xMax = xyzCentre.x[0] + xyzRange.x[0] / 2
+        yMin = xyzCentre.x[1] - xyzRange.x[1] / 2
+        yMax = xyzCentre.x[1] + xyzRange.x[1] / 2
+        zMin = xyzCentre.x[2] - xyzRange.x[2] / 2
+        zMax = xyzCentre.x[2] + xyzRange.x[2] / 2
+        if (!is3dOr2dGrid) {
+            if (twoDimGridPlaneIdx == 0) {          // 0: XY
+                nz = 1
+                zMin = xyzCentre.x[2]
+                zMax = zMin
+            } else if (twoDimGridPlaneIdx == 1) {   // 1: ZY
+                nx = 1
+                xMin = xyzCentre.x[0]
+                xMax = xMin
+            } else if (twoDimGridPlaneIdx == 2) {   // 2: XZ
+                ny = 1
+                yMin = xyzCentre.x[1]
+                yMax = yMin
+            } else {
+                codeContractViolation()
+            }
+        }
+        
+        create theGrid[nx][ny][nz]
+        
+        dxOrMinus1 = getStepOrMinus1(xMin, xMax, nx)
+        dyOrMinus1 = getStepOrMinus1(yMin, yMax, ny)
+        dzOrMinus1 = getStepOrMinus1(zMin, zMax, nz)
+        dxHalf = dxOrMinus1 / 2
+        dyHalf = dyOrMinus1 / 2
+        dzHalf = dzOrMinus1 / 2
+        
+        for i = 0, nx - 1 {
+            x = xMin + i * dxOrMinus1
+            for j = 0, ny - 1 {
+                y = yMin + j * dyOrMinus1
+                for k = 0, nz - 1 {
+                    z = zMin + k * dzOrMinus1
+                    theGrid[i][j][k] {
+                        initThisSec(x, y, z, dxHalf, dyHalf, dzHalf)
+                    }
+                }
+            }
+        }
+    }
+    
+    proc initThisSec() { local x, y, z, dxHalf, dyHalf, dzHalf
+        x = $1
+        y = $2
+        z = $3
+        dxHalf = $4
+        dyHalf = $5
+        dzHalf = $6
+        
+        // nseg = 1     // !! already 1
+        pt3dclear()
+        // The idea is to make the grid sec visible in any projection
+        pt3dadd(x - dxHalf, y - dyHalf, z - dzHalf, gridSecDiam)
+        pt3dadd(x + dxHalf, y + dyHalf, z + dzHalf, gridSecDiam)
+    }
+    
+    // !! very similar to py:RxdBackend._getStepOrPlus1
+    func getStepOrMinus1() { local uMin, uMax, nu
+        uMin = $1
+        uMax = $2
+        nu = $3
+        if (nu != 1) {
+            return (uMax - uMin) / (nu - 1)
+        } else {
+            return -1
+        }
+    }
+    
+    proc getNumPts() { local projIdx
+        projIdx = $1
+        
+        if (projIdx == 0) {         // 0: XY
+            $&2 = nx
+            $&3 = ny
+        } else if (projIdx == 1) {  // 1: ZY
+            $&2 = nz
+            $&3 = ny
+        } else if (projIdx == 2) {  // 2: XZ
+            $&2 = nx
+            $&3 = nz
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    proc get3dIdxs() { local u1, u2, projIdx, sliceIdx
+        u1 = $1
+        u2 = $2
+        projIdx = $3
+        sliceIdx = $4
+        
+        if (projIdx == 0) {         // 0: XY
+            $&5 = u1
+            $&6 = u2
+            $&7 = sliceIdx
+        } else if (projIdx == 1) {  // 1: ZY
+            $&5 = sliceIdx
+            $&6 = u2
+            $&7 = u1
+        } else if (projIdx == 2) {  // 2: XZ
+            $&5 = u1
+            $&6 = sliceIdx
+            $&7 = u2
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+endtemplate GridOfSections

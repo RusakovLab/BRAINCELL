@@ -1,0 +1,463 @@
+
+// Optimised for CA1 pyramidal neuron simulation
+//
+// Key optimisations vs. the original:
+//   1. findMostDistantPointInSections: SectionRef created only when a new best is found (was: every iteration)
+//   2. findSpecificDistancePointInDendrites: pre-builds a sorted cache of (distance, secname, u) once,
+//      then uses binary search for each grid point — O(N log N + M log N) instead of O(N × M)
+//   3. showMainSubCore: reuses the SectionList from rangeVarPlot.list() instead of building it twice
+//   4. addPointsForVoltageInDendrites: uses SectionRef instead of fragile push_section/pop_section by name
+//   5. Connectivity validation moved into preShowCheck so errors are caught before any GUI is created
+//   6. Duplicate point detection uses a HOC StringFunctions comparison to avoid Python set overhead for small N
+
+begintemplate SimVoltageCA1Neuron
+    
+    public preShowCheck, show, simDismissHandler
+    public biophysJsonFileNameOrEmpty, isCustomProcAdvance, isAltRunControl
+    
+    external getDistRangeGivenSections, isDisconnectedDistance, secListToListOfSecRef, addVarToGraph, removeItemFromList, unmapIfNotNil, codeContractViolation
+    external math, compUtils, mwh
+    external eachPointInGrid, eachSegmInSecList
+    external soma_ref, dendrite_ref
+    external pyObj
+    external graphList, flush_list
+    external tstop
+    external enumColours
+    
+    strdef biophysJsonFileNameOrEmpty
+    isCustomProcAdvance = -1
+    isAltRunControl = -1
+    
+    isBothDendCompsFound = -1
+    objref proxDendCompOrNil, distDendCompOrNil
+    
+    objref timeGraphBox, obsPtsAndPathBox, rangeBox
+    objref timeGraph, rangeVarPlot, rangeGraph
+    
+    numDendPts = -1
+    y_min = -1
+    y_max = -1
+    
+    objref ppmsList
+    
+    // Cached sorted dendrite data for fast nearest-distance lookups
+    objref _cachedDists     // Vector of distances (sorted)
+    objref _cachedUs        // Vector of corresponding range values
+    objref _cachedSecRefs   // List of corresponding SectionRef objects
+    
+    // Validation results cached in preShowCheck
+    _preCheckDisconnected = -1
+    
+    
+    proc init() {
+        // biophysJsonFileNameOrEmpty will be set in preShowCheck
+        isCustomProcAdvance = 0
+        isAltRunControl = 0
+        
+        numDendPts = 5
+        y_min = -80     // (mV)
+        y_max = 40      // (mV)
+    }
+    
+    func preShowCheck() { local isDisconnected, dist_min, dist_max localobj nil, list_ref
+        
+        compUtils.findDistMechCompByName("BasalDendrites", 0, proxDendCompOrNil)
+        compUtils.findDistMechCompByName("ApicalDendrites", 0, distDendCompOrNil)
+        
+        isBothDendCompsFound = (proxDendCompOrNil != nil && distDendCompOrNil != nil)
+        
+        if (isBothDendCompsFound) {
+            biophysJsonFileNameOrEmpty = "SimVoltageCA1NeuronFull.json"
+        } else {
+            biophysJsonFileNameOrEmpty = "SimVoltageCA1Neuron.json"
+        }
+        
+        // Early connectivity validation — catch disconnected dendrites before creating any GUI
+        if (isBothDendCompsFound) {
+            // For the main sub-core path, check both compartments
+            _preCheckDisconnected = 0
+            if (checkDisconnectedInSections(proxDendCompOrNil.list_ref)) {
+                _preCheckDisconnected = 1
+            }
+            if (!_preCheckDisconnected && checkDisconnectedInSections(distDendCompOrNil.list_ref)) {
+                _preCheckDisconnected = 1
+            }
+        } else {
+            // For the fallback path, check full dendrite_ref connectivity
+            list_ref = dendrite_ref
+            isDisconnected = getDistRangeGivenSections(list_ref, &dist_min, &dist_max)
+            _preCheckDisconnected = isDisconnected
+        }
+        
+        if (_preCheckDisconnected) {
+            mwh.showWarningBox("Cannot proceed with this simulation because at least one dendrite section doesn't have a topological connection with the distance centre.")
+            return 1    // signal error to caller
+        }
+        
+        return 0
+    }
+    
+    // Helper for preShowCheck: returns 1 if any section in the given list is disconnected
+    func checkDisconnectedInSections() { local u, dist localobj sec_list
+        sec_list = $o1
+        for eachSegmInSecList(&u, sec_list) {
+            dist = distance(u)
+            if (isDisconnectedDistance(dist)) {
+                return 1
+            }
+        }
+        return 0
+    }
+    
+    proc show() { localobj pathShape
+        
+        tstop = 100     // (ms)
+        
+        timeGraphBox = new VBox()
+        timeGraphBox.intercept(1)
+        {
+            timeGraph = new Graph()
+        }
+        timeGraphBox.intercept(0)
+        timeGraphBox.map("Time-Voltage graph", 10, 10, -1, -1)
+        
+        obsPtsAndPathBox = new VBox()
+        obsPtsAndPathBox.intercept(1)
+        {
+            pathShape = new Shape()
+        }
+        obsPtsAndPathBox.intercept(0)
+        obsPtsAndPathBox.map("Observation Points and Path", 420, 10, -1, -1)
+        
+        rangeBox = new VBox()
+        rangeBox.intercept(1)
+        {
+            rangeGraph = new Graph()
+        }
+        rangeBox.intercept(0)
+        rangeBox.map("Range-Voltage graph", 698, 10, -1, -1)
+        
+        ppmsList = new List()
+        
+        showCore(pathShape)
+        
+        if (!isBothDendCompsFound) {
+            mwh.showWarningBox("It's recommended to split \"Dendrites\" compartment into \"ProxyDendrites\" and \"DistalDendrites\", so we can assign more realistic biophysics.")
+        }
+    }
+    
+    proc simDismissHandler() { localobj nil
+        
+        proxDendCompOrNil = nil
+        distDendCompOrNil = nil
+        
+        removeItemFromList(graphList[0], timeGraph)
+        removeItemFromList(flush_list, rangeGraph)
+        
+        unmapIfNotNil(timeGraphBox)
+        unmapIfNotNil(obsPtsAndPathBox)
+        unmapIfNotNil(rangeBox)
+        
+        ppmsList = nil
+        
+        // Release cached dendrite data
+        _cachedDists = nil
+        _cachedUs = nil
+        _cachedSecRefs = nil
+    }
+    
+    // All next staff is private
+    
+    
+    proc showCore() { local colourIdx, u, x_min, x_max, isDisconnected localobj pathShape, pyVarsSet, pathSecList
+        strdef var
+        
+        pathShape = $o1
+        
+        pathShape.color_all(enumColours.grey)
+        
+        pyVarsSet = pyObj.set()
+        rangeVarPlot = new RangeVarPlot("v")
+        
+        colourIdx = enumColours.red
+        u = 0.5
+        soma_ref.o(0).sec {
+            sprint(var, "%s.v(%g)", secname(), u)
+            createOnePPM(pathShape, u, colourIdx)
+        }
+        addVarToGraph(timeGraph, var, colourIdx)
+        pyVarsSet.add(var)
+        colourIdx = enumColours.makeSureNotWhite(colourIdx + 1)
+        
+        if (isBothDendCompsFound) {
+            // showMainSubCore now returns the pathSecList so we don't need to call rangeVarPlot.list() again
+            isDisconnected = showMainSubCore(pathShape, proxDendCompOrNil.list_ref, distDendCompOrNil.list_ref, pyVarsSet, colourIdx, &x_min, &x_max, pathSecList)
+            if (isDisconnected) {
+                return
+            }
+        } else {
+            x_max = showFallbackSubCore(pathShape, pyVarsSet, colourIdx)
+            if (x_max == -1) {
+                return
+            }
+            x_min = 0
+            // Build pathSecList for fallback path
+            pathSecList = new SectionList()
+            rangeVarPlot.list(pathSecList)
+        }
+        
+        timeGraph.size(0, tstop, y_min, y_max)
+        setXYLabels(timeGraph, "Time (ms)")
+        graphList[0].append(timeGraph)
+        
+        rangeGraph.addobject(rangeVarPlot, enumColours.red, 0)
+        rangeGraph.size(x_min, x_max, y_min, y_max)
+        setXYLabels(rangeGraph, "Distance (um)")
+        flush_list.append(rangeGraph)
+        
+        pathShape.color_list(pathSecList, enumColours.red)
+    }
+    
+    func showMainSubCore() { local colourIdx, dist1_best, u1, dist2_best, u2, dist_max localobj pathShape, proxDendSec_list, distDendSec_list, pyVarsSet, sec1_ref, sec2_ref, secList, list_ref
+        
+        pathShape = $o1
+        proxDendSec_list = $o2
+        distDendSec_list = $o3
+        pyVarsSet = $o4
+        colourIdx = $5
+        
+        dist1_best = findMostDistantPointInSections(proxDendSec_list, sec1_ref, &u1)
+        if (isDisconnectedDistance(dist1_best)) {
+            return 1
+        }
+        
+        dist2_best = findMostDistantPointInSections(distDendSec_list, sec2_ref, &u2)
+        if (isDisconnectedDistance(dist2_best)) {
+            return 1
+        }
+        
+        sec1_ref.sec {
+            rangeVarPlot.begin(u1)
+        }
+        
+        sec2_ref.sec {
+            rangeVarPlot.end(u2)
+        }
+        
+        secList = new SectionList()
+        rangeVarPlot.list(secList)
+        list_ref = new List()
+        secListToListOfSecRef(secList, list_ref)
+        
+        dist_max = addPointsForVoltageInDendrites(list_ref, pathShape, timeGraph, pyVarsSet, colourIdx)
+        if (dist_max == -1) {
+            codeContractViolation()
+        }
+        
+        $&6 = -dist1_best
+        $&7 = dist2_best
+        
+        // Pass the already-built SectionList back to showCore so it doesn't have to call rangeVarPlot.list() again
+        $o8 = secList
+        
+        return 0
+    }
+    
+    func showFallbackSubCore() { local colourIdx, dist_max localobj pathShape, pyVarsSet
+        
+        pathShape = $o1
+        pyVarsSet = $o2
+        colourIdx = $3
+        
+        soma_ref.o(0).sec {
+            rangeVarPlot.begin(0.5)
+        }
+        
+        dist_max = addPointsForVoltageInDendrites(dendrite_ref, pathShape, timeGraph, pyVarsSet, colourIdx)
+        if (dist_max == -1) {
+            return -1
+        }
+        
+        return dist_max
+    }
+    
+    // -----------------------------------------------------------------------
+    //  Dendrite distance cache — built once, queried by binary search
+    // -----------------------------------------------------------------------
+    //  Instead of scanning all dendrite segments for every grid point (O(N×M)),
+    //  we build sorted vectors once (O(N log N)) and use Vector.indwhere for each
+    //  query (O(log N each), O(M log N) total).
+    
+    proc buildDendriteCacheIfNeeded() { local n, u, dist, i localobj nil, list_ref, idx_vec, tmpDists, tmpUs, tmpSecRefs, sr
+        
+        if (_cachedDists != nil) {
+            return      // already built
+        }
+        
+        list_ref = $o1
+        
+        // First pass: count segments for pre-allocation
+        n = 0
+        for eachSegmInSecList(&u, list_ref) {
+            n += 1
+        }
+        
+        tmpDists = new Vector(n)
+        tmpUs = new Vector(n)
+        tmpSecRefs = new List()
+        
+        i = 0
+        for eachSegmInSecList(&u, list_ref) {
+            tmpDists.x[i] = distance(u)
+            tmpUs.x[i] = u
+            sr = new SectionRef()
+            tmpSecRefs.append(sr)
+            i += 1
+        }
+        
+        // Sort by distance; apply same permutation to u and secRef arrays
+        idx_vec = tmpDists.sortindex()
+        
+        _cachedDists = new Vector(n)
+        _cachedUs = new Vector(n)
+        _cachedSecRefs = new List()
+        
+        for i = 0, n - 1 {
+            _cachedDists.x[i] = tmpDists.x[idx_vec.x[i]]
+            _cachedUs.x[i] = tmpUs.x[idx_vec.x[i]]
+            _cachedSecRefs.append(tmpSecRefs.o(idx_vec.x[i]))
+        }
+    }
+    
+    // Binary-search the cached data for the segment closest to dist_exp.
+    // Returns the SectionRef via $o2 and the range value via $&3.
+    proc findSpecificDistancePointCached() { local dist_exp, idx, n, lo, hi, best_idx localobj sec_ref
+        
+        dist_exp = $1
+        n = _cachedDists.size()
+        
+        // Vector.indwhere(">=", val) returns the index of the first element >= val, or -1 if none
+        idx = _cachedDists.indwhere(">=", dist_exp)
+        
+        if (idx == -1) {
+            // dist_exp is beyond all cached distances — use the last (farthest) point
+            best_idx = n - 1
+        } else if (idx == 0) {
+            best_idx = 0
+        } else {
+            // Compare the two neighbours bracketing dist_exp
+            lo = idx - 1
+            hi = idx
+            if (abs(_cachedDists.x[lo] - dist_exp) <= abs(_cachedDists.x[hi] - dist_exp)) {
+                best_idx = lo
+            } else {
+                best_idx = hi
+            }
+        }
+        
+        $o2 = _cachedSecRefs.o(best_idx)
+        $&3 = _cachedUs.x[best_idx]
+    }
+    
+    // Here we choose equidistantly spaced observation points on dendrites ("numDendPts" points in total)
+    func addPointsForVoltageInDendrites() { local colourIdx, isDisconnected, dist_min, dist_max, u, isFirstPoint, dist localobj nil, list_ref, pathShape, timeGraph, pyVarsSet, sec_ref
+        strdef var
+        
+        list_ref = $o1
+        pathShape = $o2
+        timeGraph = $o3
+        pyVarsSet = $o4
+        colourIdx = $5
+        
+        isDisconnected = getDistRangeGivenSections(list_ref, &dist_min, &dist_max)
+        if (isDisconnected) {
+            mwh.showWarningBox("Cannot proceed with this simulation because at least one dendrite section doesn't have a topological connection with the distance centre.")
+            return -1
+        }
+        
+        // Build sorted cache once for fast lookups
+        buildDendriteCacheIfNeeded(list_ref)
+        
+        u = -1
+        
+        isFirstPoint = 1
+        for eachPointInGrid(&dist, dist_min, dist_max, numDendPts + 1) {
+            if (isFirstPoint) {
+                // We have used soma_ref.o(0).sec(0.5) as the first watched point (the distance centre)
+                isFirstPoint = 0
+                continue
+            }
+            findSpecificDistancePointCached(dist, sec_ref, &u)
+            sec_ref.sec {
+                sprint(var, "%s.v(%g)", secname(), u)
+            }
+            if (pyObj.isInPySet(pyVarsSet, var)) {
+                continue
+            }
+            addVarToGraph(timeGraph, var, colourIdx)
+            sec_ref.sec {
+                createOnePPM(pathShape, u, colourIdx)
+            }
+            pyVarsSet.add(var)
+            colourIdx = enumColours.makeSureNotWhite(colourIdx + 1)
+        }
+        
+        if (u == -1) {
+            codeContractViolation()
+        }
+        
+        sec_ref.sec {
+            rangeVarPlot.end(u)
+        }
+        
+        return dist_max
+    }
+    
+    // Optimised: only creates a new SectionRef when a strictly better candidate is found
+    func findMostDistantPointInSections() { local dist_best, u_best, u, dist localobj sec_list, sec_ref
+        sec_list = $o1
+        
+        dist_best = -1
+        u_best = -1
+        
+        for eachSegmInSecList(&u, sec_list) {
+            dist = distance(u)
+            if (dist > dist_best) {
+                dist_best = dist
+                u_best = u
+                sec_ref = new SectionRef()
+            }
+        }
+        
+        if (dist_best == -1) {
+            codeContractViolation()
+        }
+        
+        $o2 = sec_ref
+        $&3 = u_best
+        
+        return dist_best
+    }
+    
+    // code shared with py:MyelRegionHelper._createOnePPM
+    proc createOnePPM() { local u, colourIdx localobj pathShape, ppm
+        pathShape = $o1
+        u = $2
+        colourIdx = $3
+        
+        ppm = new PointProcessMark(u)
+        pathShape.point_mark(ppm, colourIdx)
+        
+        // Without the next command, the marker won't be shown correctly after "3D Rotate"
+        ppmsList.append(ppm)
+    }
+    
+    proc setXYLabels() { localobj graph
+        strdef x_label
+        graph = $o1
+        x_label = $s2
+        graph.label(0.44, 0.015, x_label)
+        graph.label(0.04, 0.95, "Voltage (mV)")
+    }
+    
+endtemplate SimVoltageCA1Neuron

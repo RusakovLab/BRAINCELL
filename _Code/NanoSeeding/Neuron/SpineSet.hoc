@@ -1,0 +1,128 @@
+
+loadIfNotDeclared("SeedingDensityHelper", "../../Managers/SeedingDensityHelper.hoc", 1)
+
+// !! get rid of the old top-level var "isAllOrSomeDendritesSeeded"
+
+_lastIdxForSpineSet = 1
+
+objref _randomBranchSeeder
+_randomBranchSeeder = rngUtils.getFor_nano_branchSeeder()
+
+begintemplate SpineSet
+    
+    public reseed, prepareShownString, getSeededSecList, deployMarkerPointProcesses, destroyMarkerPointProcesses
+    public idxForSpineSet, isAllOrSomeDendsSeeded, seededDendrites_ref, maxNumSpinesPerSec, seedingDensityHelper
+    public protoSpineList
+    public spineNecks_ref, spineHeads_ref
+    public s
+    
+    external _lastIdxForSpineSet, _randomBranchSeeder
+    external math
+    external getEmptyOrS, codeContractViolation
+    external eachRandomlySeededSlotInSecList
+    external dendrite_ref
+    external eachItemInList
+    
+    objref protoSpineList
+    
+    idxForSpineSet = -1         // Used only to show in the list and on the Shape
+    isAllOrSomeDendsSeeded = -1
+    objref seededDendrites_ref
+    maxNumSpinesPerSec = -1
+    
+    objref seedingDensityHelper
+    
+    // Set from NanoBranchesManager.reseedBranches, then read from SynSet ctor
+    objref spineNecks_ref, spineHeads_ref
+    
+    strdef s
+    
+    
+    proc init() { local numArg, inf
+        
+        numArg = numarg()
+        if (numArg < 2) {
+            isAllOrSomeDendsSeeded = 1
+            maxNumSpinesPerSec = 10
+            if (numArg == 0) {
+                seedingDensityHelper = new SeedingDensityHelper(1, 1)
+            } else {
+                seedingDensityHelper = $o1
+            }
+        } else if (numArg == 3) {
+            isAllOrSomeDendsSeeded = $1
+            maxNumSpinesPerSec = $2
+            seedingDensityHelper = $o3
+        } else {
+            codeContractViolation()
+        }
+        
+        seededDendrites_ref = dendrite_ref
+        
+        idxForSpineSet = _lastIdxForSpineSet
+        _lastIdxForSpineSet += 1
+        
+        reseed()
+        
+        inf = math.inf
+        variable_domain(&maxNumSpinesPerSec, 0, inf)
+    }
+    
+    // !! keep in sync with NanoBranchesManager.reseedBranches, CreateDefaultGapJuncs.hoc -> reseed*GapJuncs and GapJuncSet.applyChangesToLoc
+    proc reseed() { local connectionPoint localobj seeded_ref, sec_ref, protoSpine
+        
+        protoSpineList = new List()
+        
+        seeded_ref = getSeededSecList()
+        for eachRandomlySeededSlotInSecList(&connectionPoint, seeded_ref, maxNumSpinesPerSec, seedingDensityHelper, _randomBranchSeeder, 0) {
+            sec_ref = new SectionRef()
+            protoSpine = new ProtoSpine(sec_ref, connectionPoint)
+            protoSpineList.append(protoSpine)
+        }
+        
+        prepareShownString()    // Just because numSpines has changed
+    }
+    
+    proc prepareShownString() { local numSpines
+        strdef allOrSome, uniformOrNot, emptyOrS
+        
+        if (isAllOrSomeDendsSeeded) {
+            allOrSome = "All"
+        } else {
+            allOrSome = "Some"
+        }
+        
+        if (seedingDensityHelper.isUniform) {
+            uniformOrNot = "Uniform"
+        } else {
+            uniformOrNot = "Non-uniform"
+        }
+        
+        numSpines = protoSpineList.count()
+        
+        getEmptyOrS(numSpines, emptyOrS)
+        
+        sprint(s, "Set #%d: %s dends, %s seeding (%d spine%s)", idxForSpineSet, allOrSome, uniformOrNot, numSpines, emptyOrS)
+    }
+    
+    obfunc getSeededSecList() {
+        if (isAllOrSomeDendsSeeded) {
+            return dendrite_ref
+        } else {
+            return seededDendrites_ref
+        }
+    }
+    
+    proc deployMarkerPointProcesses() { localobj protoSpine
+        for eachItemInList(protoSpine, protoSpineList) {
+            protoSpine.deployMarkerPp()
+        }
+    }
+    
+    proc destroyMarkerPointProcesses() { localobj protoSpine
+        for eachItemInList(protoSpine, protoSpineList) {
+            protoSpine.destroyMarkerPp()
+        }
+    }
+    
+endtemplate SpineSet

@@ -1,0 +1,71 @@
+
+// !! maybe use 2 different counters for IOD and LFP:
+//    they will be encapsulated into InsideOutDiffManagerMainWidget and SimLocalFieldPotential; here we'll keep a Pointer re-assigned from each proc "show"
+_lastIdxForObservationPoint = 1
+
+begintemplate ObservationPoint
+    
+    public setCoords, createGraphAndAddToTwoLists
+    public x, y, z, s
+    public theValue
+    
+    external _lastIdxForObservationPoint
+    external enumColours
+    external tstop, graphList
+    
+    idxForThisPt = -1
+    
+    x = -1
+    y = -1
+    z = -1
+    
+    strdef s
+    
+    theValue = -1   // Not used for inside-out diffusion, but used for local field potential sim
+    
+    
+    proc init() {
+        idxForThisPt = _lastIdxForObservationPoint
+        _lastIdxForObservationPoint += 1
+        
+        setCoords($1, $2, $3)
+    }
+    
+    proc setCoords() {
+        x = $1
+        y = $2
+        z = $3
+        
+        prepareShownString()
+    }
+    
+    proc createGraphAndAddToTwoLists() { local yMin, yMax localobj listOfGraphs, graph
+        strdef yLabel
+        
+        // $&1
+        yLabel = $s2
+        yMin = $3
+        yMax = $4
+        listOfGraphs = $o5
+        
+        graph = new Graph()
+        graph.size(0, tstop, yMin, yMax)
+        graph.label(0.44, 0.015, "time (ms)")
+        graph.label(0.04, 0.95, yLabel)
+        
+        graph.addvar("", &$&1)
+        graph.color(enumColours.blue)
+        graph.label(0.37, 0.95, s)
+        
+        graphList[0].append(graph)  // Will be removed in PointsToWatchWidget.dismissHandler
+        listOfGraphs.append(graph)
+    }
+    
+    // All next staff is private
+    
+    
+    proc prepareShownString() {
+        sprint(s, "Pt #%d: c={%g, %g, %g} %s", idxForThisPt, x, y, z, units("L"))
+    }
+    
+endtemplate ObservationPoint

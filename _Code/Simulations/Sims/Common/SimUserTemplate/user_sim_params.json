@@ -1,0 +1,31 @@
+{
+    "_comment": [
+        "BrainCell — User Simulation parameter preset.",
+        "This file is optional. If you set biophysJsonFileNameOrEmpty to the path",
+        "of this file in SimUserTemplate.py, BrainCell will load it automatically",
+        "via beih.importForSim() before showing the simulation panel.",
+        "Leave biophysJsonFileNameOrEmpty as an empty string '' if you do not",
+        "need automatic biophysics loading."
+    ],
+
+    "simLabel": "User template simulation",
+    "version":  1,
+
+    "iclamp": {
+        "_comment": "Current injection parameters — must match SimUserTemplate defaults",
+        "amp_nA":    0.3,
+        "delay_ms":  50.0,
+        "dur_ms":    200.0
+    },
+
+    "runControl": {
+        "_comment": "Simulation time parameters",
+        "tstop_ms":  350.0,
+        "dt_ms":     0.025
+    },
+
+    "output": {
+        "_comment": "Output options",
+        "saveToTxt": false
+    }
+}

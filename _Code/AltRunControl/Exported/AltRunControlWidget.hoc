@@ -1,0 +1,345 @@
+
+objref simManager
+
+// This widget is a counterpart of the standard "RunControl" panel available via "Tools" -> "RunControl" or nrncontrolmenu() with some new features:
+// * it applies the stoch (and inhom) models defined in our program;
+// * it integrates with the sims providing custom handling for start/stop/continue events;
+// * it eliminates the common source of errors when user clicks "Continue til", "Continue for" or "Single Step" before "Init" or "Init & Run";
+// * it exposes "isInited" and "isRunning" flags (you may want to set isInited = 0 or read isRunning in certain scenarios).
+begintemplate AltRunControlWidget
+
+    public show, plugSim, unplugSim, initHandler, initAndRunHandler, showNotInitedWarning, dismissHandler
+    public isInited, isRunning
+    
+    external cvode
+    external v_init, runStopAt, runStopIn, tstop, steps_per_ms, screen_update_invl, realtime
+    external stdinit, run, continuerun, steprun, tstop_changed, setdt
+    external alt_stdinit, alt_run, alt_continuerun, alt_steprun
+    external simManager, mwh
+    
+    external inhomAndStochApplicator, inhomAndStochLibrary
+    external mmIcrHelper
+    external stringsEqual, printNotImplementedMsgAndRaiseError, codeContractViolation
+    
+    objref mainBox
+    
+    isEnableStoch = -1
+    
+    isInited = -1
+    isRunning = -1  // This one looks redundant because NEURON has "running_" and "stoprun" and we can compare "t" to "tstop",
+                    // but in fact these other vars are not sufficient to track the running state correctly in some cases even for the standard "RunControl"
+    isSimPlugged = -1
+    strdef integratedWithVarLabel
+    
+    strdef none
+    
+    
+    proc init() {
+        isEnableStoch = 1
+        
+        isInited = 0
+        isRunning = 0
+        isSimPlugged = 0
+        none = "NONE"
+        updateIntegratedWithVarLabel(none)
+        
+        // In contrast to RunControl, the AltRunControl is a template, and this results in an unwanted effect
+        // that the next 7 external vars lose their units and domains when exposed with "xpvalue";
+        // so we have to specify them here again (just copied from "%NEURONHOME%\lib\hoc\stdrun.hoc")
+        units(&v_init, "mV")
+        variable_domain(&runStopAt, 0, 1e9) units(&runStopAt, "ms")
+        variable_domain(&runStopIn, 0, 1e6) units(&runStopIn, "ms")
+        variable_domain(&tstop, 0, 1e9) units(&tstop, "ms")
+        variable_domain(&steps_per_ms, 1e-6, 1e6)
+        variable_domain(&screen_update_invl, .01, 1e9) units(&screen_update_invl, "s")
+        units(&realtime, "s")
+    }
+    
+    proc show() { local count, idx localobj pwm, nil
+        strdef name
+        
+        // Closing the standard panels "RunControl" and "RunButton" (which may have multiple copies)
+        pwm = new PWManager()
+        count = pwm.count()
+        for (idx = count - 1; idx >= 0; idx -= 1) {
+            name = pwm.name(idx)
+            if (stringsEqual(name, "RunControl") || stringsEqual(name, "Run")) {
+                pwm.close(idx)
+            }
+        }
+        
+        if (mainBox != nil) {           // Do not replace with one IF
+            if (mainBox.ismapped()) {   //
+                return
+            }
+        }
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            xvarlabel(integratedWithVarLabel)
+            xpanel()
+            
+            // Making this widget look alike the standard one as close as possible
+            // see "%NEURONHOME%\lib\hoc\stdrun.hoc" -> proc nrncontrolmenu()
+            xpanel("")
+            xpvalue("Init", &v_init, 1, "initHandler()", 1)
+            xbutton("Init & Run", "initAndRunHandler()")
+            xbutton("Stop", "stoprun = 1")
+            xpvalue("Continue til", &runStopAt, 1, "{ continueTilHandler() stoprun = 1 }", 1)
+            xpvalue("Continue for", &runStopIn, 1, "{ continueForHandler() stoprun = 1 }", 1)
+            xbutton("Single Step", "singleStepHandler()")
+            xpvalue("t", &t)
+            xpvalue("Tstop", &tstop, 1, "tstop_changed()")
+            xpvalue("dt", &dt, 1, "setdt()")
+            xpvalue("Points plotted/ms", &steps_per_ms, 1, "setdt()")
+            xpvalue("Scrn update invl", &screen_update_invl, 1)
+            xpvalue("Real Time", &realtime)
+            xpanel()
+            
+            xpanel("")
+            xlabel("Warning: If you use the standard \"RunControl\"")   // !! the same for the standard "RunButton"
+            xlabel("widget instead of this one,")
+            xlabel("then all stochasticity models defined")
+            xlabel("in our program won't be applied.")
+            // !! the same for inhomogeneity models applied to ASSIGNED and STATE vars
+            xpanel()
+            
+            xpanel("")
+            xcheckbox("Enable stochasticity", &isEnableStoch, "isEnableStochCheckBoxHandler()")
+            xpanel()
+            
+            // !! maybe add a button here to reset all RNGs used by the stoch manager
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("AltRunControl", 200, 575, -1, -1)
+    }
+    
+    proc plugSim() {
+        strdef simName
+        simName = $s1
+        updateIntegratedWithVarLabel(simName)
+        isSimPlugged = 1
+    }
+    
+    proc unplugSim() {
+        updateIntegratedWithVarLabel(none)
+        isSimPlugged = 0
+    }
+    
+    proc initHandler() { local isCancel
+        rescanBiophysCompsIfNeeded()
+        isCancel = callSimPreRun(1)
+        if (isCancel) {
+            return
+        }
+        isInited = 1
+        if (!isEnableStoch) {
+            stdinit()
+        } else {
+            checkCVodeStochPrereqs()
+            alt_stdinit()
+        }
+    }
+    
+    proc initAndRunHandler() { local numArg, isSkipSimPreRunAndPostRun, isCancel, isWaitingForCallbacks
+        
+        numArg = numarg()
+        if (numArg > 1) {
+            codeContractViolation()
+        }
+        
+        if (numArg == 1) {
+            isSkipSimPreRunAndPostRun = $1
+            if (!isSkipSimPreRunAndPostRun) {
+                codeContractViolation()
+            }
+        } else {
+            isSkipSimPreRunAndPostRun = 0
+        }
+        
+        rescanBiophysCompsIfNeeded()
+        
+        if (!isSkipSimPreRunAndPostRun) {
+            isCancel = callSimPreRun(0)
+            if (isCancel) {
+                return
+            }
+        }
+        
+        isInited = 1
+        
+        if (!isEnableStoch) {
+            run()
+        } else {
+            checkCVodeStochPrereqs()
+            isWaitingForCallbacks = inhomAndStochApplicator.startPlayingVars()
+            if (!isWaitingForCallbacks) {
+                run()
+            } else {
+                alt_run()
+            }
+            inhomAndStochApplicator.stopPlayingVars()
+        }
+        
+        if (!isSkipSimPreRunAndPostRun) {
+            callSimPostRun()
+        }
+    }
+    
+    proc showNotInitedWarning() {
+        deliverWarning("Please don't click \"Continue til\", \"Continue for\" or \"Single Step\" before \"Init\" or \"Init & Run\".")
+    }
+    
+    proc dismissHandler() { localobj nil
+        if (mainBox != nil) {
+            mainBox.unmap()
+        }
+    }
+    
+    // All next staff is private
+    
+    
+    proc continueTilHandler() { local isCancel, isWaitingForCallbacks
+        if (!isInited) {
+            showNotInitedWarning()
+            return
+        }
+        rescanBiophysCompsIfNeeded()
+        isCancel = callSimPreContinue()
+        if (isCancel) {
+            return
+        }
+        if (!isEnableStoch) {
+            continuerun(runStopAt)
+        } else {
+            checkCVodeStochPrereqs()
+            isWaitingForCallbacks = inhomAndStochApplicator.startPlayingVars()
+            if (!isWaitingForCallbacks) {
+                continuerun(runStopAt)
+            } else {
+                alt_continuerun(runStopAt)
+            }
+            inhomAndStochApplicator.stopPlayingVars()
+        }
+        callSimPostRun()
+    }
+    
+    proc continueForHandler() { local isCancel, tStopAt, isWaitingForCallbacks
+        if (!isInited) {
+            showNotInitedWarning()
+            return
+        }
+        rescanBiophysCompsIfNeeded()
+        isCancel = callSimPreContinue()
+        if (isCancel) {
+            return
+        }
+        tStopAt = t + runStopIn
+        if (!isEnableStoch) {
+            continuerun(tStopAt)
+        } else {
+            checkCVodeStochPrereqs()
+            isWaitingForCallbacks = inhomAndStochApplicator.startPlayingVars()
+            if (!isWaitingForCallbacks) {
+                continuerun(tStopAt)
+            } else {
+                alt_continuerun(tStopAt)
+            }
+            inhomAndStochApplicator.stopPlayingVars()
+        }
+        callSimPostRun()
+    }
+    
+    proc singleStepHandler() { local isCancel, isWaitingForCallbacks
+        if (!isInited) {
+            showNotInitedWarning()
+            return
+        }
+        rescanBiophysCompsIfNeeded()
+        isCancel = callSimPreContinue()
+        if (isCancel) {
+            return
+        }
+        if (!isEnableStoch) {
+            steprun()
+        } else {
+            checkCVodeStochPrereqs()
+            isWaitingForCallbacks = inhomAndStochApplicator.startPlayingVars()
+            if (!isWaitingForCallbacks) {
+                steprun()
+            } else {
+                alt_steprun()
+            }
+            inhomAndStochApplicator.stopPlayingVars()
+        }
+        callSimPostRun()
+    }
+    
+    proc isEnableStochCheckBoxHandler() {
+        if (isRunning) {
+            deliverWarning("Cannot toggle this on the fly.")
+            isEnableStoch = !isEnableStoch
+        }
+    }
+    
+    proc rescanBiophysCompsIfNeeded() { localobj nil
+        if (mmIcrHelper != nil) {
+            mmIcrHelper.makeSureMechCompsCreatedOrImportedAndRescanned()
+        }
+    }
+    
+    func callSimPreRun() { local isInitOnly, isCancel
+        isInitOnly = $1
+        if (isSimPlugged) {
+            isCancel = simManager.preRun(isInitOnly)
+        } else {
+            isCancel = 0
+        }
+        isRunning = !(isInitOnly || isCancel)
+        return isCancel
+    }
+    
+    func callSimPreContinue() { local isCancel
+        if (isSimPlugged) {
+            isCancel = simManager.preContinue()
+        } else {
+            isCancel = 0
+        }
+        isRunning = !isCancel
+        return isCancel
+    }
+    
+    proc callSimPostRun() {
+        isRunning = 0
+        if (isSimPlugged) {
+            simManager.postRun()
+        }
+    }
+    
+    proc checkCVodeStochPrereqs() {
+        if (cvode.active() && inhomAndStochLibrary.isAnyStochVars()) {
+            printNotImplementedMsgAndRaiseError("Cannot run simulation with stoch models and variable time step \"dt\".")
+        }
+    }
+    
+    proc updateIntegratedWithVarLabel() {
+        strdef simNameOrNone
+        simNameOrNone = $s1
+        sprint(integratedWithVarLabel, "Integrated with: %s", simNameOrNone)
+    }
+    
+    proc deliverWarning() { localobj nil
+        strdef msg
+        msg = $s1
+        if (mwh != nil) {
+            mwh.showWarningBox(msg)
+        } else {
+            // "mwh" is not available in the "exported + standalone run" mode
+            printf("\n    Warning: %s\n\n", msg)
+        }
+    }
+    
+endtemplate AltRunControlWidget

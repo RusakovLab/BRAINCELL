@@ -1,0 +1,33 @@
+
+begintemplate EnumGapJuncCompIdxs
+    
+    public extGjPp, extGjExtValue, intGjPp
+    
+    // Keep in sync with hoc:GapJuncSet.init, py:GensForTaps.createReducedGapJuncComps and py:GensForTaps.initHomogenGapJuncVars
+    proc init() {
+        extGjPp = 0
+        extGjExtValue = 1
+        intGjPp = 2
+    }
+    
+endtemplate EnumGapJuncCompIdxs
+
+objref enumGapJuncCompIdxs
+enumGapJuncCompIdxs = new EnumGapJuncCompIdxs()
+
+
+// !! rename to EnumGapJuncParts
+begintemplate EnumGapJuncPpRoles
+    
+    public sngPp, ptrMarkerPp, extValue
+    
+    proc init() {
+        sngPp = 0           // For both ext and int GJs
+        ptrMarkerPp = 1     // For int GJs only
+        extValue = 2        // For ext GJs only
+    }
+    
+endtemplate EnumGapJuncPpRoles
+
+objref enumGapJuncPpRoles
+enumGapJuncPpRoles = new EnumGapJuncPpRoles()

@@ -1,0 +1,55 @@
+
+begintemplate ReducedTapSet
+
+    public applyInhomogeneityIter, createNewPpAttachedToSection
+    
+    objref this
+    
+    
+    // Keep in sync with TapSet.applyInhomogeneityIter
+    iterator applyInhomogeneityIter() { local tapIdx localobj xmAllTaps, distFuncHelper, prevSec_ref, tap, nil
+        xmAllTaps = $o2
+        distFuncHelper = $o3
+        
+        distFuncHelper.onJustBeforeFirstSection()
+        {
+            prevSec_ref = nil
+            for tapIdx = 0, xmAllTaps.count() - 1 {
+                tap = xmAllTaps.o(tapIdx)
+                if (tap.sec_ref != prevSec_ref) {
+                    distFuncHelper.onJustBeforeNewSection()
+                }
+                $o1 = tap
+                iterator_statement
+                prevSec_ref = tap.sec_ref
+            }
+        }
+        distFuncHelper.onJustAfterLastSection()
+    }
+    
+    _x = -1
+    objref _tempPp
+    
+    // Keep in sync with MechTypeHelper.createNewPpAttachedToSection
+    obfunc createNewPpAttachedToSection() { localobj sec_ref, pp, nil
+        strdef mechName, hocCommand
+        
+        mechName = $s1
+        sec_ref = $o2
+        _x = $3
+        
+        sprint(hocCommand, "_tempPp = new %s(_x)", mechName)
+        sec_ref.sec {
+            execute(hocCommand, this)
+        }
+        
+        pp = _tempPp
+        _tempPp = nil
+        
+        return pp
+    }
+    
+endtemplate ReducedTapSet
+
+objref tapSet
+tapSet = new ReducedTapSet()

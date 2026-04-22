@@ -1,0 +1,161 @@
+
+// !! keeping this proc on the top level rather than inside a template just because we need to use "farall"
+func applyExtracellularSources() { local veryMinOuterConc, numECSs, isInsertOrUninsert, maxNumImpsPerECS, segmIdx_global, u localobj spcLibPackedToVec, ecSrcLibPackedToVec, segm3DSpecificDataMatrix, numImpsSoFarDataVec, impTimesDataMatrix
+
+    veryMinOuterConc = $1
+    
+    numECSs = ecsLibrary.getNumECSs()
+    isInsertOrUninsert = (numECSs != 0)
+    
+    if (isInsertOrUninsert) {
+        // GLOBAL-s
+        speciesLibrary.copyGlobalVarsToModParams()
+        
+        maxNumImpsPerECS = ecsLibrary.getMaxNumImpsPerECS()
+        maxNumImpsPerECS_OutsideInDiffHelper = maxNumImpsPerECS
+        
+        
+        // POINTER-s
+        
+        spcLibPackedToVec = speciesLibrary.packToVec()
+        ecSrcLibPackedToVec = ecsLibrary.packToVec()
+        segm3DSpecificDataMatrix = _prepareSegm3DSpecificDataMatrix()
+        
+        numImpsSoFarDataVec = new Vector(numECSs)
+        
+        if (maxNumImpsPerECS == 0) {
+            // Just a workaround because NEURON considers the next commands illegal:
+            //  impTimesDataMatrix = new Matrix(numECSs, 0)
+            //  setpointer ptr_impTimesDataMatrix_OutsideInDiffHelper(u), nil
+            maxNumImpsPerECS = 1
+        }
+        impTimesDataMatrix = new Matrix(numECSs, maxNumImpsPerECS)
+        
+        ecsLibrary.deployAllSeriesChains(numImpsSoFarDataVec, impTimesDataMatrix)   // --> eclDeploymentCache
+        
+        veryMin_o_OutsideInDiffHelper = veryMinOuterConc
+        
+        segmIdx_global = 0
+        forall {
+            // No problem here if already inserted
+            insert OutsideInDiffHelper
+            
+            for (u, 0) {
+                // !! all the pointers below are initialized as "RANGE POINTER"-s,
+                //    but actually only ptr_segm3DSpecificDataMatRow_OutsideInDiffHelper needs to be a "RANGE POINTER"
+                //    and all others should be "GLOBAL POINTER"-s
+                //    but how can we do this with NEURON? it considers illegal even when we try to remove "(u)" below
+                
+                setpointer ptr_spcLibDataVec_OutsideInDiffHelper(u), spcLibPackedToVec.x[0]
+                setpointer ptr_ecSrcLibDataVec_OutsideInDiffHelper(u), ecSrcLibPackedToVec.x[0]
+                
+                setpointer ptr_segm3DSpecificDataMatRow_OutsideInDiffHelper(u), segm3DSpecificDataMatrix.x[segmIdx_global][0]
+                
+                setpointer ptr_numImpsSoFarDataVec_OutsideInDiffHelper(u), numImpsSoFarDataVec.x[0]
+                setpointer ptr_impTimesDataMatrix_OutsideInDiffHelper(u), impTimesDataMatrix.x[0][0]
+                
+                segmIdx_global += 1
+            }
+        }
+        
+        eclDeploymentCache.spcLibPackedToVec = spcLibPackedToVec
+        eclDeploymentCache.ecSrcLibPackedToVec = ecSrcLibPackedToVec
+        eclDeploymentCache.segm3DSpecificDataMatrix = segm3DSpecificDataMatrix
+        eclDeploymentCache.numImpsSoFarDataVec = numImpsSoFarDataVec
+        eclDeploymentCache.impTimesDataMatrix = impTimesDataMatrix
+        
+        init()
+        
+    } else {
+        disableExtracellularSources()
+    }
+    
+    return isInsertOrUninsert
+}
+
+// !! keeping this proc on the top level rather than inside a template just because we need to use "farall"
+func disableExtracellularSources() { local wasEnabled
+    
+    wasEnabled = getExtracellularSourcesStatus()
+    if (!wasEnabled) {
+        return 0
+    }
+    
+    forall {
+        // No problem here if already uninserted
+        uninsert OutsideInDiffHelper
+    }
+    
+    eclDeploymentCache.removeAll()
+    
+    init()
+    
+    return 1
+}
+
+func getExtracellularSourcesStatus() { local isEnabled
+    // It's a code contract that this mech is either inserted in all or uninserted from all the sections (at least for now)
+    soma_ref.o(0).sec {
+        isEnabled = ismembrane("OutsideInDiffHelper")
+    }
+    return isEnabled
+}
+
+// !! test this
+obfunc _prepareSegm3DSpecificDataMatrix() { local numSegms_global, numECSs, segmIdx_global, segmIdx_local, u, xSegm, ySegm, zSegm, ecsIdx, dist, value localobj segm3DSpecificDataMatrix, xSegm_vec, ySegm_vec, zSegm_vec, spatialInfo
+    
+    numSegms_global = getTotalNumSegms()
+    numECSs = ecsLibrary.getNumECSs()
+    
+    // A matrix such that given global segment index "segmIdx_global" and extracellular source index "ecsIdx",
+    // the value "segm3DSpecificDataMatrix[segmIdx_global][ecsIdx]" has different meaning depending on the source shape:
+    //   * "point"  - distance from the 3D point to the segment centre
+    //   * "sphere" - 0/1 flag indicating whether the segment centre is inside the sphere
+    // !! for performance, we can add the 3rd case when the value has the meaning of "distanceToPoint ^ 2"
+    segm3DSpecificDataMatrix = new Matrix(numSegms_global, numECSs)
+    
+    xSegm_vec = new Vector()
+    ySegm_vec = new Vector()
+    zSegm_vec = new Vector()
+    
+    segmIdx_global = 0
+    forall {
+    
+        interpEachSegmCentreCoordsFromSec3DPointCoords(xSegm_vec, ySegm_vec, zSegm_vec)
+        
+        segmIdx_local = 0
+        for (u, 0) {
+        
+            xSegm = xSegm_vec.x[segmIdx_local]
+            ySegm = ySegm_vec.x[segmIdx_local]
+            zSegm = zSegm_vec.x[segmIdx_local]
+            
+            for ecsIdx = 0, numECSs - 1 {
+                
+                spatialInfo = ecsLibrary.ecsList.o(ecsIdx).spatialInfo
+                
+                dist = _getDistBetweenTwo3DPoints(xSegm, ySegm, zSegm, spatialInfo.x, spatialInfo.y, spatialInfo.z)
+                
+                if (spatialInfo.enumPointSphere == 0) {
+                    value = dist
+                } else if (spatialInfo.enumPointSphere == 1) {
+                    value = (dist <= spatialInfo.radiusOrMinus1)    // !! or < ?
+                } else {
+                    codeContractViolation()
+                }
+                
+                segm3DSpecificDataMatrix.x[segmIdx_global][ecsIdx] = value
+            }
+            
+            segmIdx_local += 1
+            segmIdx_global += 1
+        }
+    }
+    
+    return segm3DSpecificDataMatrix
+}
+
+// !! maybe move this to GeometryMath
+func _getDistBetweenTwo3DPoints() {
+    return sqrt(($1 - $4) ^ 2 + ($2 - $5) ^ 2 + ($3 - $6) ^ 2)
+}

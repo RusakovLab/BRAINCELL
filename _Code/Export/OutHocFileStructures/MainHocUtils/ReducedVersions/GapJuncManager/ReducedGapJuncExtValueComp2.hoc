@@ -1,0 +1,50 @@
+
+begintemplate ReducedGapJuncExtValueComp
+
+    public enumDmPpFk, enumPpRole, mechStds
+    public applyInhomogeneity
+    
+    external tapSet
+    external codeContractViolation
+    external enumGapJuncPpRoles
+    
+    enumDmPpFk = -1
+    enumPpRole = -1
+    objref mechStds[1][1]
+    
+    
+    proc init() {
+        enumDmPpFk = 2
+        enumPpRole = enumGapJuncPpRoles.extValue
+        objref mechStds[1][1]
+    }
+    
+    // Keep in sync with GapJuncExtValueComp.applyInhomogeneity
+    proc applyInhomogeneity() { local varType, arraySize, arrayIndex, y localobj distFuncHelper, gapJuncSet, mechStd, gapJunc, thisPp
+        strdef mechName, varName
+        
+        mechName = $s1
+        varType = $2
+        varName = $s3
+        arraySize = $4  // Just a placeholder
+        arrayIndex = $5
+        distFuncHelper = $o6
+        gapJuncSet = $o7
+        
+        if (varType != 1) {     // 1: "PARAMETER"
+            codeContractViolation()
+        }
+        
+        mechStd = new FakeMechanismStandardForExtValue(mechName, varType)
+        
+        for tapSet.applyInhomogeneityIter(gapJunc, gapJuncSet.allGapJuncs, distFuncHelper) {
+            // !! simplify this
+            thisPp = gapJunc.getPointProcess(enumPpRole)
+            mechStd.in(thisPp)
+            y = distFuncHelper.calculateAt(gapJunc.dist)
+            mechStd.set(varName, y, arrayIndex)
+            mechStd.out(thisPp)
+        }
+    }
+    
+endtemplate ReducedGapJuncExtValueComp

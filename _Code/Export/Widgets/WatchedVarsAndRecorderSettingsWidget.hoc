@@ -1,0 +1,120 @@
+
+begintemplate WatchedVarsAndRecorderSettingsWidget
+
+    public show, dismissHandler
+    
+    external exportOptions
+    external mwh, pyObj, math
+    external createRecordingPeriodHint, addVarToGraph, setPanelScrollIvocStyle, restoreDefaultPanelScrollIvocStyle, unmapIfNotNil
+    external eachItemInList
+    
+    objref mainBox
+    
+    objref watchedVarsList
+    
+    
+    proc init() {
+        watchedVarsList = exportOptions.watchedVarsList
+    }
+    
+    proc show() { localobj graph, var, apcList
+        strdef text
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            xlabel("Please add all the vars you want to watch to the Graph below")
+            xlabel("using the standard tool \"Plot what?\" and then click \"OK\".")
+            xlabel("(You can use \"Delete\" to remove the vars added by mistake.)")
+            xpanel()
+            graph = new Graph()
+            for eachItemInList(var, watchedVarsList) {
+                addVarToGraph(graph, var.s)
+            }
+            graph.menu_remove("Crosshair")
+            graph.menu_remove("Pick Vector")
+            graph.menu_remove("Color/Brush")
+            graph.menu_remove("View Axis")
+            graph.menu_remove("New Axis")
+            graph.menu_remove("View Box")
+            graph.menu_remove("Erase Axis")
+            graph.menu_remove("Axis Type")      // !! this one is not deleted for some reason
+            graph.menu_remove("Keep Lines")
+            graph.menu_remove("Family Label?")
+            graph.menu_remove("Erase")
+            graph.menu_remove("Move Text")
+            graph.menu_remove("Change Text")
+            // !! in addition to this Graph, think about showing a PlotShape
+            //    with the special menu item added with graphUtils.addPlotDynamicsMenuItem
+            setPanelScrollIvocStyle(20)
+            {
+                xpanel("")
+                xlabel("")
+                xpvalue("Recording period, Dt", &exportOptions.DtOrMinus1, 1, "DtChangedHandler()")
+                createRecordingPeriodHint()
+                apcList = new List("APCount")
+                sprint(text, "Record and save spikes info with all APCount-s (%d detected)", apcList.count())
+                xcheckbox(text, &exportOptions.isRecordAndSaveWithAPCounts)
+                xbutton("How do I edit APCount-s?", "editAPCountsHandler()")
+                xlabel("")
+                xlabel("Save to:")
+                xradiobutton("TXT files (optimized for Origin)", "saveToTxtOrBinFileRadioButtonHandler(1)", exportOptions.isSaveToTxtOrBinFile == 1)
+                xradiobutton("BIN files (Python pickle)", "saveToTxtOrBinFileRadioButtonHandler(0)", exportOptions.isSaveToTxtOrBinFile == 0)
+                // !! xradiobutton("Excel files", ...)
+                xlabel("")
+                xbutton("OK", "okHandler()")
+                xpanel()
+            }
+            restoreDefaultPanelScrollIvocStyle()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("Watched vars and recorder settings", 300, 80, -1, -1)
+        
+        // Keep the var name in sync with GraphUtils.parseVarsFromTheGraph
+        graph.save_name("someUniqueNameForTheParsedGraph")
+    }
+    
+    proc dismissHandler() {
+        unmapIfNotNil(mainBox)
+    }
+    
+    // All next staff is private
+    
+    
+    proc DtChangedHandler() {
+        if (exportOptions.DtOrMinus1 <= 0) {
+            exportOptions.DtOrMinus1 = -1
+        }
+    }
+    
+    proc editAPCountsHandler() {
+        strdef line1, line2, line3, line4, line5, line6, line7, line8, line9
+        line1 = "You can use the next standard panels to manage APCount-s:"
+        line2 = "    * To edit the thresholds in already existing APCount-s:"
+        line3 = "       Tools -> Point Processes -> Viewers -> PointProcesses -> APCount, then double click on a particular APCount"
+        line4 = "    * To add and edit a few new APCount-s one by one:"
+        line5 = "       Tools -> Point Processes -> Managers -> Point Manager, then click SelectPointProcess -> APCount"
+        line6 = "    * To add and edit many new APCount-s in a more convenient way:"
+        line7 = "       Tools -> Point Processes -> Managers -> Point Group, then click New -> APCount"
+        line8 = "Warning: All new APCount-s created with the last two panels are deleted automatically once you close the panel,"
+        line9 = "so don't close it until export complete."
+        mwh.showMessageBox(line1, "", line2, line3, line4, line5, line6, line7, "", line8, line9, "", "Management of APCount-s")
+    }
+    
+    proc saveToTxtOrBinFileRadioButtonHandler() {
+        exportOptions.isSaveToTxtOrBinFile = $1
+        if (!exportOptions.isSaveToTxtOrBinFile) {
+            mwh.showNotImplementedWarning()
+        }
+    }
+    
+    proc okHandler() {
+        watchedVarsList.remove_all()
+        pyObj.GraphUtils.parseVarsFromTheGraph(watchedVarsList)
+        
+        dismissHandler()
+    }
+    
+endtemplate WatchedVarsAndRecorderSettingsWidget

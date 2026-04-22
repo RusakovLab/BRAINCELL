@@ -1,0 +1,54 @@
+
+// Load some test nanogeometry file
+isAstrocyteOrNeuron = 1
+{ load_file("_CommonPrologueForTests.hoc") }
+
+tstop = 1000    // ms
+
+forall {
+    if (isAstrocyteOrNeuron) {
+        insert kir4
+    } else {
+        insert hh
+    }
+    insert InsideOutDiffHelper
+}
+
+objref plotShape1
+plotShape1 = new PlotShape(0)
+{ plotShape1.variable("ik") }
+{ plotShape1.label(0.7, 0.95, "ik (mA/cm2)") }
+{ plotShape1.view(-1, -1, -1, -1, 1350, 50, 200, 200) }
+{ plotShape1.exec_menu("Shape Plot") }
+{ plotShape1.exec_menu("View = plot") }
+{ plotShape1.scale(0, 0.02) }
+{ fast_flush_list.append(plotShape1) }
+
+objref plotShape2
+plotShape2 = new PlotShape(0)
+{ plotShape2.variable("ko") }
+{ plotShape2.label(0.8, 0.95, "ko (mM)") }
+{ plotShape2.view(-1, -1, -1, -1, 1350, 400, 200, 200) }
+{ plotShape2.exec_menu("Shape Plot") }
+{ plotShape2.exec_menu("View = plot") }
+{ plotShape2.scale(2.5, 2.52) }
+{ fast_flush_list.append(plotShape2) }
+
+objref plotShape3
+plotShape3 = new PlotShape(0)
+{ plotShape3.variable("species_ext_InsideOutDiffHelper") }
+{ plotShape3.label(0.15, 0.95, "species_ext_InsideOutDiffHelper (mM)") }
+{ plotShape3.view(-1, -1, -1, -1, 1350, 750, 200, 200) }
+{ plotShape3.exec_menu("Shape Plot") }
+{ plotShape3.exec_menu("View = plot") }
+{ plotShape3.scale(2.5, 2.52) }
+{ fast_flush_list.append(plotShape3) }
+
+func disableExtracellularSourcesAndUpdateMainUiDiffStatusIndication() { return 0 }
+
+{ load_file("../_Code/Managers/CommonLoads.hoc") }  // !! no need to load everything from this file
+{ load_file("../_Code/Extracellular/InsideOutDiffusion/InsideOutDiffManager.hoc") }
+
+showInsideOutDiffManagerBaseWidget()
+
+{ chdir("..") }     // Without this, getcwd() will return different path compared to the start from "init.hoc"

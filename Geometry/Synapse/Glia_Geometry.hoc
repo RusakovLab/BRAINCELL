@@ -1,0 +1,83 @@
+// ============================================================
+// Cell 3 Geometry — Astrocyte template (reusable)
+// Soma  : sphere approximated by 8 cylindrical sections (s3_0..s3_7)
+//         laid out along X from 0 to 8*R3/Deformation, at Y = CY3
+//         diameter profile: 2*R3*cos(theta) gives spherical cross-section
+// Dend  : negligible stub d3 (invisible, like ax)
+// Import multiple times in Extra Cells Manager for N astrocytes
+// For BrainCell multi-cell import (loaded independently)
+// ============================================================
+// PARAMETERS — edit here only
+// ------------------------------------------------------------
+R3          = 0.8     // soma radius (um)
+CY3         = 3.5    // soma centre Y position (um)
+Deformation = 8     // controls soma length in X: total = 8*R3/Deformation
+// ------------------------------------------------------------
+
+create s3_0, s3_1, s3_2, s3_3, s3_4, s3_5, s3_6, s3_7
+create d3
+create ax
+
+s3_0 connect s3_1(0), 1
+s3_1 connect s3_2(0), 1
+s3_2 connect s3_3(0), 1
+s3_3 connect s3_4(0), 1
+s3_4 connect s3_5(0), 1
+s3_5 connect s3_6(0), 1
+s3_6 connect s3_7(0), 1
+s3_0 connect d3(0), 1
+s3_0 connect ax(0), 1
+
+proc shape_soma3() {
+    s3_0 { pt3dclear()
+        pt3dadd(0*R3/Deformation, CY3, 0, 2*R3*cos((-90.0)*PI/180))
+        pt3dadd(1*R3/Deformation, CY3, 0, 2*R3*cos((-67.5)*PI/180))
+        nseg = 1 }
+    s3_1 { pt3dclear()
+        pt3dadd(1*R3/Deformation, CY3, 0, 2*R3*cos((-67.5)*PI/180))
+        pt3dadd(2*R3/Deformation, CY3, 0, 2*R3*cos((-45.0)*PI/180))
+        nseg = 1 }
+    s3_2 { pt3dclear()
+        pt3dadd(2*R3/Deformation, CY3, 0, 2*R3*cos((-45.0)*PI/180))
+        pt3dadd(3*R3/Deformation, CY3, 0, 2*R3*cos((-22.5)*PI/180))
+        nseg = 1 }
+    s3_3 { pt3dclear()
+        pt3dadd(3*R3/Deformation, CY3, 0, 2*R3*cos((-22.5)*PI/180))
+        pt3dadd(4*R3/Deformation, CY3, 0, 2*R3*cos((  0.0)*PI/180))
+        nseg = 1 }
+    s3_4 { pt3dclear()
+        pt3dadd(4*R3/Deformation, CY3, 0, 2*R3*cos((  0.0)*PI/180))
+        pt3dadd(5*R3/Deformation, CY3, 0, 2*R3*cos(( 22.5)*PI/180))
+        nseg = 1 }
+    s3_5 { pt3dclear()
+        pt3dadd(5*R3/Deformation, CY3, 0, 2*R3*cos(( 22.5)*PI/180))
+        pt3dadd(6*R3/Deformation, CY3, 0, 2*R3*cos(( 45.0)*PI/180))
+        nseg = 1 }
+    s3_6 { pt3dclear()
+        pt3dadd(6*R3/Deformation, CY3, 0, 2*R3*cos(( 45.0)*PI/180))
+        pt3dadd(7*R3/Deformation, CY3, 0, 2*R3*cos(( 67.5)*PI/180))
+        nseg = 1 }
+    s3_7 { pt3dclear()
+        pt3dadd(7*R3/Deformation, CY3, 0, 2*R3*cos(( 67.5)*PI/180))
+        pt3dadd(8*R3/Deformation, CY3, 0, 2*R3*cos(( 90.0)*PI/180))
+        nseg = 1 }
+}
+
+proc shape_dend3() {
+    d3 { pt3dclear()
+        pt3dadd(0,    CY3, 0, 0.01)
+        pt3dadd(0.01, CY3, 0, 0.01)
+        nseg = 1 }
+}
+
+ax {
+diam = 0.01
+L = 0.01
+}
+
+proc celldef() {
+    shape_soma3()
+    shape_dend3()
+}
+
+celldef()

@@ -1,0 +1,72 @@
+
+// Save nanogeometry HOC file
+// Returns: 0/1 flag indicating that the save operation was canceled by user
+func saveNanoHocFile() { local isCancel localobj bulletedList
+    strdef outHocFilePathName, outZipFilePathName, outFolderRelPathName, line1, str1, str2
+    
+    if (!exportOptions.isCreateNsgDataZipFile) {
+        isCancel = fbh.showSaveFileDialog(pyEnumOutFileTypes.nanoGeometryHoc, outHocFilePathName)
+    } else {
+        isCancel = fbh.showSaveFileDialog(pyEnumOutFileTypes.nsgDataZip, outZipFilePathName)
+    }
+    if (isCancel) {
+        return 1
+    }
+    
+    if (exportOptions.isCreateNsgDataZipFile) {
+        sprint(outFolderRelPathName, "_Code/Export/%s", pyObj.TempFolderUtils.tempFolderName)
+        pyObj.TempFolderUtils.createOrCleanUpTempFolder(outFolderRelPathName)
+        sprint(outHocFilePathName, "%s%s/%s", getcwd(), outFolderRelPathName, "init.hoc")
+    }
+    
+    // Letting NEURON change "dt" now rather than on start of the simulation,
+    // so we export already corrected value of "dt"
+    setdt()
+    
+    mwh.showPleaseWaitBox("Exporting nanogeometry file.")
+    {
+        callPythonExportCore(outHocFilePathName)
+    }
+    mwh.hidePleaseWaitBox()
+    
+    if (exportOptions.isCreateNsgDataZipFile) {
+        pyObj.NsgZipUtils.createNsgDataZipFile(outFolderRelPathName, outZipFilePathName)
+        pyObj.TempFolderUtils.deleteTempFolder(outFolderRelPathName)
+    }
+    
+    line1 = "Here is what we don't export at the moment (the list is incomplete):"
+    
+    bulletedList = new List()
+    str1 = "GLOBAL vars from biophys mechs%s"
+    str2 = "custom PPs/ACs (if you add them); we export only %s as well as APCount-s"
+    if (isAstrocyteOrNeuron) {
+        sprint(str1, str1, " and gap junc PPs")
+        sprint(str2, str2, "PPs from gap juncs")
+    } else {
+        sprint(str1, str1, ", gap junc PPs and synaptic PPs/ACs")
+        sprint(str2, str2, "the ones from gap juncs and syns")
+    }
+    bulletedList.append(new String(str1))
+    bulletedList.append(new String(str2))
+    bulletedList.append(new String("Ion reversal potentials (\"ek\", \"ena\" etc.)"))
+    bulletedList.append(new String("custom \"proc advance() { ... }\", e.g. the ones used in the \"Simulations\""))
+    if (isExternalSimStart) {   // !! maybe add || isBaseOrNanoStart
+        bulletedList.append(new String("overrides for other standard proc-s (e.g. \"init\" and \"run\") that may be imported from external HOC file"))
+    }
+    bulletedList.append(new String("the distance centre location (if you change it)"))
+    bulletedList.append(new String("states of RNGs"))
+    bulletedList.append(new String("\"secondorder\" variable"))
+    bulletedList.append(new String("if creating \"runner.hoc\", the results cannot be saved to BIN files (only TXT files are supported)"))
+    bulletedList.append(new String("a new file \"nrnmech.dll\" is not built (only the old one is copied)"))
+    
+    getNotImplementedLines(str1, str2)
+    
+    mwh.startIntercepting()
+    {
+        mwh.showWarningBox(line1, bulletedList, "", str1, str2)
+        mwh.showMessageBox("Export complete successfully", "Complete")
+    }
+    mwh.endIntercepting()
+    
+    return 0
+}

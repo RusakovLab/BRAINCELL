@@ -1,0 +1,36 @@
+
+begintemplate EnumSynCompIdxs
+    
+    public srcPp, netCon, trgPp, sngPp
+    
+    // Keep in sync with hoc:SynSet.init, py:GeneratorsForMainHocFile._analyzeUsedMechsInSynComps, py:GensForTaps.createReducedSynComps and py:GensForTaps.initHomogenSynVars
+    proc init() {
+        srcPp = 0
+        netCon = 1
+        trgPp = 2
+        sngPp = 3
+    }
+    
+endtemplate EnumSynCompIdxs
+
+objref enumSynCompIdxs
+enumSynCompIdxs = new EnumSynCompIdxs()
+
+
+// !! rename to EnumSynParts
+begintemplate EnumSynPpRoles
+    
+    public srcPp, netCon, trgPp, sngPp, trgPpOrSngPp
+    
+    proc init() {
+        srcPp = 0
+        netCon = 1
+        trgPp = 2
+        sngPp = 3
+        trgPpOrSngPp = 4
+    }
+    
+endtemplate EnumSynPpRoles
+
+objref enumSynPpRoles
+enumSynPpRoles = new EnumSynPpRoles()

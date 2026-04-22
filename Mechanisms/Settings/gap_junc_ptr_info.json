@@ -1,0 +1,25 @@
+{
+    "Gap": {
+        "ppPtrName": "vgap",
+        "dmVarNameWithIndex": "v"
+    },
+    "Gap40": null,
+    "Gap43": null,
+    "Gap45": null,
+    "Gap_neuron": null,
+    "GapCa": {
+        "ppPtrName": "gapCaP",
+        "dmVarNameWithIndex": "cai"
+    },
+    "GapCaExtr": null,
+    "GapCaSt": null,
+    "GapFRAP": {
+        "ppPtrName": "gapFRAPP",
+        "dmVarNameWithIndex": "frapioni"
+    },
+    
+    "JustExampleOfGapJuncPointProcessName": {
+        "ppPtrName": "Name of the POINTER in this gap junction point process to be connected with a variable in a distributed membrane mechanism",
+        "dmVarNameWithIndex": "Name of the variable in a distributed membrane mechanism to be connected with the POINTER in this gap junction point process; it can be either scalar (e.g. 'cai') or array element (e.g. 'ca_cadifus[1]')"
+    }
+}

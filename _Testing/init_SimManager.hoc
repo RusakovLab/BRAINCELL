@@ -1,0 +1,32 @@
+
+// Load some test nanogeometry file
+isAstrocyteOrNeuron = 0
+{ load_file("_CommonPrologueForTests.hoc") }
+
+{ load_file("../_Code/Managers/CommonLoads.hoc") }
+{ load_file("../_Code/Managers/MechManager/MechManager.hoc") }
+{ load_file("../_Code/Extracellular/OutsideInDiffusion/ExtracellularManager.hoc") }
+{ load_file("../_Code/Simulations/SimManagerLoads.hoc") }
+
+simCatIdx = 0   // "-1" means "don't select anything by default"
+simIdx = 0     //
+
+objref simBox
+simBox = new VBox()
+{ simBox.intercept(1) }
+{
+    if (simCatIdx != -1) {
+        simManager.simCatIdx = simCatIdx
+    }
+    simManager.createSimulationsPanel()
+}
+{ simBox.intercept(0) }
+{ simBox.map("Manager of simulations", 500, 355, -1, -1) }
+
+{ altRunControlWidget.show() }
+
+{ chdir("..") }     // Without this, getcwd() will return different path compared to the start from "init.hoc"
+
+if (simIdx != -1) {
+    simManager.programmaticClick(simIdx)
+}

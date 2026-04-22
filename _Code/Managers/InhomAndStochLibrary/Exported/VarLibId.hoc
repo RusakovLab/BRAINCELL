@@ -1,0 +1,71 @@
+
+begintemplate VarLibId
+    
+    // !! isDmOrTapPart, enumPpRoleOrMinus1, mechName, varTypeIdx, varName, arraySize
+    
+    public enumDmPpFk, compIdx, mechIdx, varType, varIdx, arrayIndex
+    public isGapJuncOrSyn, tapSetIdx    // For taps only ("-1" for biophys vars)
+    public isEqual
+    
+    external mth
+    external codeContractViolation
+    // external enumArgTypes        // !! maybe export and use this
+    
+    
+    proc init() { local argType5, argType7, enumArgTypes_number, enumArgTypes_strdef
+        strdef mechName, varName
+        
+        argType5 = argtype(5)
+        argType7 = argtype(7)
+        
+        enumArgTypes_number = 0
+        enumArgTypes_strdef = 2
+        
+        enumDmPpFk = $1
+        isGapJuncOrSyn = $2     // Must be "-1" for biophys vars
+        tapSetIdx = $3          //
+        compIdx = $4
+        
+        if (argType5 == enumArgTypes_number) {
+            // Passed in most cases
+            mechIdx = $5
+        } else if (argType5 == enumArgTypes_strdef) {
+            // Passed only in the exported HOC file (see py:GensForInhomAndStochModels._createVarLibIdCtorCall)
+            mechName = $s5
+            mechIdx = mth.getMechIdx(enumDmPpFk, mechName)
+        } else {
+            codeContractViolation()
+        }
+        
+        varType = $6
+        
+        if (argType7 == enumArgTypes_number) {
+            // Passed in most cases
+            varIdx = $7
+        } else if (argType7 == enumArgTypes_strdef) {
+            // Passed only in the exported HOC file (except gap junc ext value because its name is dynamic)
+            varName = $s7
+            varIdx = mth.getVarIdx(enumDmPpFk, mechName, varType, varName)
+        } else {
+            codeContractViolation()
+        }
+        
+        arrayIndex = $8
+        
+        if (enumDmPpFk == 0) {
+            if (isGapJuncOrSyn != -1 || tapSetIdx != -1) {
+                codeContractViolation()
+            }
+        } else {
+            if (isGapJuncOrSyn == -1 || tapSetIdx == -1) {
+                codeContractViolation()
+            }
+        }
+    }
+    
+    func isEqual() { localobj other
+        other = $o1
+        return (enumDmPpFk == other.enumDmPpFk && isGapJuncOrSyn == other.isGapJuncOrSyn && tapSetIdx == other.tapSetIdx && compIdx == other.compIdx && mechIdx == other.mechIdx && varType == other.varType && varIdx == other.varIdx && arrayIndex == other.arrayIndex)
+    }
+    
+endtemplate VarLibId

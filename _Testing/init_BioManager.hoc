@@ -1,0 +1,23 @@
+
+// Load some test nanogeometry file
+isAstrocyteOrNeuron = 0
+{ load_file("_CommonPrologueForTests.hoc") }
+
+objref cellPlotShape
+cellPlotShape = new PlotShape()
+
+objref stochTestGraph
+if (!isAstrocyteOrNeuron) {
+    // Watch some var just to test stochasticity applied with AltRunControlWidget
+    stochTestGraph = new Graph()
+    stochTestGraph.addvar("dendA2_0101111.cm(0.25)")
+    stochTestGraph.size(0, tstop, 0.795, 0.805)
+    graphList[0].append(stochTestGraph)
+}
+
+{ load_file("../_Code/Managers/CommonLoads.hoc") }
+{ load_file("../_Code/Managers/MechManager/MechManager.hoc") }
+
+makeSureMechCompsCreatedOrImportedAndRescannedThenShowMechManagerBaseWidget()
+
+{ chdir("..") }     // Without this, getcwd() will return different path compared to the start from "init.hoc"

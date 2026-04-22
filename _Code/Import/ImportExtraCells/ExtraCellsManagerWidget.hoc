@@ -1,0 +1,358 @@
+
+// !! don't forget to handle the next cases:
+//      * the imported cell has no sections
+//      * the imported cell has no soma or (neuron only) axon
+//      * soma has only 1 3D point
+//      * the root section is not soma
+//      * the imported cell has more than one topo root (3 options: keep as is, create multiple cells, connect all roots together)
+
+// !! required relations with other widgets:
+//      * the nanogeometry seeding widget should not show the extra cells
+//      * the inhomogeneity editor widget should not show the extra cells
+//      * the synapse editor widget should not show the extra cells
+//      * BUG: the gap junctions manager cannot edit sets after loading an extra cell (it thinks we have only one cell with disconnected secs)
+//      * when user opens this widget, close the manager of biophysics
+//        (or on load / delete only, so manager of biophysics would be consistent with the new cells)
+//      * we'll need to update the export module, so user can import back and edit the cells;
+//        also, maybe add new checkbox in Export widget to choose whether to export all extra cells
+//  OR
+//      * user selects one cell and gets full control on it (nanogeometry, gap juncs, syns etc.), then selects other cell etc.
+
+// !! when creating a new MechComp for the extra cell, consider these cases:
+//      * we need to create multiple comps due to inhom insertion of mechs
+//      * we already have a comp with such a name
+//      * we need to make a record to inhomAndStochLibrary about a new verbatim inhom model
+//      * question: do we need to call finishAllVerbatimInhomProtos on each comp?
+
+// !! when deleting an extra cell, we need to take some steps regarding its MechComp:
+//      * shift "compIdx" in inhomAndStochLibrary for all comps created after this one
+//      * BUG: this is not correct to delete the MechComp if user have split it (maybe disallow splitting MechComp for extra cells)
+//      * disallow merging extra cell MechComp with any other MechComp
+
+// !! add a Shape showing different cells in defferent colour (according to the radiogroup);
+//    add a projection switch;
+//    make it possible to move the selected cell with mouse (the cell should disappear on "press" and appear again on "release")
+
+// !! how about scaling and rotation? it looks like i3d.build_panel() already supports translation, rotation and scaling
+
+// !! test what happens when we load a geometry with (1) inhom vars in biophysics and (2) inhom insertion of mechs
+
+// !! next steps:
+//      * make it possible to edit inhom biophysics in the imported cells
+//      * make it possible to export sections in HOC templates and Python classes
+
+{ load_file(1, "BatchUtils.hoc") }
+{ load_file("ExtraCellListItem.hoc") }
+
+
+// !! see also: PointsToWatchWidget (look similar)
+begintemplate ExtraCellsManagerWidget
+    
+    public show, isAnyExtraCells, dismissHandler, adoptExtraCell
+    
+    external mmAllComps
+    external compUtils, fbh, pyEnumInFileTypes, mwh
+    external sourcePythonCode, createEmptyPanel, deleteSelectedItemFromBrowsedList, removeItemFromList, unmapIfNotNil, codeContractViolation
+    
+    objref mainBox, deck
+    
+    strdef listItemAndBiophysCompNameTempl
+    
+    objref listOfExtraCellListItems
+    nextExtraCellIdx = -1
+    
+    objref vfe_x_soma, vfe_y_soma, vfe_z_soma
+    x_soma = -1
+    y_soma = -1
+    z_soma = -1
+    
+    whatToShowIdx = -1
+    
+    lastSelExtraCellListItemIdx = -1
+    
+    
+    proc init() {
+        strdef callerName, unitsStr
+        
+        callerName = "ExtraCellsManagerWidget ctor"
+        
+        // !! the path depends on whether we are in the test mode
+        sourcePythonCode("\\..\\_Code\\Import\\ImportExtraCells\\PythonCode", "", callerName)
+        sourcePythonCode("\\_Code\\Import\\ImportExtraCells\\PythonCode", "from ExtraCell import ExtraCell", callerName)
+        
+        // See also: ExtraCellListItem.topLevelHocObjName
+        listItemAndBiophysCompNameTempl = "Extra Cell #%d"
+        
+        listOfExtraCellListItems = new List()
+        nextExtraCellIdx = 1
+        
+        whatToShowIdx = 0
+        
+        unitsStr = units("L")
+        units(&x_soma, unitsStr)
+        units(&y_soma, unitsStr)
+        units(&z_soma, unitsStr)
+    }
+    
+    proc show() { local defSelExtraCellListItemIdx localobj hBox, vBox
+        
+        if (isAnyExtraCells()) {
+            defSelExtraCellListItemIdx = 0
+        } else {
+            defSelExtraCellListItemIdx = -1
+        }
+        
+        compUtils.makeSureAllCompsCreatedOrImportedAndRescanned()
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                vBox = new VBox()
+                vBox.intercept(1)
+                {
+                    listOfExtraCellListItems.browser("", "s")
+                    listOfExtraCellListItems.select(0)  // Must be called only after ".browser"
+                    listOfExtraCellListItems.select_action("listOfExtraCellListItemsSelectHandler(hoc_ac_)")
+                    deck = new Deck()
+                    deck.intercept(1)
+                    {
+                        createEmptyPanel()
+                        xpanel("")
+                        vfe_x_soma = new ValueFieldEditor("x_soma", &x_soma, 1, "xyzSomaChangedHandler()")
+                        vfe_y_soma = new ValueFieldEditor("y_soma", &y_soma, 1, "xyzSomaChangedHandler()")
+                        vfe_z_soma = new ValueFieldEditor("z_soma", &z_soma, 1, "xyzSomaChangedHandler()")
+                        xpanel()
+                    }
+                    deck.intercept(0)
+                    // deck.flip_to(*)    // Will be done below in listOfExtraCellListItemsSelectHandler
+                    deck.map()
+                }
+                vBox.intercept(0)
+                vBox.map("", 1, 1, 320, 192)
+                xpanel("")
+                xbutton("* Import extra cell", "importExtraCell()")
+                xlabel("* Current limitations:")
+                xlabel("  1. Facing multiple topo roots, we import only one tree;")
+                xlabel("  2. If soma or axon is missing, we don't create it;")  // !! also, we don't care if soma has only 1 point
+                xlabel("  3. For HOC files, we lose all biophysics")
+                xlabel("      and don't preserve section names.")
+                xlabel("")
+                xbutton("Copy this extra cell", "copyThisExtraCell()")
+                xlabel("")
+                xbutton("Delete this extra cell", "deleteThisExtraCell()")
+                xpanel()
+            }
+            hBox.intercept(0)
+            hBox.map()
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                xpanel("")
+                xlabel("")
+                xbutton("Done", "dismissHandler()")
+                xpanel()
+                xpanel("")
+                xradiobutton("Show only this extra cell", "whatToShowChangedHandler(0)", whatToShowIdx == 0)
+                xradiobutton("Show this extra cell and the base cell", "whatToShowChangedHandler(1)", whatToShowIdx == 1)
+                xradiobutton("Show all extra cells and the base cell", "whatToShowChangedHandler(2)", whatToShowIdx == 2)
+                xpanel()
+            }
+            hBox.intercept(0)
+            hBox.map()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("Manager of extra cells", 370, 360, -1, -1)
+        
+        listOfExtraCellListItemsSelectHandler(defSelExtraCellListItemIdx)
+    }
+    
+    func isAnyExtraCells() {
+        return (listOfExtraCellListItems.count() != 0)
+    }
+    
+    proc dismissHandler() {
+        unmapIfNotNil(mainBox)
+    }
+    
+    // All next staff is private
+    
+    
+    proc listOfExtraCellListItemsSelectHandler() { local numArg, extraCellIdx, isSmthSelected, cardIdx localobj extraCellListItem
+        
+        numArg = numarg()
+        
+        if (numArg == 0) {
+            extraCellIdx = listOfExtraCellListItems.selected()
+        } else if (numArg == 1) {
+            extraCellIdx = $1
+        } else {
+            codeContractViolation()
+        }
+        
+        isSmthSelected = (extraCellIdx != -1)
+        
+        if (isSmthSelected) {
+            extraCellListItem = listOfExtraCellListItems.o(extraCellIdx)
+            extraCellListItem.getCoords0(&x_soma, &y_soma, &z_soma)
+            vfe_x_soma.default()
+            vfe_y_soma.default()
+            vfe_z_soma.default()
+            extraCellListItem.getCoords(&x_soma, &y_soma, &z_soma)
+        }
+        
+        cardIdx = isSmthSelected
+        deck.flip_to(cardIdx)
+        
+        lastSelExtraCellListItemIdx = extraCellIdx
+    }
+    
+    proc xyzSomaChangedHandler() { local selExtraCellListItemIdx
+        
+        // !! problem here: change a coord in any ValueFieldEditor, but don't press "Enter" and click on other cell in the List =>
+        //    all 3 coords are assigned to soma of the new selected cell
+        // selExtraCellListItemIdx = listOfExtraCellListItems.selected()
+        
+        // Works fine
+        selExtraCellListItemIdx = lastSelExtraCellListItemIdx
+        
+        if (selExtraCellListItemIdx == -1) {
+            codeContractViolation()
+        }
+        
+        listOfExtraCellListItems.o(selExtraCellListItemIdx).setCoords(x_soma, y_soma, z_soma)
+    }
+    
+    proc importExtraCell() { local isCancel localobj newExtraCellListItem, newBiophysComp, nil
+        strdef filePathName, listItemAndBiophysCompName
+        
+        isCancel = fbh.showLoadFileDialog(pyEnumInFileTypes.extraCellAny, filePathName)
+        if (isCancel) {
+            return
+        }
+        
+        sprint(listItemAndBiophysCompName, listItemAndBiophysCompNameTempl, nextExtraCellIdx)
+        
+        mwh.showPleaseWaitBox("Loading extra cell.")
+        {
+            newExtraCellListItem = new ExtraCellListItem(filePathName, listItemAndBiophysCompName, nextExtraCellIdx)
+            if (newExtraCellListItem.pyExtraCell == nil) {
+                // Some error occurred;
+                // mwh.hidePleaseWaitBox() has been called already
+                return
+            }
+            
+            newBiophysComp = new MechComp(listItemAndBiophysCompName, newExtraCellListItem.pyExtraCell.list_ref)
+            
+            newExtraCellListItem.biophysComp = newBiophysComp
+        }
+        mwh.hidePleaseWaitBox()
+        
+        listOfExtraCellListItems.append(newExtraCellListItem)
+        mmAllComps.append(newBiophysComp)
+        
+        nextExtraCellIdx += 1
+        
+        listOfExtraCellListItemsSelectHandler()
+    }
+    
+    
+       
+	 proc copyThisExtraCell() { local selListItemIdx localobj srcListItem, newExtraCellListItem, newBiophysComp, nil
+     // !!
+       // mwh.showNotImplementedWarning()
+	strdef filePathName, listItemAndBiophysCompName
+
+    selListItemIdx = listOfExtraCellListItems.selected()
+    if (selListItemIdx == -1) {
+        return
+    }
+
+    srcListItem = listOfExtraCellListItems.o(selListItemIdx)
+    filePathName = srcListItem.pyExtraCell.filePathName
+
+    sprint(listItemAndBiophysCompName, listItemAndBiophysCompNameTempl, nextExtraCellIdx)
+
+    mwh.showPleaseWaitBox("Copying extra cell.")
+    {
+        newExtraCellListItem = new ExtraCellListItem(filePathName, listItemAndBiophysCompName, nextExtraCellIdx)
+        if (newExtraCellListItem.pyExtraCell == nil) {
+            return
+        }
+
+        newBiophysComp = new MechComp(listItemAndBiophysCompName, newExtraCellListItem.pyExtraCell.list_ref)
+        newExtraCellListItem.biophysComp = newBiophysComp
+    }
+    mwh.hidePleaseWaitBox()
+
+    listOfExtraCellListItems.append(newExtraCellListItem)
+    mmAllComps.append(newBiophysComp)
+
+    nextExtraCellIdx += 1
+
+    listOfExtraCellListItemsSelectHandler()
+}
+    
+    
+    proc deleteThisExtraCell() { local selListItemIdx localobj extraCellListItem, biophysComp
+        
+        selListItemIdx = listOfExtraCellListItems.selected()
+        if (selListItemIdx == -1) {
+            return
+        }
+        
+        extraCellListItem = listOfExtraCellListItems.o(selListItemIdx)
+        
+        biophysComp = extraCellListItem.biophysComp
+        
+        mwh.showPleaseWaitBox("Deleting extra cell.")
+        {
+            extraCellListItem.unrefPyExtraCellInHoc()
+            
+            deleteSelectedItemFromBrowsedList(listOfExtraCellListItems)
+            
+            removeItemFromList(mmAllComps, biophysComp)
+        }
+        mwh.hidePleaseWaitBox()
+        
+        listOfExtraCellListItemsSelectHandler()
+    }
+    
+    proc whatToShowChangedHandler() {
+        whatToShowIdx = $1
+        
+        // !!
+        mwh.showNotImplementedWarning()
+    }
+    // Called after re-importing an exported HOC that already contains EXTRA_CELL_N objects.
+    // Registers an already-instantiated extra cell into the manager without triggering a new import.
+    // $o1  = the already-existing pyExtraCell Python object (e.g. EXTRA_CELL_1)
+    // $s2  = filePathName for the display label (the original morphology path from the export)
+    proc adoptExtraCell() { localobj existingPyExtraCell, newExtraCellListItem, newBiophysComp, nil
+        strdef listItemAndBiophysCompName, filePathName
+        
+        existingPyExtraCell = $o1
+        filePathName        = $s2
+        
+        sprint(listItemAndBiophysCompName, listItemAndBiophysCompNameTempl, nextExtraCellIdx)
+        
+        newExtraCellListItem = new ExtraCellListItem()
+        newExtraCellListItem.initFromExisting(existingPyExtraCell, listItemAndBiophysCompName, nextExtraCellIdx, filePathName)
+        
+        if (newExtraCellListItem.pyExtraCell == nil) {
+            codeContractViolation()
+        }
+        
+        newBiophysComp = new MechComp(listItemAndBiophysCompName, newExtraCellListItem.pyExtraCell.list_ref)
+        newExtraCellListItem.biophysComp = newBiophysComp
+        
+        listOfExtraCellListItems.append(newExtraCellListItem)
+        mmAllComps.append(newBiophysComp)
+        
+        nextExtraCellIdx += 1
+    }
+
+endtemplate ExtraCellsManagerWidget

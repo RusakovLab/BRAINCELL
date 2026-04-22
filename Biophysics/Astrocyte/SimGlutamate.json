@@ -1,0 +1,93 @@
+{
+    "Soma": {
+        "capacitance": {
+            "PARAMETER": {
+                "cm (uF/cm2)": 0.8
+            }
+        },
+        "pas": {
+            "PARAMETER": {
+                "g_pas (S/cm2)": 8.968609865470852e-05,
+                "e_pas (mV)": -85.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {},
+        "ca_ion": {},
+        "CAl": {},
+        "glu_ion": {},
+        "GluTrans": {},
+        "kir": {},
+        "kdrglia": {},
+        "kdifl": {}
+    },
+    "Dendrites": {
+        "capacitance": {
+            "PARAMETER": {
+                "cm (uF/cm2)": 0.8
+            }
+        },
+        "pas": {
+            "PARAMETER": {
+                "g_pas (S/cm2)": 8.968609865470852e-05,
+                "e_pas (mV)": -85.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {},
+        "ca_ion": {},
+        "CAl": {},
+        "glu_ion": {},
+        "GluTrans": {},
+        "kir": {},
+        "kdrglia": {},
+        "kdifl": {}
+    },
+    "Small Glia": {
+        "capacitance": {
+            "PARAMETER": {
+                "cm (uF/cm2)": 0.8
+            }
+        },
+        "pas": {
+            "PARAMETER": {
+                "e_pas (mV)": -85.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {},
+        "ca_ion": {},
+        "CAl": {},
+        "glu_ion": {},
+        "GluTrans": {},
+        "kir": {},
+        "kdrglia": {},
+        "kdifl": {}
+    },
+    "Large Glia": {
+        "capacitance": {
+            "PARAMETER": {
+                "cm (uF/cm2)": 0.8
+            }
+        },
+        "pas": {
+            "PARAMETER": {
+                "g_pas (S/cm2)": {
+                    "inhom_model": {
+                        "GPassive (S/cm2)": 0.001
+                    }
+                },
+                "e_pas (mV)": -85.0
+            }
+        },
+        "na_ion": {},
+        "k_ion": {},
+        "ca_ion": {},
+        "CAl": {},
+        "glu_ion": {},
+        "GluTrans": {},
+        "kir": {},
+        "kdrglia": {},
+        "kdifl": {}
+    }
+}

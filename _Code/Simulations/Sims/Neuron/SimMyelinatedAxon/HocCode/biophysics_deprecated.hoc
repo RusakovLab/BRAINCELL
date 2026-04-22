@@ -1,0 +1,19 @@
+
+// Most of biophysics is defined in "Biophysics\Neuron\SimMyelinatedAxon.json";
+// this HOC file is just an appendix used until our JSON biophysics framework supports "Ra" and "ena"
+
+// !! see also: MechanismSwitch_deprecated.hoc
+
+forsec "axon" {
+    if (ismembrane("na_ion")) {
+        ena = 50    // mV
+    }
+}
+
+forall {
+    if (containsSubstring(secname(), "insulator")) {
+        Ra = math.inf
+    } else {
+        Ra = 70     // ohm-cm
+    }
+}

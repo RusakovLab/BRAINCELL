@@ -1,0 +1,421 @@
+
+// !! BUG: error "pas mechanism not inserted in section GridOfSections[0].theGrid[0][0][0]" when starting with "External simulations\Neuron\boosting"
+
+// !! Ideas:
+//    * update PrerequisitesCheck.hoc to make sure plotly, matplotlib, pandas, numpy and scipy are installed
+//    * maybe make it possible to choose more than one watched var (a comma-separated list in the string_dialog)
+//    * maybe make it possible to specify not only watched var, but also watched expression involving any math functions and one or more range vars
+//    * maybe make selection of watchedRangeVarNameWithIndex more convenient: not string_dialog, but a widget with List-s like in Export module
+
+// https://nrn.readthedocs.io/en/latest/example_of_generating_movie.html
+// https://nrn.readthedocs.io/en/latest/python/visualization/plotshapeclass.html
+// https://neuron.yale.edu/phpBB/viewtopic.php?p=19832
+
+{ load_file("../../../Extracellular/Common/RangeVarHistory/RangeVarHistoryLoads.hoc") }
+
+
+begintemplate SimOutsideInDiffusion
+    
+    public preShowCheck, show, preRun, preContinue, advance, postRun, dismissNeuronPlayerWidget, simDismissHandler
+    public biophysJsonFileNameOrEmpty, isCustomProcAdvance, isAltRunControl
+    
+    // Just a workaround to avoid the error in GraphUtils.parseVarsFromTheGraph
+    public numSrcs, radiusGen, recorder
+    
+    external isAstrocyteOrNeuron
+    external createExtracellularGeneratorHintsPanel, showExtracellularManagerBaseWidget, applyExtracellularSourcesWithWaitBoxAndUpdateMainUiDiffStatusIndication, destroyTempSects
+    external sourcePythonCodeForRangeVarHistory, unmapIfNotNil, dismissIfNotNil
+    external mwh, math, geomMath, ecsLibrary, speciesLibrary, compUtils, beih, rngUtils
+    external manageAndRunWidget, altRunControlWidget, lastUsedGridToWatchWidget
+    external setdt
+    external runStopAt, runStopIn, tstop, steps_per_ms
+    external pyObj
+    external enumBinFileTypes
+    
+    strdef biophysJsonFileNameOrEmpty
+    isCustomProcAdvance = -1
+    isAltRunControl = -1
+    
+    objref rng
+    objref axonCompOrNil
+    objref mainBox, createOrLoadDeck
+    objref gridToWatchWidget, animSettingsWidget, neuronPlayerWidget
+    objref gridRegion
+    objref record, recorder, player
+    
+    isBinFileLoaded = -1
+    
+    isCreateOrLoad = -1
+    isUseOpacitiesOrColours = -1
+    numSrcs = -1
+    radiusGen = -1
+    
+    objref this
+    
+    
+    proc init() { local inf
+        
+        sourcePythonCodeForRangeVarHistory("\\..", "SimOutsideInDiffusion ctor")
+        
+        biophysJsonFileNameOrEmpty = ""     // !!
+        isCustomProcAdvance = 1
+        isAltRunControl = 1
+        
+        rng = rngUtils.getFor_sim_xcDiffusion()
+        
+        isBinFileLoaded = 0
+        
+        isCreateOrLoad = 1
+        isUseOpacitiesOrColours = 1
+        numSrcs = 100
+        radiusGen = 50      // um
+        
+        // "recorder.DtOrMinus1" will be set in "proc show" because we adjust "dt" after calling this ctor
+        
+        gridRegion = new GridRegion()
+        
+        gridToWatchWidget = new GridToWatchWidget(1, new ECSsShowHelper(), gridRegion, this)
+        neuronPlayerWidget = new NeuronPlayerWidget(1, new ECSsShowHelper())
+        
+        record = new RangeVarAnimationRecord(enumBinFileTypes.oid)
+        recorder = new RangeVarAnimationRecorder(record)
+        player = pyObj.RangeVarAnimationPlayer(record, neuronPlayerWidget)
+        
+        animSettingsWidget = new AnimationSettingsWidget(this, 1, record, player, gridRegion, neuronPlayerWidget)
+        
+        inf = math.inf
+        variable_domain(&numSrcs, 1, inf)
+        
+        variable_domain(&radiusGen, float_epsilon, inf)
+        units(&radiusGen, units("L"))
+    }
+    
+    func preShowCheck() { localobj missingCompNames, nil
+        strdef axonCompName
+        
+        if (isAstrocyteOrNeuron) {
+            return 0
+        }
+        
+        axonCompName = "Axon"
+        compUtils.findDistMechCompByName(axonCompName, 0, axonCompOrNil)
+        if (axonCompOrNil == nil) {
+            missingCompNames = new List()
+            missingCompNames.append(new String(axonCompName))
+            beih.showMissingCompNamesWarning(missingCompNames, 1)
+            return 1
+        }
+        
+        return 0
+    }
+    
+    proc show() { local isFirstShow, spcCatIdx, w, h, y localobj hBox, vBox
+        strdef species, title
+        
+        isFirstShow = $1
+        
+        // !! code dup. with InsideOutDiffManagerMainWidget
+        
+        steps_per_ms = 0.01
+        runStopAt = 5000    // ms
+        runStopIn = 1000    // ms
+        tstop = 10000       // ms
+        dt = 100            // ms
+        setdt()
+        
+        recorder.setDefaultDt(4)    // factor
+        
+        if (isAstrocyteOrNeuron) {
+            spcCatIdx = 0
+            species = "K+"
+            w = 475
+            h = 265
+            y = 425
+            title = "Astrocyte K+ diffusion"
+            // !! maybe choose the default src location and radius of generation based on the astrocyte bounding box
+        } else {
+            spcCatIdx = 1
+            species = "GABA"
+            w = 440
+            h = 429
+            y = 330
+            title = "Basket cell GABA diffusion"
+        }
+        
+        if (isFirstShow) {
+            // Create a default extracellular source
+            ecsLibrary.deleteAll()
+            ecsLibrary.addNewSource(spcCatIdx, species, new ECSSpatialInfo(0, 0, 0, 0), new ECSTemporalInfo(2, 500, 1), new ECSCapacityInfo(0, 2, 1e4), new ECSSeriesInfo(500, 10, 500, 1))
+        }
+        
+        lastUsedGridToWatchWidget = gridToWatchWidget
+        
+        // Showing it here rather than in createOrLoadHandler just to have SimOutsideInDiffusion in the focus
+        // and ExtracellularManagerMainWidget in the background
+        showExtracellularManagerBaseWidget()
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                xpanel("")
+                xlabel("")
+                xradiobutton("Create new animation", "createOrLoadHandler(1, 0)", isCreateOrLoad)
+                xradiobutton("Play saved animation", "createOrLoadHandler(0, 0)", !isCreateOrLoad)
+                xlabel("")
+                xpanel()
+                xpanel("")
+                xlabel("")
+                xbutton("Show the diffused conc animation", "animSettingsWidget.show(isBinFileLoaded, 0)")
+                xpanel()
+            }
+            hBox.intercept(0)
+            hBox.map()
+            createOrLoadDeck = new Deck()
+            createOrLoadDeck.intercept(1)
+            {
+                vBox = new VBox()
+                vBox.intercept(1)
+                {
+                    xpanel("")
+                    if (isAstrocyteOrNeuron) {
+                        xlabel("1. Click \"Generate random\" in \"Manager of extracellular sources\" and follow the instructions inside")
+                        xlabel("    to create multiple extracellular sources with uniform distribution in a sphere.")
+                        xlabel("2. Adjust \"Recording period\" (below), click \"Start simulation\" and specify the output file path and name.")
+                    } else {
+                        xlabel("1. Create a single source in any location using \"Manager of extracellular sources\".")
+                        xlabel("2. Click \"Generate srcs along axon\" (below) to create \"Number of sources\" copies")
+                        xlabel("    within \"Radius of generation\" from the axon sections. The initial source will be deleted.")
+                        xlabel("3. Adjust \"Recording period\", click \"Start simulation\" and specify the output file path and name.")
+                    }
+                    // !! also, specify the range var name and where to watch it
+                    xpanel()
+                    if (!isAstrocyteOrNeuron) {
+                        xpanel("")
+                        xpvalue("Number of sources", &numSrcs, 1)
+                        xpvalue("Radius of generation", &radiusGen, 1)
+                        xlabel("")
+                        xbutton("Generate srcs along axon", "generateSrcsAlongAxonHandler()")
+                        xpanel()
+                        createExtracellularGeneratorHintsPanel()
+                    }
+                    xpanel("")
+                    recorder.createDtEditBoxAndHint()
+                    xbutton("Where to watch the variable", "whereToWatchHandler()")
+                    xlabel("")
+                    xbutton("Start simulation", "altRunControlWidget.initAndRunHandler()")
+                    record.createTwoCheckBoxes( \
+                        "Save animation to BIN file", \
+                        "Save animation to TXT file")
+                    xlabel("")
+                    xpanel()
+                }
+                vBox.intercept(0)
+                vBox.map()
+                xpanel("")
+                xlabel("")
+                xbutton("Load BIN file", "loadBinFileHandler()")
+                xpanel()
+            }
+            createOrLoadDeck.intercept(0)
+            // createOrLoadDeck.flip_to(*)     // Will be done below in createOrLoadHandler
+            createOrLoadDeck.map("", -1, -1, w, h)
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map(title, 575, y, -1, -1)
+        
+        createOrLoadHandler(isCreateOrLoad, 1)
+    }
+    
+    func preRun() { local spcInsideCatIdx, isCancel, isEnabled localobj firstECS
+        strdef watchedRangeVarNameWithIndex
+        
+        // !! would it make sense to check if "Generate sources" button was clicked?
+        
+        if (ecsLibrary.isEmpty()) {
+            mwh.showWarningBox("Cannot proceed without any extracellular sources.")
+            return 1
+        }
+        
+        if (recorder.validateDt()) {
+            return 1
+        }
+        
+        firstECS = ecsLibrary.ecsList.o(0)
+        spcInsideCatIdx = speciesLibrary.getSpeciesInsideCatIdx(firstECS.species)
+        watchedRangeVarNameWithIndex = speciesLibrary.spcCatsList.o(firstECS.spcCatIdx).spcNamesList.o(spcInsideCatIdx).rangeVarName
+        
+        isCancel = !string_dialog("Please choose a range variable to record and animate:", watchedRangeVarNameWithIndex)
+        if (isCancel) {
+            return 1
+        }
+        
+        // !! validate watchedRangeVarNameWithIndex here like we do for custom exposed/swept vars
+        
+        dismissChilds()
+        dismissIfNotNil(manageAndRunWidget)
+        
+        if (gridToWatchWidget.enumWhereToWatch != 0) {
+            gridRegion.deployGrid()     // !! skip if already deployed and no changes
+        } else {
+            destroyTempSects()
+        }
+        
+        isEnabled = applyExtracellularSourcesWithWaitBoxAndUpdateMainUiDiffStatusIndication()
+        if (!isEnabled) {
+            codeContractViolation()
+        }
+        
+        record.setStaticData()
+        recorder.onJustBeforeRun(watchedRangeVarNameWithIndex, 1)
+        
+        return 0
+    }
+    
+    func preContinue() {
+        return 0
+    }
+    
+    proc advance() {
+        fadvance()
+        recorder.onStep()
+    }
+    
+    proc postRun() {
+        record.onJustAfterRun()
+        
+        isBinFileLoaded = 0
+        animSettingsWidget.show(isBinFileLoaded, 1)
+    }
+    
+    proc dismissNeuronPlayerWidget() {
+        neuronPlayerWidget.dismissHandler()
+    }
+    
+    proc simDismissHandler() {
+        
+        dismissHandler()
+        
+        destroyTempSects()
+        
+        // !! code dup. with InsideOutDiffManagerMainWidget
+        steps_per_ms = 10
+        runStopAt = 5   // ms
+        runStopIn = 1   // ms
+        tstop = 100     // ms
+        dt = 0.1        // ms
+        setdt()
+    }
+    
+    // All next staff is private
+    
+    
+    proc createOrLoadHandler() { local isCalledFromShow, cardIdx
+        isCreateOrLoad = $1
+        isCalledFromShow = $2
+        
+        cardIdx = !isCreateOrLoad
+        createOrLoadDeck.flip_to(cardIdx)
+        
+        if (isCalledFromShow) {
+            return
+        }
+        
+        if (isCreateOrLoad) {
+            showExtracellularManagerBaseWidget()
+        } else {
+            dismissIfNotNil(manageAndRunWidget)
+        }
+    }
+    
+    proc generateSrcsAlongAxonHandler() { local numECSs, isCancel, numSects, baseEcsRadiusOrMinus1, radiusGenCorr, srcIdx, secIdx, numPts, ptIdx, x_secPt, y_secPt, z_secPt, x_src, y_src, z_src localobj ecsList, baseECS, list_ref, newECS
+        
+        ecsList = ecsLibrary.ecsList
+        
+        numECSs = ecsList.count()
+        if (numECSs == 0) {
+            mwh.showWarningBox("Please create a single extracellular source using \"Manager of extracellular sources\".")
+            return
+        } else if (numECSs > 1) {
+            isCancel = !boolean_dialog("There is more than one extracellular source. Can we delete all but the first one before the next step?", "Yes", "No")
+            if (isCancel) {
+                return
+            }
+        }
+        
+        dismissIfNotNil(manageAndRunWidget)     // Just in case
+        
+        baseECS = ecsList.o(0)
+        
+        ecsList.remove_all()
+        
+        list_ref = axonCompOrNil.list_ref
+        numSects = list_ref.count()
+        
+        baseEcsRadiusOrMinus1 = baseECS.spatialInfo.radiusOrMinus1
+        if (baseEcsRadiusOrMinus1 == -1) {
+            radiusGenCorr = radiusGen
+        } else {
+            radiusGenCorr = radiusGen - baseEcsRadiusOrMinus1
+        }
+        
+        for srcIdx = 0, numSrcs - 1 {
+            
+            // !! Simple implementation, just for demo;
+            //    the placement of the sources is not uniform by "distance" along axon because we rely on section 3D points rather than segments;
+            //    see also: NanoBranchesManager.reseedBranches
+            
+            secIdx = rng.discunif(0, numSects - 1)
+            list_ref.o(secIdx).sec {
+                numPts = n3d()
+                ptIdx = rng.discunif(0, numPts - 1)
+                x_secPt = x3d(ptIdx)
+                y_secPt = y3d(ptIdx)
+                z_secPt = z3d(ptIdx)
+            }
+            
+            // !! maybe use minRadius = diam3d(ptIdx) / 2
+            geomMath.rndPt3D_unifByVolumeInSphere(rng, x_secPt, y_secPt, z_secPt, radiusGenCorr, &x_src, &y_src, &z_src)
+            
+            newECS = baseECS.createShiftedCopy(x_src, y_src, z_src)
+            ecsList.append(newECS)
+        }
+        
+        showExtracellularManagerBaseWidget()    // This calls ecsList.select(0)
+    }
+    
+    proc whereToWatchHandler() {
+        dismissChilds()
+        gridToWatchWidget.show()
+    }
+    
+    proc loadBinFileHandler() { local isCancel
+        
+        isCancel = record.loadFromBinFile()
+        if (isCancel) {
+            return
+        }
+        
+        isBinFileLoaded = 1
+        animSettingsWidget.show(isBinFileLoaded, 1)
+    }
+    
+    proc dismissHandler() {
+        dismissChilds()
+        
+        // !! close pyplot desktop window (not only now, but also when showing a new animation)
+        // !! delete the recorded vecs
+        // !! maybe disable extracellular diffusion
+        unmapIfNotNil(mainBox)
+    }
+    
+    proc dismissChilds() {
+        dismissIfNotNil(gridToWatchWidget)
+        dismissIfNotNil(animSettingsWidget)
+        dismissIfNotNil(neuronPlayerWidget)
+    }
+    
+endtemplate SimOutsideInDiffusion

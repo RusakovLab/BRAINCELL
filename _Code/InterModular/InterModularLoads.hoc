@@ -1,0 +1,55 @@
+
+{ load_file("UtilsAndHelpers/InterModularErrWarnUtils.hoc") }
+{ load_file("UtilsAndHelpers/PrerequisitesCheck.hoc") }
+checkPrerequisites()
+{ load_file("UtilsAndHelpers/InterModularBasicMath.hoc") }
+objref soma_ref, axon_ref, endFoot_ref
+objref usedNamesForDendrites, nanoBranchesManager, seededDendrites_ref
+{ load_file("UtilsAndHelpers/InterModularPythonUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularGeomMath.hoc") }
+{ load_file("UtilsAndHelpers/InterModularCreateVecListUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularListUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularSectionUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularMechSettings.hoc") }
+{ load_file("UtilsAndHelpers/InterModularCellTypeUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularCellBoundingBoxUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularEnums.hoc") }
+{ load_file("Widgets/MessageWarningHelper.hoc") }
+{ load_file("UtilsAndHelpers/InterModularMechsDllUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularStringUtils.hoc") }
+objref mmAllComps
+iterator findSecArrayOrObjectIterator() { codeContractViolation() }
+{ load_file("UtilsAndHelpers/InterModularUniqueNameUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularUniqueListItemUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularRNGUtils.hoc") }
+objref mmIcrHelper, gjmAllGapJuncSets, smAllSynSets
+proc makeSureGapJuncSetsCreatedOrImported() { codeContractViolation() }
+proc makeSureSynSetsCreatedOrImported() { codeContractViolation() }
+{ load_file("UtilsAndHelpers/InterModularCompUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularUnitsUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularGraphUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularPlotShapeUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularWidgetUtils.hoc") }
+{ load_file("UtilsAndHelpers/InterModularOtherUtils.hoc") }
+objref mmcoWidget, gapJuncSetsWidget, gapJuncManagerMainWidget
+
+{ load_file("Widgets/FileBrowserHelper.hoc") }
+objref dendrite_ref
+{ load_file("Widgets/SectionsSelectorWidget/PluginsForSectionsSelectorWidget.hoc") }
+{ load_file("Widgets/SectionsSelectorWidget/SectionsSelectorWidget.hoc") }
+{ load_file("Widgets/GlobalsEditorWidget.hoc") }
+objref seedingDensityWidget
+{ load_file("Widgets/SeedingDensityWidget.hoc") }
+{ load_file("Widgets/PointsToWatchWidget/ObservationPoint.hoc") }
+{ load_file("Widgets/PointsToWatchWidget/OPsShowHelper.hoc") }
+{ load_file("Widgets/PointsToWatchWidget/PointsToWatchWidget.hoc") }
+
+objref sdsWidget, spmAllSpineSets, spineSeedingMainWidget, enumSynPpRoles
+objref extraCellsManagerWidget
+
+// Main UI helpers
+objref mainUiLocker, mainUiDiffIndicHelper
+
+
+// Delete NEURON RxD temp files from BrainCell root folder
+sourcePythonCode("\\PythonCode", "import RxdTempFilesDeleter", "InterModularLoads")

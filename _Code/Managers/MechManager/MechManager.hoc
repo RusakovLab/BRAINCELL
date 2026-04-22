@@ -1,0 +1,13 @@
+
+{ load_file("MechManagerLoads.hoc") }
+
+proc makeSureMechCompsCreatedOrImportedAndRescannedThenShowMechManagerBaseWidget() {
+
+    mmIcrHelper.makeSureMechCompsCreatedOrImportedAndRescanned()
+    
+    dismissIfNotNil(manageAndRunWidget)
+    manageAndRunWidget = new ManageAndRunWidget(0)
+    manageAndRunWidget.show()
+    manageAndRunWidget.showBioManagerHandler()
+    manageAndRunWidget.showAltRunControlHandler()
+}

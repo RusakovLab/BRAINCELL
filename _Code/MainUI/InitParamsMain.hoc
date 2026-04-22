@@ -1,0 +1,11 @@
+
+// Sets initial params.
+proc initParamsMain() { localobj nil
+    if (isAstrocyteOrNeuron) {
+        if (nanoBranchesManager != nil) {
+            nanoBranchesManager.reseedBranches(createVecOfVals(nanoDistrLoaded, nanoDistrLoaded))
+        }
+    }
+    
+    initVoltageAndRunControlParams()
+}

@@ -1,0 +1,44 @@
+
+begintemplate SpineNeckDiamCache
+
+    public cacheAllDiams, getCachedDiam
+    public diamsVec
+    
+    external isAstrocyteOrNeuron
+    external codeContractViolation
+    
+    objref spineNecks_ref
+    objref diamsVec
+    
+    
+    proc init() {
+        spineNecks_ref = $o1
+        
+        if (isAstrocyteOrNeuron) {
+            codeContractViolation()
+        }
+        
+        diamsVec = new Vector()
+        
+        cacheAllDiams()
+    }
+    
+    proc cacheAllDiams() { local numSpines, spineIdx
+        numSpines = spineNecks_ref.count()
+        diamsVec.resize(numSpines)
+        for spineIdx = 0, numSpines - 1 {
+            spineNecks_ref.o(spineIdx).sec {
+                if (diam == 0) {
+                    codeContractViolation()
+                }
+                diamsVec.x(spineIdx) = diam
+            }
+        }
+    }
+    
+    func getCachedDiam() { local spineIdx
+        spineIdx = $1
+        return diamsVec.x(spineIdx)
+    }
+    
+endtemplate SpineNeckDiamCache

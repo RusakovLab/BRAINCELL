@@ -1,0 +1,212 @@
+: P2X47_microglia.mod
+: P2X4/X7 receptor on microglia with full Ca2+ dynamics.
+: Single KINETIC state block (P2X gating + Ca dynamics + IP3 + CICR + diffusion).
+
+NEURON {
+    SUFFIX P2X47_microglia
+
+    USEION atp READ atpo VALENCE -4
+    USEION ca READ cao WRITE cai, ica
+    USEION ip3 READ ip3i WRITE ip3i VALENCE 1
+
+    RANGE gmax, E_rev, PCa_ratio
+    RANGE kon, koff, kdes, krec
+    RANGE cai0, DCa
+    RANGE vmax, Kp, jmax, caer, Kip3, Kact, Kinh, kon_h, alpha
+    RANGE v_bar_delta, K_PLCdelta, kappa_delta, r_bar_5P, Ip3init
+    RANGE tau_pump
+    RANGE ica_p2x, i_total, O_frac
+    RANGE atpo_rng
+}
+
+DEFINE Nannuli 1
+
+UNITS {
+    (mol)   = (1)
+    (molar) = (1/liter)
+    (uM)    = (micromolar)
+    (mM)    = (millimolar)
+    (um)    = (micron)
+    (mA)    = (milliamp)
+    FARADAY = (faraday) (10000 coulomb)
+    PI      = (pi) (1)
+}
+
+PARAMETER {
+    : --- P2X receptor ---
+    gmax      = 1e-3    (S/cm2)
+    E_rev     = 0.0     (mV)
+    PCa_ratio = 4.0     (1)
+    kon       = 0.5     (/ms)      : physiological range for low atpo activation
+    koff      = 0.5     (/ms)
+    kdes      = 0.001   (/ms)      : slow desensitization
+    krec      = 0.03    (/ms)      : faster recovery
+
+    : --- Ca2+ diffusion ---
+    cai0      = 50e-6   (mM)
+    DCa       = 0.22    (um2/ms)
+    tau_pump  = 50      (ms)
+
+    : --- SERCA system ---
+    alpha     = 1       (1)
+    vmax      = 3.75e-6 (mM/ms)
+    Kp        = 0.27e-3 (mM)
+    jmax      = 3.5e-3  (mM/ms)
+    caer      = 0.400   (mM)
+    Kip3      = 0.8e-3  (mM)
+    Kact      = 0.3e-3  (mM)
+    kon_h     = 2.7     (/mM-ms)
+    Kinh      = 0.2e-3  (mM)
+
+    : --- IP3 dynamics ---
+    Ip3init     = 1e-4    (mM)
+    v_bar_delta = 0.02e-6 (mM/ms)
+    K_PLCdelta  = 0.1e-3  (mM)
+    kappa_delta = 1.5e-3  (mM)
+    r_bar_5P    = 0.04e-3 (/ms)
+
+    ca_min = 1e-9 (mM)
+}
+
+ASSIGNED {
+    v        (mV)
+    diam     (um)
+    ica      (mA/cm2)
+    cao      (mM)
+    cai      (mM)
+    atpo     (mM)
+    atpo_rng (mM)
+    ica_p2x  (mA/cm2)
+    i_total  (mA/cm2)
+    O_frac
+
+    L[Nannuli] (mM/ms)
+}
+
+STATE {
+    C
+    O
+    D
+    ca[Nannuli] (mM) <1e-7>
+    hc[Nannuli]
+    ho[Nannuli]
+    ip3i (mM) <1e-10>
+}
+
+BREAKPOINT {
+    SOLVE state METHOD sparse
+
+    i_total = gmax * O * (v - E_rev)
+    ica     = (PCa_ratio / (PCa_ratio + 1)) * i_total
+    ica_p2x = ica
+    O_frac  = O
+    atpo_rng = atpo
+
+    : Update NEURON's ion pool variable cai from STATE ca[0]
+    cai = ca[0]
+}
+
+KINETIC state {
+    LOCAL alpha_rate, dsq, dsqvol, v_delta
+
+    : ============================================================
+    : Compartment volumes (must come before reactions)
+    : ============================================================
+    COMPARTMENT PI*3*diam*diam/16 {ca hc ho O C D}
+    COMPARTMENT PI*diam*diam/4 {ip3i}
+
+    : Longitudinal Ca2+ diffusion for wave propagation
+    LONGITUDINAL_DIFFUSION DCa*PI*3*diam*diam/16 {ca}
+
+    : ============================================================
+    : P2X receptor gating (depends on atpo)
+    : ============================================================
+    if (atpo > 2e-5) {
+        alpha_rate = kon * atpo * atpo
+    } else {
+        alpha_rate = 0
+    }
+
+    ~ C <-> O  (alpha_rate, koff)
+    ~ O <-> D  (kdes,  krec)
+
+    CONSERVE C + O + D = 1
+
+    : ============================================================
+    : 1. P2X Ca2+ influx through plasma membrane
+    : ============================================================
+    ~ ca[0] << ( -ica * PI * diam / (2*FARADAY) )
+
+    : ============================================================
+    : 2. Plasma pump extrusion (surface-scaled)
+    : Only runs when cai > cai0 (never reverses to pump in)
+    : ============================================================
+    ~ ca[0] << ( -(PI*diam) * pump_term(ca[0]) / tau_pump )
+
+    : ============================================================
+    : 3. IP3 dynamics (PLC-delta + 5P degradation)
+    : ============================================================
+    v_delta = v_bar_delta / (1 + ip3i/kappa_delta) * ca_floor(ca[0])^2 / (ca_floor(ca[0])^2 + K_PLCdelta^2)
+
+    ~ ip3i << ( (PI*diam*diam*(v_delta - r_bar_5P*ip3i)) / 2 )
+
+    : ============================================================
+    : 4. SERCA system
+    : ============================================================
+    dsq    = diam*diam
+    dsqvol = dsq * PI * 3 / 16
+
+    : SERCA pump (uptake cytoplasm -> ER)
+    ~ ca[0] << ( -dsqvol * alpha * vmax * ca_floor(ca[0])^2 / (ca_floor(ca[0])^2 + Kp^2) )
+
+    ~ hc[0] <-> ho[0]  (kon_h*Kinh, kon_h*ca_floor(ca[0]))
+
+    ~ ca[0] << ( dsqvol * alpha * jmax * (1 - ca_floor(ca[0])/caer) * ( (ip3i/(ip3i+Kip3)) * (ca_floor(ca[0])/(ca_floor(ca[0])+Kact)) * ho[0] )^3 )
+
+    ~ ca[0] << ( dsqvol * alpha * L[0] * (1 - ca_floor(ca[0])/caer) )
+
+    : Dummy assignment to satisfy NMODL checker (cai is WRITE)
+    : Real assignment happens in BREAKPOINT after SOLVE
+    cai = ca[0]
+}
+
+INITIAL {
+    LOCAL jx
+
+    C = 1
+    O = 0
+    D = 0
+    ica = 0
+    ica_p2x = 0
+    i_total = 0
+    O_frac = 0
+    atpo_rng = 0
+
+    cai   = cai0
+    ca[0] = cai0
+    ip3i  = Ip3init
+
+    ho[0] = Kinh / (ca[0] + Kinh)
+    hc[0] = 1 - ho[0]
+
+    jx = -vmax * ca[0]^2 / (ca[0]^2 + Kp^2)
+    jx = jx + jmax * (1 - ca[0]/caer) * ( (ip3i/(ip3i+Kip3)) * (ca[0]/(ca[0]+Kact)) * ho[0] )^3
+    L[0] = -jx / (1 - ca[0]/caer)
+}
+
+FUNCTION ca_floor(c (mM)) (mM) {
+    if (c < ca_min) {
+        ca_floor = ca_min
+    } else {
+        ca_floor = c
+    }
+}
+
+: Plasma pump only extrudes when cai > cai0 (never runs backward)
+FUNCTION pump_term(c (mM)) (mM) {
+    if (c > cai0) {
+        pump_term = c - cai0
+    } else {
+        pump_term = 0
+    }
+}

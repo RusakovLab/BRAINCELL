@@ -1,0 +1,42 @@
+
+objref manageAndRunWidget, mechManagerMainWidget, synSetsWidget, synManagerMainWidget, varsEditorSubWidget
+objref mth, mmmowb, mcu, mcu4t
+
+makeSureDeclaredButCheck("inhomAndStochLibrary")
+
+// !!
+makeSureDeclaredButCheck("ecsLibrary")
+
+if (isAstrocyteOrNeuron) {
+    objref enumSynCompIdxs
+}
+
+loadIfNotDeclared("UtilsForFakeMechanismForExtValue", "GapJuncManager/FakesForExtValue/Exported/UtilsForFakeMechanismForExtValue.hoc")
+if (isAstrocyteOrNeuron) {
+    objref utils4FakeMech4SynNetCon
+} else {
+    loadIfNotDeclared("UtilsForFakeMechanismForNetCon", "SynManager/FakesForNetCon/Exported/UtilsForFakeMechanismForNetCon.hoc")
+}
+
+{ load_file("FakeMechanismType.hoc") }
+{ load_file("MechTypeHelper.hoc") }
+
+{ load_file("InhomAndStochLibrary/InhomAndStochLibraryLoads.hoc") }
+
+{ load_file("Widgets/Inhomogeneity/InhomEditorSectionUtils.hoc") }
+loadIfNotDeclared("SegmentationHelper", "Widgets/Inhomogeneity/SegmentationHelper.hoc")
+{ load_file("Widgets/Inhomogeneity/InhomEditorSubWidget.hoc") }
+
+loadIfNotDeclared("ColourizationHelper", "Widgets/Stochasticity/Exported/ColourizationHelper.hoc")
+loadIfNotDeclared("BoundingHelper", "Widgets/Stochasticity/Exported/BoundingHelper.hoc")
+{ load_file("Widgets/Stochasticity/StochEditorSubWidget.hoc") }
+
+{ load_file("Widgets/VarsEditorWidget.hoc") }
+{ load_file("Widgets/ListsFilterWidget.hoc") }
+
+{ load_file("Widgets/ManageAndRunWidget.hoc") }
+
+{ load_file("ManagersCommonUtils.hoc") }
+{ load_file("ManagersCommonUtilsForTaps.hoc") }
+
+{ load_file("TapSet.hoc") }

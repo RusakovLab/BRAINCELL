@@ -1,0 +1,175 @@
+
+{ load_file("../../AltRunControl/Exported/alt_stdrun.hoc") }
+loadIfNotDeclared("AltRunControlWidget", "../../AltRunControl/Exported/AltRunControlWidget.hoc")
+
+{ makeSureDeclared("altRunControlWidget", "objref %s", "%s = new AltRunControlWidget()") }
+
+
+objref ecsManagerMainWidget, iodManagerMainWidget, exportManagerMainWidget
+
+begintemplate ManageAndRunWidget
+
+    public show, showBioManagerHandler, showSynManagerHandler, showGapJuncManagerHandler, showECSManagerHandler, showIODManagerHandler, showAltRunControlHandler, onNanoReseedOrUpdateHandler, dismissHandler
+    
+    external isAstrocyteOrNeuron
+    external mechManagerMainWidget, synSetsWidget, gapJuncSetsWidget, ecsManagerMainWidget, iodManagerMainWidget, exportManagerMainWidget, altRunControlWidget
+    external mmAllComps, gjmAllGapJuncSets, smAllSynSets
+    external mwh, mmIcrHelper
+    external inhomAndStochLibrary
+    external dismissIfNotNil, codeContractViolation
+    external eachItemInList
+    
+    objref mainBox
+    
+    enumBioGjSynEcsIod = -1
+    
+    
+    proc init() {
+        enumBioGjSynEcsIod = $1
+    }
+    
+    proc show() {
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            if (enumBioGjSynEcsIod == 0) {
+                xbutton("Show biophys manager", "showBioManagerHandler()")
+            } else if (enumBioGjSynEcsIod == 1) {
+                xbutton("Show gap junc manager", "showGapJuncManagerHandler()")
+            } else if (enumBioGjSynEcsIod == 2) {
+                xbutton("Show synapse manager", "showSynManagerHandler()")
+            } else if (enumBioGjSynEcsIod == 3) {
+                xbutton("Show ECS manager", "showECSManagerHandler()")
+            } else if (enumBioGjSynEcsIod == 4) {
+                xbutton("Show IOD manager", "showIODManagerHandler()")
+            } else {
+                codeContractViolation()
+            }
+            xbutton("Show Alt Run Control", "showAltRunControlHandler()")
+            xpanel()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("Manage and Run", 25, 575, -1, -1)
+    }
+    
+    proc showBioManagerHandler() { localobj nil
+        dismissIfNotNil(exportManagerMainWidget)
+        dismissIfNotNil(mechManagerMainWidget)
+        
+        if (mmAllComps.count() == 0) {
+            mwh.showWarningBox("Cannot open the biophys manager because there are no compartments.")
+            return
+        }
+        
+        mmIcrHelper.rescanNow()
+        
+        if (mechManagerMainWidget == nil) {
+            execute("mechManagerMainWidget = new MechManagerMainWidget()")
+        }
+        
+        mechManagerMainWidget.show()
+        mechManagerMainWidget.mechOpSelectHandler()
+    }
+    
+    proc showGapJuncManagerHandler() { localobj nil
+        dismissIfNotNil(exportManagerMainWidget)
+        dismissIfNotNil(gapJuncSetsWidget)
+        
+        if (gapJuncSetsWidget == nil) {
+            execute("gapJuncSetsWidget = new GapJuncSetsWidget()")
+        }
+        
+        mwh.startIntercepting() // For the warnings shown by pyObj.ms_warnIfNoRecordForGapJunc and GapJuncSetsWidget.intChoicesSelectHandler
+        {
+            gapJuncSetsWidget.show()
+        }
+        mwh.endIntercepting()
+    }
+    
+    proc showSynManagerHandler() { localobj nil
+        dismissIfNotNil(exportManagerMainWidget)
+        dismissIfNotNil(synSetsWidget)
+        
+        if (synSetsWidget == nil) {
+            execute("synSetsWidget = new SynSetsWidget()")
+        }
+        
+        synSetsWidget.show()
+    }
+    
+    proc showECSManagerHandler() { localobj nil
+        dismissIfNotNil(exportManagerMainWidget)
+        dismissIfNotNil(ecsManagerMainWidget)
+        dismissIfNotNil(iodManagerMainWidget)
+        
+        if (ecsManagerMainWidget == nil) {
+            execute("ecsManagerMainWidget = new ExtracellularManagerMainWidget()")
+        }
+        
+        ecsManagerMainWidget.show()
+    }
+    
+    proc showIODManagerHandler() { localobj nil
+        dismissIfNotNil(exportManagerMainWidget)
+        dismissIfNotNil(ecsManagerMainWidget)
+        dismissIfNotNil(iodManagerMainWidget)
+        
+        if (iodManagerMainWidget == nil) {
+            execute("iodManagerMainWidget = new InsideOutDiffManagerMainWidget()")
+        }
+        
+        iodManagerMainWidget.show(0)
+    }
+    
+    proc showAltRunControlHandler() {
+        dismissIfNotNil(altRunControlWidget)
+        altRunControlWidget.show()
+    }
+    
+    proc onNanoReseedOrUpdateHandler() { local isReseedOrUpdate, cond1, cond2, enumRescanType localobj gapJuncSet, synSet, nil
+        isReseedOrUpdate = $1
+        
+        cond1 = (isReseedOrUpdate && (mechManagerMainWidget != nil || gapJuncSetsWidget != nil || synSetsWidget != nil || ecsManagerMainWidget != nil || iodManagerMainWidget != nil))
+        cond2 = (inhomAndStochLibrary.getNumInhomVarsForTaps(1, -1) != 0 || inhomAndStochLibrary.getNumInhomVarsForTaps(0, -1) != 0)
+        if (cond1 || cond2) {
+            // Must not be called because we block the panel in Main UI
+            codeContractViolation()
+        }
+        
+        // !! BUG: we don't reach this code when ManageAndRunWidget is nil (i.e. before the 1st opening)
+        for eachItemInList(gapJuncSet, gjmAllGapJuncSets) {
+            gapJuncSet.reCalcAndCacheDistInGapJuncs()
+        }
+        if (!isAstrocyteOrNeuron) {
+            for eachItemInList(synSet, smAllSynSets) {
+                synSet.reCalcAndCacheDistInSyns()
+            }
+        }
+        
+        inhomAndStochLibrary.onNanoReseedOrUpdate()
+        dismissManagers()
+        
+        enumRescanType = 4 - isReseedOrUpdate
+        mmIcrHelper.scheduleRescan(enumRescanType)
+    }
+    
+    proc dismissHandler() {
+        dismissManagers()
+        // !! dismissIfNotNil(altRunControlWidget)
+        mainBox.unmap()
+    }
+    
+    // All next staff is private
+    
+    
+    proc dismissManagers() {
+        dismissIfNotNil(mechManagerMainWidget)
+        dismissIfNotNil(gapJuncSetsWidget)
+        dismissIfNotNil(synSetsWidget)
+        dismissIfNotNil(ecsManagerMainWidget)
+        dismissIfNotNil(iodManagerMainWidget)
+    }
+    
+endtemplate ManageAndRunWidget

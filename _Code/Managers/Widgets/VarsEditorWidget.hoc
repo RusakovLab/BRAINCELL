@@ -1,0 +1,333 @@
+
+// This widget has one major cons compared to MechanismStandard.panel():
+// the variable domains are not checked for variables anymore
+
+begintemplate VarsEditorWidget
+
+    public show, onApplyInInhomEditor, onApplyOrDisableInStochEditor, dismissHandler
+    public compIdx
+    
+    external mwh, math, mth, mcu, compUtils, mechSettings, inhomAndStochLibrary
+    external createElasticSpacer, createEmptyPanel, createMetaVarHint, dismissIfNotNil, codeContractViolation
+    external smAllSynSets
+    
+    objref mainBox
+    objref mechStd, buffer, isMechVarInhom, isMechVarStoch
+    
+    enumDmPpFk = -1
+    isBioOrTapEditor = -1
+    isGapJuncOrSyn = -1     // For taps only
+    tapSetIdx = -1          //
+    compIdx = -1
+    objref comp
+    mechIdx = -1
+    strdef mechName
+    varType = -1
+    varTypeIdx = -1
+    
+    objref seh              // For synapses only
+    
+    slotHeight = -1
+    
+    objref subWidget
+    
+    
+    proc init() { local numMechVars, varIdx, arraySize, arrayIndex, isInhom, isStoch localobj inhomFlagsVec, stochFlagsVec, varLibId
+        strdef varName
+        
+        enumDmPpFk = $1
+        isGapJuncOrSyn = $2     // For taps only
+        tapSetIdx = $3          //
+        compIdx = $4
+        mechIdx = $5
+        varType = $6
+        
+        if (varType == -1) {    // GLOBAL
+            codeContractViolation()
+        }
+        
+        mth.getMechName(enumDmPpFk, mechIdx, mechName)
+        
+        isBioOrTapEditor = (enumDmPpFk == 0)
+        
+        if (!isBioOrTapEditor && !isGapJuncOrSyn) {
+            seh = smAllSynSets.o(tapSetIdx).seh
+        }
+        
+        comp = compUtils.getComp(isBioOrTapEditor, isGapJuncOrSyn, tapSetIdx, compIdx)
+        
+        varTypeIdx = mth.convertVarTypeToVarTypeIdx(varType)
+        
+        mechStd = comp.mechStds[mechIdx][varTypeIdx]
+        
+        mechStdToBuffer()
+        
+        numMechVars = mechStd.count()
+        isMechVarInhom = new List()
+        isMechVarStoch = new List()
+        for varIdx = 0, numMechVars - 1 {
+            arraySize = mth.getVarNameAndArraySize(enumDmPpFk, mechIdx, varType, varIdx, varName)
+            inhomFlagsVec = new Vector(arraySize)
+            stochFlagsVec = new Vector(arraySize)
+            for arrayIndex = 0, arraySize - 1 {
+                isInhom = comp.isMechVarInhom(mechIdx, varType, varName, arrayIndex)
+                inhomFlagsVec.x(arrayIndex) = isInhom
+                varLibId = new VarLibId(enumDmPpFk, isGapJuncOrSyn, tapSetIdx, compIdx, mechIdx, varType, varIdx, arrayIndex)
+                isStoch = inhomAndStochLibrary.isStochEnabledFor(varLibId)
+                stochFlagsVec.x(arrayIndex) = isStoch
+            }
+            isMechVarInhom.append(inhomFlagsVec)
+            isMechVarStoch.append(stochFlagsVec)
+        }
+        
+        slotHeight = 31
+    }
+    
+    proc show() { local isDiamDistMechVar, isAnyNaN, isAnyMeta, varIdx, arraySize, arrayIndex, isThisNaN, isUseDefMechStd, value localobj defaultMechStd, vec, hBox, vBox1, vBox2, vBox3
+        strdef header, varName, varNameWithIndex, varNameWithIndexAndUnits, handlerHocCommand
+        
+        isDiamDistMechVar = 0
+        
+        // !! maybe there is no need to create this for ASSIGNED and STATE because we know that the default value for them is 0
+        defaultMechStd = mth.createMechStd(enumDmPpFk, mechIdx, varType)
+        
+        mainBox = new VBox(3, 1)
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            comp.prepareVarsEditorHeader(mechIdx, varType, header)
+            xlabel(header)
+            xpanel()
+            isAnyNaN = 0
+            isAnyMeta = 0
+            for varIdx = 0, buffer.count() - 1 {
+                arraySize = mth.getVarNameAndArraySize(enumDmPpFk, mechIdx, varType, varIdx, varName)
+                if (mcu.isMetaVar(varName)) {
+                    isAnyMeta = 1
+                }
+                if (isBioOrTapEditor) {
+                    isDiamDistMechVar = mth.isDiamDistMechVar(mechIdx, varType, varName)
+                }
+                vec = buffer.o(varIdx)
+                for arrayIndex = 0, arraySize - 1 {
+                    mth.getVarNameWithIndexAndUnits(enumDmPpFk, mechIdx, varName, arraySize, arrayIndex, varNameWithIndexAndUnits, varNameWithIndex)
+                    isThisNaN = math.isNaN(vec.x(arrayIndex))
+                    isUseDefMechStd = !(isDiamDistMechVar || isThisNaN)
+                    
+                    hBox = new HBox()
+                    hBox.intercept(1)
+                    {
+                        vBox1 = new VBox()
+                        vBox1.intercept(1)
+                        {
+                            xpanel("")
+                            // Unfortunately, we cannot set the "boolean_deflt" arg to 1 when showing "nan" because it would cause "undefined variable nan" error
+                            // (the same error as for MechanismStandard.panel())
+                            sprint(handlerHocCommand, "editHomogenVarHandler(%d, %d)", varIdx, arrayIndex)
+                            if (isUseDefMechStd) {
+                                // Assigning the default value for a moment so that the red check mark indicated the difference with it
+                                value = vec.x(arrayIndex)
+                                vec.x(arrayIndex) = defaultMechStd.get(varName, arrayIndex)
+                            }
+                            xpvalue(varNameWithIndexAndUnits, &vec.x(arrayIndex), !isThisNaN, handlerHocCommand)
+                            if (isUseDefMechStd) {
+                                // Restoring the old value
+                                vec.x(arrayIndex) = value
+                            }
+                            xpanel()
+                        }
+                        vBox1.intercept(0)
+                        vBox1.map("", -1, -1, 255, slotHeight)  // The width was chosen to fit cadifus -> PARAMETER
+                        vBox2 = new VBox()
+                        vBox2.intercept(1)
+                        {
+                            xpanel("")
+                            sprint(handlerHocCommand, "defineDistFuncHandler(%d, %d)", varIdx, arrayIndex)
+                            xstatebutton("Define as func(dist)", &isMechVarInhom.o(varIdx).x(arrayIndex), handlerHocCommand)
+                            xpanel()
+                        }
+                        vBox2.intercept(0)
+                        vBox2.map("", -1, -1, 121, slotHeight)
+                        vBox3 = new VBox()
+                        vBox3.intercept(1)
+                        {
+                            if (!mechSettings.isHideStochButton(mechName, varNameWithIndex)) {
+                                xpanel("")
+                                sprint(handlerHocCommand, "defineStochFuncHandler(%d, %d)", varIdx, arrayIndex)
+                                xstatebutton("Define stoch model", &isMechVarStoch.o(varIdx).x(arrayIndex), handlerHocCommand)
+                                xpanel()
+                            } else {
+                                createElasticSpacer()
+                            }
+                        }
+                        vBox3.intercept(0)
+                        vBox3.map("", -1, -1, 122, slotHeight)
+                    }
+                    hBox.intercept(0)
+                    hBox.map()
+                    
+                    isAnyNaN = isAnyNaN || isThisNaN
+                }
+            }
+            xpanel("")              // Without this, the last var gets cropped sometimes
+            if (isAnyMeta) {
+                createMetaVarHint()
+            }
+            if (isAnyNaN) {
+                xlabel("* \"nan\" means \"inhomogeneous\";")
+                xlabel("   to make it homogeneous, replace \"nan\" with a number, press \"Enter\" and click \"Apply\" in the parent widget")
+            }
+            xpanel()
+            if (isAnyMeta || isAnyNaN) {
+                createEmptyPanel()  // Without this, the "nan" hint gets cropped sometimes
+            }
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map("Edit variables", 435, 100, -1, -1)
+    }
+    
+    proc onApplyInInhomEditor() { local varIdx, arrayIndex, isInhom localobj vec
+        strdef varName
+        
+        varIdx = $1
+        arrayIndex = $2
+        isInhom = $3
+        
+        vec = isMechVarInhom.o(varIdx)
+        if (isInhom && vec.x(arrayIndex)) {
+            return
+        }
+        
+        mechStd.name(varName, varIdx)
+        buffer.o(varIdx).x(arrayIndex) = mechStd.get(varName, arrayIndex)
+        if (!isInhom && !vec.x(arrayIndex)) {
+            return
+        }
+        
+        vec.x(arrayIndex) = isInhom
+        mainBox.unmap()     // !! annoying blinking
+        show()              //
+    }
+    
+    proc onApplyOrDisableInStochEditor() { local varIdx, arrayIndex, isStoch
+        varIdx = $1
+        arrayIndex = $2
+        isStoch = $3
+        isMechVarStoch.o(varIdx).x(arrayIndex) = isStoch
+    }
+    
+    proc dismissHandler() { localobj nil
+        dismissChild()
+        if (mainBox != nil) {
+            if (mainBox.ismapped()) {
+                bufferToMechStd()
+                mainBox.unmap()
+            }
+        }
+        
+        comp = nil
+        seh = nil
+    }
+    
+    // All next staff is private
+    
+    
+    proc editHomogenVarHandler() { local varIdx, arrayIndex, value localobj varLibId, nil
+        strdef varName
+        
+        // !! BUG: If user enters the editbox with "nan" and just leaves it without changing anything,
+        //         then "undefined variable nan" error is printed to console and the var gets reset to its default value.
+        //         (All this happens before we even get here.)
+        
+        varIdx = $1
+        arrayIndex = $2
+        
+        value = buffer.o(varIdx).x(arrayIndex)
+        
+        if (!math.isNaN(value)) {
+            isMechVarInhom.o(varIdx).x(arrayIndex) = 0
+            
+            // !! it would be better to do this later when user clicks "Apply",
+            //    but then it would be difficult to figure out what exactly inhom vars become homogen
+            varLibId = new VarLibId(enumDmPpFk, isGapJuncOrSyn, tapSetIdx, compIdx, mechIdx, varType, varIdx, arrayIndex)
+            inhomAndStochLibrary.onMakingVarHomogen(varLibId)
+            
+            if (seh != nil) {
+                mth.getVarNameAndArraySize(enumDmPpFk, mechIdx, varType, varIdx, varName)
+                seh.ifMetaVarThenUpdateStatus(varName, value)
+            }
+        }
+        
+        comp.markMechDirty(mechIdx)
+        dismissChild()
+    }
+    
+    proc defineDistFuncHandler() { local varIdx, arrayIndex
+        varIdx = $1
+        arrayIndex = $2
+        defineSmthCommonHandler(isMechVarInhom, varIdx, arrayIndex)
+        subWidget = mcu.defineDistFuncHandler(enumDmPpFk, isGapJuncOrSyn, tapSetIdx, compIdx, mechIdx, varType, varIdx, arrayIndex)
+    }
+    
+    proc defineStochFuncHandler() { local varIdx, arrayIndex
+        varIdx = $1
+        arrayIndex = $2
+        defineSmthCommonHandler(isMechVarStoch, varIdx, arrayIndex)
+        subWidget = mcu.defineStochFuncHandler(enumDmPpFk, isGapJuncOrSyn, tapSetIdx, compIdx, mechIdx, varType, varIdx, arrayIndex)
+    }
+    
+    proc defineSmthCommonHandler() { local varIdx, arrayIndex localobj isMechVarSmth
+        isMechVarSmth = $o1
+        varIdx = $2
+        arrayIndex = $3
+        
+        // Compensating the effect of this click
+        isMechVarSmth.o(varIdx).x(arrayIndex) = 1 - isMechVarSmth.o(varIdx).x(arrayIndex)
+        doNotify()  // Without this, user will notice one quick blink of the "LED"
+        
+        bufferToMechStd()
+        
+        dismissChild()
+    }
+    
+    // Prepare a buffer with values that will be bound to xpvalue-s
+    // (just because we cannot bound the internal values from MechanismStandard object to xpvalue-s directly)
+    proc mechStdToBuffer() { local varIdx, arraySize, arrayIndex localobj vec
+        strdef varName
+        
+        buffer = new List()
+        for varIdx = 0, mechStd.count() - 1 {
+            arraySize = mechStd.name(varName, varIdx)
+            vec = new Vector(arraySize)
+            for arrayIndex = 0, arraySize - 1 {
+                vec.x(arrayIndex) = mechStd.get(varName, arrayIndex)
+            }
+            buffer.append(vec)
+        }
+    }
+    
+    proc bufferToMechStd() { local isAnyInhom, varIdx, arraySize, arrayIndex, value localobj vec
+        strdef varName
+        
+        isAnyInhom = 0
+        for varIdx = 0, buffer.count() - 1 {
+            vec = buffer.o(varIdx)
+            arraySize = mechStd.name(varName, varIdx)
+            for arrayIndex = 0, arraySize - 1 {
+                value = vec.x(arrayIndex)
+                mechStd.set(varName, value, arrayIndex)
+                if (math.isNaN(value)) {
+                    isAnyInhom = 1
+                }
+            }
+        }
+        
+        comp.isMechVarTypeInhom[mechIdx][varTypeIdx] = isAnyInhom
+    }
+    
+    proc dismissChild() {
+        dismissIfNotNil(subWidget)
+    }
+    
+endtemplate VarsEditorWidget

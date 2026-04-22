@@ -1,0 +1,150 @@
+
+// !! maybe merge getRecSectsListAndNumSegms and getCellAndGridSectsLists into 1 and have only 1 cycle
+//    populating listRec_ref, listCell_ref and listGrid_ref at the same time for higher performance
+
+
+// !! get rid of this
+objref lastUsedGridToWatchWidget
+
+begintemplate EnumBinFileTypes
+    public oid, iod_a, iod_b
+    proc init() {
+        oid = 0
+        iod_a = 1
+        iod_b = 2
+    }
+endtemplate EnumBinFileTypes
+
+objref enumBinFileTypes
+enumBinFileTypes = new EnumBinFileTypes()
+
+
+_isSkipNanoSects = -1
+
+// Keeping on the top level because it uses "forall" and "forsec"
+obfunc getRecSectsListAndNumSegms() { local binFileType, numRecSegms localobj list_ref
+    strdef secName
+    
+    binFileType = $1
+    
+    list_ref = new List()
+    numRecSegms = 0
+    
+    if (binFileType == enumBinFileTypes.oid) {
+        if (lastUsedGridToWatchWidget.enumWhereToWatch != 1) {
+            forall {
+                if (pyObj.isNanoGeometrySection(secname())) {
+                    continue
+                }
+                list_ref.append(new SectionRef())
+                numRecSegms += nseg
+            }
+        } else {
+            _getRecSectsListAndNumSegmsForGrid(list_ref, &numRecSegms)
+        }
+    } else if (binFileType == enumBinFileTypes.iod_a) {
+        _getIsSkipNanoSects()   // -> _isSkipNanoSects
+        forall {
+            secName = secname()
+            if (stringStartsWith(secName, gridSecStartMarker)) {
+                continue
+            }
+            if (_isSkipNanoSects) {                             // Don't combine into one IF for better performance
+                if (pyObj.isNanoGeometrySection(secName)) {     //
+                    continue
+                }
+            }
+            list_ref.append(new SectionRef())
+            numRecSegms += nseg
+        }
+    } else if (binFileType == enumBinFileTypes.iod_b) {
+        _getRecSectsListAndNumSegmsForGrid(list_ref, &numRecSegms)
+    } else {
+        codeContractViolation()
+    }
+    
+    $&2 = numRecSegms
+    
+    return list_ref
+}
+
+// Keeping on the top level because it uses "forall"
+proc getCellAndGridSectsLists() { local isOutsideInDiffusion localobj listCell_ref, listGrid_ref, sec_ref
+    strdef secName
+    
+    isOutsideInDiffusion = $1
+    listCell_ref = $o2
+    listGrid_ref = $o3
+    
+    if (isOutsideInDiffusion) {
+        _isSkipNanoSects = 1
+    } else {
+        _getIsSkipNanoSects()   // -> _isSkipNanoSects
+    }
+    
+    forall {
+        secName = secname()
+        if (_isSkipNanoSects) {                             // Don't combine into one IF for better performance
+            if (pyObj.isNanoGeometrySection(secName)) {     //
+                continue
+            }
+        }
+        sec_ref = new SectionRef()
+        if (stringStartsWith(secName, gridSecStartMarker)) {
+            listGrid_ref.append(sec_ref)
+        } else {
+            listCell_ref.append(sec_ref)
+        }
+    }
+}
+
+
+_x = -1
+_y = -1
+
+proc assignRangeVarFromRecord() { local segmIdx localobj list_ref, oneFrame
+    strdef varNameWithIndex, hocCommand
+    
+    list_ref = $o1
+    varNameWithIndex = $s2
+    oneFrame = $o3
+    
+    // !! no need to "sprint" on each frame
+    sprint(hocCommand, "%s(_x) = _y", varNameWithIndex)     // !! test that it works when we use a var with index
+    
+    segmIdx = 0
+    
+    // !! apply it as a Verbatim inhom model ?
+    for eachSegmInSecList(&_x, list_ref) {
+        _y = pyObj.getArrayElem(oneFrame, segmIdx)
+        // !! if I call Python here, then I can avoid "execute" below or even push the entire proc to Python
+        
+        // !! _y = oneFrame.__getitem__(pyObj.int(segmIdx))     // !! slow conversion on each iter
+        
+        execute(hocCommand)
+        segmIdx += 1
+    }
+}
+
+objref gridOfSections
+
+proc destroyTempSects() { localobj nil
+    mwh.showPleaseWaitBox("Destroying temp sections.")
+    {
+        gridOfSections = nil
+    }
+    mwh.hidePleaseWaitBox()
+}
+
+
+proc _getRecSectsListAndNumSegmsForGrid() { localobj list_ref
+    list_ref = $o1
+    forsec gridSecStartMarker {
+        list_ref.append(new SectionRef())
+        $&2 += nseg
+    }
+}
+
+proc _getIsSkipNanoSects() {
+    execute("_isSkipNanoSects = GeneralSettingsWidget[0].getIsSkipNanoSects()")     // !! fragile
+}

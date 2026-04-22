@@ -1,0 +1,149 @@
+
+begintemplate ManagersCommonUtilsForTaps
+
+    public isReducedTapSets, updateNumInhomVarsLabel, updateNumStochVarsLabel, addHintBelowShowAllLocationsButton, warnIfUserHasNotSelectedPPs, showPleaseSelectPpMsg, showApplyMsg, getSelMechIdxOrMinusOne, getSelMechNameOrEmptyString, appendAndSelectIfMechNameEqual, selectAndScroll, scroll, updateItemInShownTapSetsList, dismissChilds
+    
+    external mwh, inhomAndStochLibrary
+    external gapJuncManagerMainWidget, synManagerMainWidget
+    external stringsEqual, stringStartsWith, replaceItemInList, dismissIfNotNil
+    external pyObj
+    
+    
+    func isReducedTapSets() { localobj xmAllTapSets
+        xmAllTapSets = $o1
+        return stringStartsWith(pyObj.getTemplOrClassName(xmAllTapSets.o(0)), "Reduced")
+    }
+    
+    proc updateNumInhomVarsLabel() { local isGapJuncOrSyn, tapSetIdx, numInhomVars
+        isGapJuncOrSyn = $1
+        tapSetIdx = $2
+        numInhomVars = inhomAndStochLibrary.getNumInhomVarsForTaps(isGapJuncOrSyn, tapSetIdx)
+        sprint($s3, "Number of inhom vars: %d", numInhomVars)
+    }
+    
+    proc updateNumStochVarsLabel() { local isGapJuncOrSyn, tapSetIdx, numStochVars
+        isGapJuncOrSyn = $1
+        tapSetIdx = $2
+        numStochVars = inhomAndStochLibrary.getNumStochVarsForTaps(isGapJuncOrSyn, tapSetIdx)
+        sprint($s3, "Number of stoch vars: %d", numStochVars)
+    }
+    
+    proc addHintBelowShowAllLocationsButton() {
+        xlabel("* Alternatively, you can use this standard tool that shows the \"SectionName(x)\" list:")
+        xlabel("  \"NEURON Main Manu\" -> Tools -> \"Point Processes\" -> Viewers -> PointProcesses")
+    }
+    
+    func warnIfUserHasNotSelectedPPs() { local isGapJuncOrSyn
+        isGapJuncOrSyn = $1
+        if (isGapJuncOrSyn) {
+            return gapJuncManagerMainWidget.warnIfUserHasNotSelectedPP()
+        } else {
+            return synManagerMainWidget.warnIfUserHasNotSelectedPPs()
+        }
+    }
+    
+    proc showPleaseSelectPpMsg() { local ppCompIdx localobj xmAllComps
+        strdef msgTempl, msg
+        xmAllComps = $o1
+        ppCompIdx = $2
+        msgTempl = "Please select an item in \"%s\" list."
+        sprint(msg, msgTempl, xmAllComps.o(ppCompIdx).name)
+        mwh.showWarningBox(msg)
+    }
+    
+    proc showApplyMsg() { local isSmthChanged
+        strdef what, msg, title
+        isSmthChanged = $1
+        what = $s2
+        if (isSmthChanged) {
+            sprint(msg, "All the changes were applied to %s.", what)
+            title = "Applied"
+        } else {
+            sprint(msg, "There are no changes in %s to apply.", what)
+            title = "No changes"
+        }
+        mwh.showMessageBox(msg, title)
+    }
+    
+    func getSelMechIdxOrMinusOne() { local selIdx localobj list
+        list = $o1
+        selIdx = list.selected()
+        if (selIdx != -1) {
+            return list.o(selIdx).idx
+        } else {
+            return -1
+        }
+    }
+    
+    proc getSelMechNameOrEmptyString() { local selIdx localobj list
+        list = $o1
+        selIdx = list.selected()
+        if (selIdx != -1) {
+            $s2 = list.o(selIdx).s
+        } else {
+            $s2 = ""
+        }
+    }
+    
+    proc appendAndSelectIfMechNameEqual() { local selIdx localobj list, item
+        strdef oldSelMechName
+        list = $o1
+        item = $o2
+        oldSelMechName = $s3
+        list.append(item)
+        if (stringsEqual(item.s, oldSelMechName)) {
+            selIdx = list.count() - 1
+            $&4 = selIdx
+        }
+    }
+    
+    proc selectAndScroll() { local choiceIdx localobj choices
+        choices = $o1
+        choiceIdx = $2
+        choices.select(choiceIdx)
+        scroll(choices)
+    }
+    
+    proc scroll() { local choiceIdx localobj choices
+        choices = $o1
+        choiceIdx = choices.selected()
+        if (choiceIdx != -1) {
+            choices.scroll_pos(choiceIdx)
+        }
+    }
+    
+    proc updateItemInShownTapSetsList() { local tapSetIdx localobj xmAllTapSets, tapSet
+        xmAllTapSets = $o1
+        tapSetIdx = $2
+        
+        tapSet = xmAllTapSets.o(tapSetIdx)
+        tapSet.prepareShownString()
+        replaceItemInList(xmAllTapSets, tapSet, tapSetIdx, 1)
+    }
+    
+    proc dismissChilds() { local isIgnoreListsFilterWidget, isCondIgnoreVarsEditorWidget, tapCompIdx localobj tmlfw, varsEditorSubWidget, nil
+        isIgnoreListsFilterWidget = $1
+        isCondIgnoreVarsEditorWidget = $2
+        tapCompIdx = $3
+        tmlfw = $o4
+        varsEditorSubWidget = $o5
+        
+        if (!isIgnoreListsFilterWidget) {
+            dismissIfNotNil(tmlfw)
+        }
+        
+        if (!isCondIgnoreVarsEditorWidget) {
+            dismissIfNotNil(varsEditorSubWidget)
+        } else if (varsEditorSubWidget != nil) {
+            if (varsEditorSubWidget.compIdx == tapCompIdx) {
+                varsEditorSubWidget.dismissHandler()
+            }
+        }
+        
+        // Notice that here we cannot dismiss the widgets created with nrnglobalmechmenu
+    }
+    
+endtemplate ManagersCommonUtilsForTaps
+
+objref mcu4t
+mcu4t = new ManagersCommonUtilsForTaps()

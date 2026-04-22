@@ -1,0 +1,36 @@
+
+begintemplate ProtoSpine
+    
+    public sec_ref, x
+    public markerPp
+    public deployMarkerPp, destroyMarkerPp
+    
+    external codeContractViolation
+    
+    objref sec_ref
+    x = -1
+    objref markerPp
+    
+    
+    proc init () {
+        sec_ref = $o1
+        x = $2
+    }
+    
+    proc deployMarkerPp() { localobj nil
+        if (markerPp != nil) {
+            codeContractViolation()
+        }
+        sec_ref.sec {
+            markerPp = new PointProcessMark(x)
+        }
+    }
+    
+    proc destroyMarkerPp() { localobj nil
+        if (markerPp == nil) {
+            codeContractViolation()
+        }
+        markerPp = nil
+    }
+    
+endtemplate ProtoSpine

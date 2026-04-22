@@ -1,0 +1,297 @@
+
+// !! some code dupl. with CreateListOfInputVarsWidget, SpineSeedingMainWidget, SynSetsWidget and GapJuncSetsWidget
+begintemplate ExtracellularManagerMainWidget
+
+    public show, onCreateHandler, onEditHandler, updateEcdStatusVarLabel, dismissHandler
+    public title
+    
+    external mwh, ecsLibrary
+    external applyExtracellularSourcesWithWaitBoxAndUpdateMainUiDiffStatusIndication, disableExtracellularSourcesAndUpdateMainUiDiffStatusIndication, getExtracellularSourcesStatus
+    external isECSUnique, replaceItemInList, deleteSelectedItemFromBrowsedList, openDeck, closeDeck, getIfYouModifyGeomHint, oneZeroToEnabledDisabled, unmapIfNotNil, codeContractViolation
+    
+    objref mainBox, ecsList
+    objref oneECSWidget, randomECSsWidget
+    objref this
+    
+    firstColWidth = -1
+    secondColWidth = -1
+    slotHeight = -1
+    
+    strdef title
+    strdef ecdStatusVarLabel
+    
+    
+    proc init() {
+        ecsList = ecsLibrary.ecsList
+        
+        firstColWidth = 345     // !! make it wider (test on "ExtraIon" sphere series of 100)
+        secondColWidth = 115
+        slotHeight = 198
+        
+        title = "Manager of extracellular sources"
+        
+        oneECSWidget = new OneExtracellularSourceWidget(this)
+        randomECSsWidget = new GenerateRandomInSphereWidget()
+    }
+    
+    proc show() { localobj hBox, deck
+        
+        updateEcdStatusVarLabel()
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            xpanel("")
+            xlabel("Extracellular sources:")
+            xpanel()
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                // It turns out, the usage of two Deck-s with just 1 card below
+                // gives a nicer UI compared to other options (VBox, HBox or no-box)
+                deck = openDeck()
+                {
+                    ecsList.browser("", "s")
+                    if (ecsList.count() != 0) {
+                        ecsList.select(0)
+                    }
+                    ecsList.accept_action("editHandler()")  // Double click
+                }
+                closeDeck(deck, 0, firstColWidth, slotHeight)
+                deck = openDeck()
+                {
+                    xpanel("")
+                    xbutton("Create new (default)", "createNewHandler()")
+                    xbutton("Copy and edit", "copyAndEditHandler()")
+                    xlabel("")
+                    xbutton("Edit", "editHandler()")
+                    xlabel("")
+                    xbutton("Generate random", "generateRandomHandler()")
+                    xlabel("")
+                    xbutton("Delete", "deleteHandler(0)")
+                    xbutton("Delete all", "deleteHandler(1)")
+                    xpanel()
+                }
+                closeDeck(deck, 0, secondColWidth, slotHeight)
+            }
+            hBox.intercept(0)
+            hBox.map("", -1, -1, firstColWidth + secondColWidth, slotHeight)
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                xpanel("")
+                xbutton("Apply", "applyHandler()")
+                xbutton("Disable", "disableHandler()")
+                xpanel()
+                xpanel("")
+                xvarlabel(ecdStatusVarLabel)
+                xpanel()
+            }
+            hBox.intercept(0)
+            hBox.map()
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        mainBox.map(title, 110, 145, -1, -1)
+    }
+    
+    func onCreateHandler() { localobj newECS
+        newECS = $o1
+        
+        if (!isECSUnique(newECS, ecsList)) {
+            return 0
+        }
+        
+        ecsList.append(newECS)
+        
+        return 1
+    }
+    
+    func onEditHandler() { local oldSelIdx localobj newECS
+        newECS = $o1
+        // !! maybe don't pass oldSelIdx here and just rely on the current selection
+        //    (but need to close the child widget if user selects other src in this widget)
+        oldSelIdx = $2
+        
+        if (!isECSUnique(newECS, ecsList)) {
+            return 0
+        }
+        
+        replaceItemInList(ecsList, newECS, oldSelIdx, 1)
+        
+        return 1
+    }
+    
+    proc dismissHandler() {
+        // !! if there is any unapplied changes, then show a warning and ask whether to apply
+        dismissChilds()
+        unmapIfNotNil(mainBox)
+    }
+    
+    // All next staff is private
+    
+    
+    proc createNewHandler() {
+        dismissChilds()
+        oneECSWidget.show()     // --> onCreateHandler
+    }
+    
+    proc copyAndEditHandler() { local selIdxOrMinus1 localobj oldECS
+        selIdxOrMinus1 = prologue4Show4NotNew(oldECS)
+        if (selIdxOrMinus1 == -1) {
+            return
+        }
+        
+        oneECSWidget.show(oldECS)   // --> onCreateHandler
+    }
+    
+    proc editHandler() { local selIdxOrMinus1 localobj oldECS
+        selIdxOrMinus1 = prologue4Show4NotNew(oldECS)
+        if (selIdxOrMinus1 == -1) {
+            return
+        }
+        
+        oneECSWidget.show(oldECS, selIdxOrMinus1)   // --> onEditHandler
+    }
+    
+    proc generateRandomHandler() {
+        dismissChilds()
+        randomECSsWidget.show()
+    }
+    
+    proc deleteHandler() { local isAll
+        isAll = $1
+        
+        dismissChilds()
+        
+        if (!isAll) {
+            deleteSelectedItemFromBrowsedList(ecsList)
+        } else {
+            ecsList.remove_all()
+        }
+    }
+    
+    proc applyHandler() { local wasEnabled, isEnabled
+        strdef line1, line2, line3, line4, line5
+        
+        // !! just so user can watch colormap dynamics on the PlotShape and create new Graph-s from it
+        // dismissChilds()
+        randomECSsWidget.dismissHandler()
+        
+        // !! say "No changes" or "All deleted" when that's the case
+        
+        wasEnabled = getExtracellularSourcesStatus()
+        
+        // !! think about FInitializeHandler
+        isEnabled = applyExtracellularSourcesWithWaitBoxAndUpdateMainUiDiffStatusIndication()
+        
+        if (!isEnabled) {
+            showDisabledMsgAndUpdateStatusVarLabel(wasEnabled)
+            return
+        }
+        
+        oneECSWidget.onApplyInParentWidget()
+        
+        // !! just for test (without this, the PlotShape-s created in "init_ExtraManager.hoc" are not updated after user clicks "Apply")
+        if (name_declared("testPlotShape1")) {
+            execute("testPlotShape1.flush()")   // !! .fastflush() works as well
+        }
+        if (name_declared("testPlotShape2")) {
+            execute("testPlotShape2.flush()")
+        }
+        if (name_declared("testPlotShape3")) {
+            execute("testPlotShape3.flush()")
+        }
+        
+        mwh.startIntercepting()
+        {
+            mwh.showNotImplementedWarning("For the outside-in diffusion, the variable time step \"dt\" is not fully supported.")
+            
+            // !! maybe use an alternative message if !isEnabled
+            line1 = "All the changes were applied."
+            
+            // !! if RunControl works fine, then we don't need to show AltRunControl together with this widget
+            line2 = "Now you can start the simulation with either RunControl or AltRunControl."
+            
+            // !! instead of "{species}o", show the list of actual species names from ecsList
+            line3 = "Make sure you don't use any biophys mechs that write the same \"{species}o\" vars to avoid collisions."
+            
+            // !! when user clicks "Apply", then increases "nseg" in any section and then starts the simulation without clicking "Apply" once again,
+            //    this expectedly results in "Segmentation violation"
+            //    to avoid this, we'll have to stick to AltRunControl only and "click" "Apply" programmatically on start of the simulation
+            //    alternatively, we can save "total_nseg" in MOD file on "Apply", then check it each time user starts the simulation and,
+            //    if we see that it's different, print a message to console suggesting to click "Apply"
+            getIfYouModifyGeomHint(line4)
+            
+            sprint(line5, "then get back to the \"%s\" and click \"Apply\" once again.", title)
+            
+            mwh.showMessageBox(line1, line2, "", line3, line4, line5, "Applied")
+        }
+        mwh.endIntercepting()
+        
+        updateEcdStatusVarLabel(1)
+    }
+    
+    proc disableHandler() { local wasEnabled
+        wasEnabled = disableExtracellularSourcesAndUpdateMainUiDiffStatusIndication()
+        showDisabledMsgAndUpdateStatusVarLabel(wasEnabled)
+    }
+    
+    proc dismissChilds() {
+        // !! if there is any unapplied changes, then ask whether to apply them
+        oneECSWidget.dismissHandler()
+        randomECSsWidget.dismissHandler()
+    }
+    
+    func prologue4Show4NotNew() { local selIdx
+        dismissChilds()
+        
+        selIdx = ecsList.selected()
+        if (selIdx == -1) {
+            return -1
+        }
+        
+        $o1 = ecsList.o(selIdx)
+        return selIdx
+    }
+    
+    proc updateEcdStatusVarLabel() { local numArg, isEnabled
+        strdef word
+        numArg = numarg()
+        if (numArg == 0) {
+            isEnabled = getExtracellularSourcesStatus()
+        } else if (numArg == 1) {
+            isEnabled = $1
+        } else {
+            codeContractViolation()
+        }
+        oneZeroToEnabledDisabled(isEnabled, word)
+        sprint(ecdStatusVarLabel, "Outside-in diffusion: %s", word)
+    }
+    
+    proc showDisabledMsgAndUpdateStatusVarLabel() { local wasEnabled localobj bulletedList
+        strdef line1, line2, line3, line4
+        
+        wasEnabled = $1
+        
+        if (wasEnabled) {
+            line1 = "The outside-in diffusion was disabled."
+            line2 = "Please be advised:"
+            line3 = "The ions inserted into all the sections earlier cannot be uninserted anymore (NEURON restriction), so they remain."
+            
+            // !! maybe user wants to reset them (not only when clicks Disable for all sources, but also when clicks Apply after removal of particular species)
+            line4 = "We don't reset the outer concentrations \"{species}o\" to the default value \"{species}o0_{species}_ion\"."
+            
+            bulletedList = new List()
+            bulletedList.append(new String(line3))
+            bulletedList.append(new String(line4))
+            
+            mwh.showMessageBox(line1, line2, bulletedList, "Disabled")
+            
+            updateEcdStatusVarLabel(0)
+        } else {
+            mwh.showMessageBox("Already disabled.", "Nothing to disable")
+        }
+    }
+    
+endtemplate ExtracellularManagerMainWidget

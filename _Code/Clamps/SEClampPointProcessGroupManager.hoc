@@ -1,0 +1,30 @@
+
+{ load_file("pointgrp.hoc") }
+
+// Show the PointProcessGroupManager with a predefined SEClamp
+objref _seClampPPGM
+_seClampPPGM = new PointProcessGroupManager(0)
+{ object_push(_seClampPPGM) }
+{
+    ms = new MechanismStandard("SEClamp")
+    ms.set("rs", 1)
+    ms.set("dur1", 100000)  // !! was: 20000 (in SimGlutamate.hoc and SimPotassium.hoc)
+    ms.set("amp1", -85)
+    ms.set("dur2", 0)
+    ms.set("amp2", 0)
+    ms.set("dur3", 0)
+    ms.set("amp3", 0)
+    mnews("SEClamp", ms)
+    select(0)
+    execute("soma_ref.o(0).sec _seClampPPGM.move(0.5)")
+}
+{ object_pop() }
+_seClampPPGM = _seClampPPGM.v1
+
+vBoxSEClampPPGM = new VBox()
+{ vBoxSEClampPPGM.intercept(1) }
+{
+    _seClampPPGM.map()
+}
+{ vBoxSEClampPPGM.intercept(0) }
+{ vBoxSEClampPPGM.map("PointProcessGroupManager",  196, 810, 608.4, 352.8) }

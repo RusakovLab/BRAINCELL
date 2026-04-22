@@ -1,0 +1,181 @@
+/********************************************************************
+Create a spine with a spine neck 
+connected to the parant dendrite dendA1_00
+*************************************************/
+create s
+
+
+access s
+
+Numb=1 // Max number of spines per dendrites
+Branches= 1
+
+// ***********************Uniform distribution 
+// Set of Parameters
+//  Spine Head Radius
+MinRadiusHead=10
+MaxRadiusHead = 10
+// Spine Neck Length
+MinSpineNeckLength=1
+MaxSpineNeckLength=1
+// Spine Neck Diameter
+MinSpineNeckDiameter=1
+MaxSpineNeckDiameter=1
+
+// ***********************Normal distribution 
+// Set of Parameters
+//  Spine Head Radius
+MeanRadiusHead=1
+SDRadiusHead = 3
+
+// Spine Neck Length
+MeanSpineNeckLength=0.5
+SDSpineNeckLength=1
+// Spine Neck Diameter
+MeanSpineNeckDiameter=0.5
+SDSpineNeckDiameter=1
+
+
+
+
+
+objref Spine[Numb*Branches], R_SpineRadius, R_NeckL, R_NeckD
+       R_SpineRadius = new Random() // Random Number of Spine radius
+	   R_NeckL = new Random() // Random Number of Neck Length
+	   R_NeckD = new Random() // Random Number of Spine diameter
+create spine_neck[Numb*Branches]
+create spine_head[Numb*Branches]
+
+
+proc GeometrySpineUniform() {
+
+xData=0
+zData=0
+
+
+for Jitter = 0, $1-1 {
+for Iter=0, Numb-1 {
+
+spine_neck[Iter+Numb*Jitter] Spine[Iter+Numb*Jitter] = new SectionRef()
+
+necklength = R_NeckL.uniform($4, $5) //1  /*spine neck length in um*/
+
+neckdiam = R_NeckD.uniform($6, $7) // 0.0394 /*spine neck diameter*/
+spine_neck[Iter+Numb*Jitter] {nseg = 2
+            pt3dclear()
+			
+            for j = 0, nseg-1 {
+                ty = (j*necklength)/(nseg-1)
+                pt3dadd(xData,ty,zData,neckdiam)
+                }
+				//insert pas
+            }
+
+spine_head[Iter+Numb*Jitter] disconnect()
+
+
+spine_neck[Iter+Numb*Jitter] connect spine_head[Iter+Numb*Jitter](0), 1
+ 
+//access spine_head[Iter+Numb*Jitter]
+R_Radius = R_SpineRadius.uniform($3, $2)
+
+// ** Head of spine
+spineradius = R_Radius //0.297 // Head Radius statistic
+
+spine_head[Iter+Numb*Jitter] {nseg = 7
+            pt3dclear()
+            for i = 0, nseg-1 {
+                ty = -(i*2*spineradius)/(nseg-1)
+				if  (spineradius^2-(ty+spineradius)^2 > 0) {
+                td = 2*sqrt(spineradius^2-(ty+spineradius)^2)
+				       } else {
+				td=0
+				}
+                if (td<neckdiam){
+                    td = neckdiam
+                    } 
+                    pt3dadd(xData,ty+1,zData,td)
+                }
+				// Biophysic of spines
+				Ra=150
+				insert pas
+				g_pas = 0.01
+				// End Biophysics of spines
+            }
+	}
+}	
+}
+
+
+proc GeometrySpineNormal() {
+
+xData=0
+zData=0
+
+
+for Jitter = 0, $1-1 {
+for Iter=0, Numb-1 {
+
+spine_neck[Iter+Numb*Jitter] Spine[Iter+Numb*Jitter] = new SectionRef()
+
+necklength = R_NeckL.normal($4, $5) //1  /*spine neck length in um*/
+if (necklength < 0.2) necklength = 0.2 
+neckdiam = R_NeckD.normal($6, $7) // 0.0394 /*spine neck diameter*/
+if (neckdiam < 0.2) neckdiam = 0.2 
+spine_neck[Iter+Numb*Jitter] {nseg = 2
+            pt3dclear()
+			
+            for j = 0, nseg-1 {
+                ty = (j*necklength)/(nseg-1)
+                pt3dadd(xData,ty,zData,neckdiam)
+                }
+				// Biophysic of spines
+				Ra=150
+				insert pas
+				g_pas = 0.01
+				// End Biophysics of spines
+            }
+
+spine_head[Iter+Numb*Jitter] disconnect()
+
+
+
+ 
+//access spine_head[Iter+Numb*Jitter]
+R_Radius = R_SpineRadius.normal($3, $2)
+if (R_Radius < 0.2) R_Radius = 0.2
+
+// ** Head of spine
+spineradius = R_Radius //0.297 // Head Radius statistic
+
+spine_head[Iter+Numb*Jitter] {nseg = 20
+            pt3dclear()
+            for i = 0, nseg-1 {
+                ty = -(i*2*spineradius)/(nseg-1)
+				if  (spineradius^2-(ty+spineradius)^2 > 0) {
+                td = 2*sqrt(spineradius^2-(ty+spineradius)^2)
+				       } else {
+				td=0
+				}
+                if (td<neckdiam){
+                    td = neckdiam
+                    } 
+                    pt3dadd(xData,ty+1,zData,td)
+                }
+				// Biophysic of spines
+				Ra=150
+				insert pas
+				g_pas = 0.01
+				// End Biophysics of spines
+            }
+			
+spine_neck[Iter+Numb*Jitter] connect spine_head[Iter+Numb*Jitter](1), 1			
+			
+	}
+}	
+}
+
+
+//GeometrySpineUniform(Branches, MaxRadiusHead, MinRadiusHead, MinSpineNeckLength, MaxSpineNeckLength, MinSpineNeckDiameter, MaxSpineNeckDiameter)
+GeometrySpineNormal(Branches, SDRadiusHead, MeanRadiusHead, MeanSpineNeckLength, SDSpineNeckLength, MeanSpineNeckDiameter, SDSpineNeckDiameter)
+

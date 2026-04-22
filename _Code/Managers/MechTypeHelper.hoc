@@ -1,0 +1,479 @@
+
+// !! if user loads mechanisms dynamically (see neuron.load_mechanisms), then we need to re-create the singleton object
+
+{ load_file("GapJuncManager/GapJuncManagerBaseLoads.hoc") }
+if (!isAstrocyteOrNeuron) {
+    load_file("SynManager/SynManagerBaseLoads.hoc")
+}
+
+begintemplate MechTypeHelper
+
+    public getMechType, getNumMechs, getMechName, getMechIdx, getNumVarTypes, getNumMechVars, doesMechHaveGlobalVars, doesMechHaveNotGlobalVars, getVarNameAndArraySize, getVarTypeName, getVarNameWithIndex, getVarUnits, getVarNameWithIndexAndUnits, isDistMechSticky, isIon, checkIfInhomogeneityOrStochasticityCannotBeAppliedToThisDistMechVar, isDiamDistMechVar, isWeightNetConVar, convertVarTypeToVarTypeIdx, doesPointProcessRequireSection, isPointProcessAcceptableNetConSource, isPointProcessAcceptableNetConTarget, doesPointProcessUseIons, createMechStd, createNewPpAttachedToSection
+    
+    public morphologyMechIdx, morphologyMechName, diamVarType, diamVarName
+    public extracellularMechName, ionSuffix
+    // See also: mechsDllUtils.firstCustomDmMechIdx and .firstCustomPpMechIdx
+    
+    external isAstrocyteOrNeuron
+    external stringsEqual, stringEmpty, codeContractViolation
+    external mwh, mechSettings, utils4FakeMech4GapJuncExtValue, utils4FakeMech4SynNetCon
+    external eachItemInList
+    
+    objref mechTypes[1]
+    objref _doesMechHaveGlobalVars[1]
+    double _doesPointProcessUseIons[1]
+    
+    objref utils4FakeMechs[1]
+    
+    // Special mechs and vars
+    morphologyMechIdx = -1
+    extracellularMechIdx = -1
+    diamVarType = -1
+    diamVarIdx = -1
+    strdef morphologyMechName, extracellularMechName, ionSuffix, diamVarName, weightVarName
+    
+    objref this
+    
+    
+    proc init() { local mechTypeIdx, numMechs, mechIdx, numMechGlobalVars localobj mechType, flagsVec
+        strdef mechName
+        
+        objref mechTypes[3]                 // 0: "Distributed Membrane Mechanisms", 1: "Point Processes", 2: "Fake Point Processes"
+        objref _doesMechHaveGlobalVars[3]   // Array of Vector-s of 0/1 flags
+        
+        objref utils4FakeMechs[2]           // 0: gap juncs, 1: syns
+        
+        utils4FakeMechs[utils4FakeMech4GapJuncExtValue.mechIdx] = utils4FakeMech4GapJuncExtValue
+        if (!isAstrocyteOrNeuron) {
+            utils4FakeMechs[utils4FakeMech4SynNetCon.mechIdx] = utils4FakeMech4SynNetCon
+        }
+        
+        for mechTypeIdx = 0, 2 {    // 0: "Distributed Membrane Mechanisms", 1: "Point Processes", 2: "Fake Point Processes"
+            
+            if (mechTypeIdx != 2) {
+                mechType = new MechanismType(mechTypeIdx)
+            } else {
+                mechType = new FakeMechanismType()
+            }
+            mechTypes[mechTypeIdx] = mechType
+            
+            // Initialize _doesMechHaveGlobalVars[mechTypeIdx] vector
+            numMechs = getNumMechs(mechTypeIdx)
+            flagsVec = new Vector(numMechs)     // 0/1 flags
+            for mechIdx = 0, numMechs - 1 {
+                if (mechTypeIdx != 2) {
+                    getMechName(mechTypeIdx, mechIdx, mechName)
+                    numMechGlobalVars = nrnglobalmechmenu(mechName, 0)
+                    // Just another way to do the same:
+                    // mechStd = new MechanismStandard(mechName, -1)    // -1: "GLOBAL"
+                    // numMechGlobalVars = mechStd.count()
+                } else {
+                    numMechGlobalVars = utils4FakeMechs[mechIdx].numGlobalVars
+                }
+                
+                flagsVec.x(mechIdx) = (numMechGlobalVars != 0)
+            }
+            _doesMechHaveGlobalVars[mechTypeIdx] = flagsVec
+        }
+        
+        // Initialize _doesPointProcessUseIons array
+        initDoesPointProcessUseIonsFlagsArray()
+        
+        // All code below is for Distributed Membrane Mechanisms only
+        
+        
+        // The NEURON code responsible for "Can't uninsert mechanism" and "Not allowed to uninsert ions at this time" warnings:
+        //  \nrn-master\src\nrnoc\cabcode.cpp
+        
+        // This mech is inserted by default and cannot be uninserted
+        morphologyMechIdx = 0
+        morphologyMechName = "morphology"
+        
+        // These mechs are not inserted by default, but once inserted, cannot be uninserted anymore
+        extracellularMechIdx = 3
+        extracellularMechName = "extracellular"
+        ionSuffix = mechSettings.ionSuffix      // !! not the best solution
+        
+        // This variable from "morphology" cannot be made inhomogeneous in the same way like others (NEURON restriction)
+        diamVarType = 1     // PARAMETER
+        diamVarIdx = 0
+        diamVarName = "diam"
+        
+        // This NetCon var requires some special logic when the release probability mechanics is enabled
+        weightVarName = "weight"
+        
+        // Draw user attention if something changed in future NEURON version
+        checkDistMechCodeContract(morphologyMechIdx, morphologyMechName)
+        checkDistMechCodeContract(extracellularMechIdx, extracellularMechName)
+        checkDistVarCodeContract(morphologyMechIdx, diamVarType, diamVarIdx, diamVarName)
+    }
+    
+    obfunc getMechType() { local enumDmPpFk
+        enumDmPpFk = $1
+        return mechTypes[enumDmPpFk]
+    }
+    
+    func getNumMechs() { local enumDmPpFk
+        enumDmPpFk = $1
+        return mechTypes[enumDmPpFk].count
+    }
+    
+    proc getMechName() { local enumDmPpFk, mechIdx localobj mechType
+        enumDmPpFk = $1
+        mechIdx = $2
+        mechType = mechTypes[enumDmPpFk]
+        mechType.select(mechIdx)
+        mechType.selected($s3)
+    }
+    
+    // Keep in sync with ReducedMechTypeHelper.getMechIdx
+    func getMechIdx() { local enumDmPpFk localobj mechType
+        strdef mechName
+        enumDmPpFk = $1
+        mechName = $s2
+        mechType = mechTypes[enumDmPpFk]
+        mechType.select(mechName)
+        return mechType.selected()
+    }
+    
+    func isDistMechSticky() { local mechIdx
+        strdef mechName
+        mechIdx = $1
+        getMechName(0, mechIdx, mechName)
+        return mechIdx == extracellularMechIdx || isIon(mechName)
+    }
+    
+    func isIon() {
+        strdef mechName
+        mechName = $s1
+        return mechSettings.isIon(mechName)
+    }
+    
+    // Next proc-s are "static"
+    
+    
+    func getNumVarTypes() { local enumDmPpFk
+        enumDmPpFk = $1
+        if (enumDmPpFk == 0 || enumDmPpFk == 1) {
+            return 3    // "PARAMETER", "ASSIGNED", "STATE"
+        } else if (enumDmPpFk == 2) {
+            return 1
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    func getNumMechVars() { local enumDmPpFk, mechIdx, varType localobj mechStd
+        enumDmPpFk = $1
+        mechIdx = $2
+        varType = $3
+        mechStd = createMechStd(enumDmPpFk, mechIdx, varType)
+        return mechStd.count()
+    }
+    
+    func doesMechHaveGlobalVars() { local enumDmPpFk, mechIdx localobj flagsVec
+        enumDmPpFk = $1
+        mechIdx = $2
+        flagsVec = _doesMechHaveGlobalVars[enumDmPpFk]
+        return flagsVec.x(mechIdx)
+    }
+    
+    func doesMechHaveNotGlobalVars() { local enumDmPpFk, mechIdx, varType
+        enumDmPpFk = $1
+        mechIdx = $2
+        varType = $3
+        return getNumMechVars(enumDmPpFk, mechIdx, varType) != 0
+    }
+    
+    func getVarNameAndArraySize() { local enumDmPpFk, mechIdx, varType, varIdx localobj mechStd
+        enumDmPpFk = $1
+        mechIdx = $2
+        varType = $3
+        varIdx = $4
+        mechStd = createMechStd(enumDmPpFk, mechIdx, varType)
+        return mechStd.name($s5, varIdx)
+    }
+    
+    // See also: py:BiophysJsonImportCore._getVarType
+    // Keep in sync with ReducedMechTypeHelper.getVarTypeName
+    proc getVarTypeName() { local varType
+        varType = $1
+        
+        if (varType == -1) {
+            $s2 = "GLOBAL"
+        } else if (varType == 1) {
+            $s2 = "PARAMETER"
+        } else if (varType == 2) {
+            $s2 = "ASSIGNED"
+        } else if (varType == 3) {
+            $s2 = "STATE"
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    // Keep in sync with ReducedMechTypeHelper.getVarNameWithIndex
+    proc getVarNameWithIndex() { local arraySize, arrayIndex
+        strdef varName
+        varName = $s1
+        arraySize = $2
+        arrayIndex = $3
+        if (arraySize == 1) {
+            $s4 = varName
+        } else {
+            sprint($s4, "%s[%d]", varName, arrayIndex)
+        }
+    }
+    
+    objref _pointProcess
+    strdef _unitsStr
+    
+    // See also: InterModularUnitsUtils.hoc and py:UnitsUtils (in Export module)
+    proc getVarUnits() { local enumDmPpFk, mechIdx localobj nil
+        strdef varName, varNameWithIndex, mechName, hocCommand
+        
+        enumDmPpFk = $1
+        mechIdx = $2
+        varName = $s3
+        varNameWithIndex = $s4
+        
+        // !! is that needed?
+        _unitsStr = ""
+        
+        if (enumDmPpFk == 0) {
+            _unitsStr = units(varName)
+            // The line below looks more correct but actually leads to error like "Cannot find the symbol for  ca_cadifus[0]"
+            // _unitsStr = units(varNameWithIndex)
+        } else if (enumDmPpFk == 1) {
+            // !! is there an easier way to get the units for a point process var?
+            getMechName(enumDmPpFk, mechIdx, mechName)
+            sprint(hocCommand, "_pointProcess = new %s(0.5)", mechName) // Without "0.5", we catch "point process not located in a section" error for some PPs, e.g. Exp2Syn
+            execute(hocCommand, this)
+            sprint(hocCommand, "_unitsStr = units(&_pointProcess.%s)", varNameWithIndex)
+            execute(hocCommand, this)
+            _pointProcess = nil
+        } else if (enumDmPpFk == 2) {
+            utils4FakeMechs[mechIdx].getVarUnits(varName, _unitsStr)
+        } else {
+            codeContractViolation()
+        }
+        
+        $s5 = _unitsStr
+    }
+    
+    proc getVarNameWithIndexAndUnits() { local numArg, enumDmPpFk, mechIdx, arraySize, arrayIndex
+        strdef varName, varNameWithIndex, unitsStr
+        
+        numArg = numarg()
+        if (numArg < 6 || numArg > 7) {
+            codeContractViolation()
+        }
+        
+        enumDmPpFk = $1
+        mechIdx = $2
+        varName = $s3
+        arraySize = $4
+        arrayIndex = $5
+        
+        getVarNameWithIndex(varName, arraySize, arrayIndex, varNameWithIndex)
+        
+        getVarUnits(enumDmPpFk, mechIdx, varName, varNameWithIndex, unitsStr)
+        
+        if (!stringEmpty(unitsStr)) {
+            // !! some vars have "1" or "1.0" assigned as units. maybe just omit it here?
+            sprint($s6, "%s (%s)", varNameWithIndex, unitsStr)
+        } else {
+            sprint($s6, "%s", varNameWithIndex) // !! would simple assignment work here?
+        }
+        
+        if (numArg == 7) {
+            $s7 = varNameWithIndex
+        }
+    }
+    
+    func checkIfInhomogeneityOrStochasticityCannotBeAppliedToThisDistMechVar() { local mechIdx, varType, isInhomOrStoch
+        strdef varName, mechName, line1
+        
+        mechIdx = $1
+        varType = $2
+        varName = $s3
+        isInhomOrStoch = $4
+        
+        getMechName(0, mechIdx, mechName)
+        if (isIon(mechName) && varType == 2) {
+            // !! BUG: we hit this, when create an extracellular source of "point" shape, apply it, then go to
+            //    "Manager of biophysics" -> "Review inhomogen vars" and try to apply any other inhomogeneity model
+            //    instead of "Verbatim data" (or even reapply the same model)
+            codeContractViolation()
+        }
+        
+        if (!isInhomOrStoch && isDiamDistMechVar(mechIdx, varType, varName)) {
+            sprint(line1, "Cannot apply stochasticity to \"%s\" in %s.", diamVarName, morphologyMechName)
+            mwh.showNotImplementedWarning(line1)
+            return 1
+        }
+        
+        return 0
+    }
+    
+    func isDiamDistMechVar() { local mechIdx, varType
+        strdef varName
+        mechIdx = $1
+        varType = $2
+        varName = $s3
+        return (mechIdx == morphologyMechIdx && varType == diamVarType && stringsEqual(varName, diamVarName))
+    }
+    
+    func isWeightNetConVar() {
+        strdef varName
+        varName = $s1
+        return stringsEqual(varName, weightVarName)
+    }
+    
+    func convertVarTypeToVarTypeIdx() { local varType
+        varType = $1
+        if (varType >= 1 && varType <= 3) {
+            return varType - 1
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    func doesPointProcessRequireSection() { local mechIdx
+        mechIdx = $1
+        return !mechTypes[1].is_artificial(mechIdx)
+    }
+    
+    func isPointProcessAcceptableNetConSource() { local mechIdx
+        mechIdx = $1
+        return mechTypes[1].has_net_event(mechIdx)
+    }
+    
+    func isPointProcessAcceptableNetConTarget() { local mechIdx
+        mechIdx = $1
+        return mechTypes[1].is_netcon_target(mechIdx)
+    }
+    
+    func doesPointProcessUseIons() { local mechIdx
+        mechIdx = $1
+        return _doesPointProcessUseIons[mechIdx]
+    }
+    
+    objref _fms
+    
+    obfunc createMechStd() { local enumDmPpFk, mechIdx, varType localobj fms, nil
+        strdef mechName, templName, hocCommand
+        enumDmPpFk = $1
+        mechIdx = $2
+        varType = $3
+        if (enumDmPpFk != 2) {
+            getMechName(enumDmPpFk, mechIdx, mechName)
+            return new MechanismStandard(mechName, varType)
+        } else {
+            if (mechIdx == utils4FakeMech4GapJuncExtValue.mechIdx) {
+                return new FakeMechanismStandardForExtValue()
+            } else if (mechIdx == utils4FakeMech4SynNetCon.mechIdx) {
+                templName = "FakeMechanismStandardForNetCon"    // The template is not loaded for astrocytes
+                sprint(hocCommand, "_fms = new %s()", templName)
+                execute(hocCommand, this)
+                fms = _fms
+                _fms = nil
+                return fms
+            } else {
+                codeContractViolation()
+            }
+        }
+    }
+    
+    _x = -1
+    objref _tempPp
+    
+    // Keep in sync with ReducedTapSet.createNewPpAttachedToSection
+    obfunc createNewPpAttachedToSection() { localobj sec_ref, pp, nil
+        strdef mechName, hocCommand
+        
+        mechName = $s1
+        sec_ref = $o2
+        _x = $3
+        
+        sprint(hocCommand, "_tempPp = new %s(_x)", mechName)
+        sec_ref.sec {
+            execute(hocCommand, this)
+        }
+        
+        pp = _tempPp
+        _tempPp = nil
+        
+        return pp
+    }
+    
+    // All next staff is private
+    
+    
+    create _tempSec     // Will be deleted in ctor (init -> initDoesPointProcessUseIonsFlagsArray)
+    
+    // This proc is just a workaround to achieve what cannot be done in NEURON directly.
+    // Looking forward to delete it in favour of smth simple like MechanismType.doesUseIons() once NEURON has such a func.
+    proc initDoesPointProcessUseIonsFlagsArray() { local bioMechTypeIdx, ppMechTypeIdx, numBioMechs, numPpMechs, bioMechIdx, ppMechIdx localobj allIonMechNames, tempPp, ionMechNameStrObj
+        strdef bioMechName, ppMechName
+        
+        bioMechTypeIdx = 0
+        ppMechTypeIdx = 1
+        numBioMechs = getNumMechs(bioMechTypeIdx)
+        numPpMechs = getNumMechs(ppMechTypeIdx)
+        
+        double _doesPointProcessUseIons[numPpMechs]     // All zeros by default
+        
+        allIonMechNames = new List()
+        for bioMechIdx = 0, numBioMechs - 1 {
+            getMechName(bioMechTypeIdx, bioMechIdx, bioMechName)
+            if (isIon(bioMechName)) {
+                allIonMechNames.append(new String(bioMechName))
+            }
+        }
+        
+        for ppMechIdx = 0, numPpMechs - 1 {
+            if (!doesPointProcessRequireSection(ppMechIdx)) {
+                continue        // !! ??
+            }
+            getMechName(ppMechTypeIdx, ppMechIdx, ppMechName)
+            create _tempSec     // This removes all the ions
+            _tempSec {
+                tempPp = createNewPpAttachedToSection(ppMechName, new SectionRef(), 0.5)
+                for eachItemInList(ionMechNameStrObj, allIonMechNames) {
+                    if (ismembrane(ionMechNameStrObj.s)) {
+                        _doesPointProcessUseIons[ppMechIdx] = 1
+                        break
+                    }
+                }
+            }
+        }
+        
+        _tempSec delete_section()
+    }
+    
+    proc checkDistMechCodeContract() { local mechIdx
+        strdef expMechName, actMechName
+        mechIdx = $1
+        expMechName = $s2
+        getMechName(0, mechIdx, actMechName)
+        if (!stringsEqual(expMechName, actMechName)) {
+            codeContractViolation()
+        }
+    }
+    
+    proc checkDistVarCodeContract() { local mechIdx, varType, varIdx
+        strdef expVarName, actVarName
+        mechIdx = $1
+        varType = $2
+        varIdx = $3
+        expVarName = $s4
+        getVarNameAndArraySize(0, mechIdx, varType, varIdx, actVarName)
+        if (!stringsEqual(expVarName, actVarName)) {
+            codeContractViolation()
+        }
+    }
+    
+endtemplate MechTypeHelper
+
+mth = new MechTypeHelper()

@@ -1,0 +1,46 @@
+
+begintemplate EnumAnchorPointTypes
+
+    public vertex, edgeCentre, rectCentre
+    
+    proc init() {
+        vertex = 0
+        edgeCentre = 1
+        rectCentre = 2
+    }
+    
+endtemplate EnumAnchorPointTypes
+
+objref enumAnchorPointTypes
+enumAnchorPointTypes = new EnumAnchorPointTypes()
+
+
+begintemplate EnumAnchorPointLocations
+
+    public min, cnt, max
+    
+    proc init() {
+        min = 0
+        cnt = 1
+        max = 2
+    }
+    
+endtemplate EnumAnchorPointLocations
+
+objref enumAnchorPointLocations
+enumAnchorPointLocations = new EnumAnchorPointLocations()
+
+
+begintemplate AnchorPoint
+
+    public x_sc, y_sc, apType, xLoc, yLoc
+    
+    proc init() {
+        x_sc = $1       // um
+        y_sc = $2       // um
+        apType = $3     // EnumAnchorPointTypes
+        xLoc = $4       // EnumAnchorPointLocations
+        yLoc = $5       // EnumAnchorPointLocations
+    }
+    
+endtemplate AnchorPoint

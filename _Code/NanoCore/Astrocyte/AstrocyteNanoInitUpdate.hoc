@@ -1,0 +1,17 @@
+proc reseedAstrocyteNanoBranches() { localobj nil
+    if (nanoBranchesManager == nil) { return }
+    nanoBranchesManager.reseedBranches(createVecOfVals(distrStatusLeaves, distrStatusStalks))
+}
+
+proc setLeaves() { local isBiophysOnly, isDiamDistrFromFileOrUniform localobj nil
+    isBiophysOnly = $1
+    isDiamDistrFromFileOrUniform = $2
+    if (nanoBranchesManager == nil) { return }
+    nanoBranchesManager.updateBranches(createVecOfVals(1, isBiophysOnly, isDiamDistrFromFileOrUniform))
+}
+
+proc setStalks() { local isDiamDistrFromFileOrUniform localobj nil
+    isDiamDistrFromFileOrUniform = $1
+    if (nanoBranchesManager == nil) { return }
+    nanoBranchesManager.updateBranches(createVecOfVals(0, 0, isDiamDistrFromFileOrUniform))
+}

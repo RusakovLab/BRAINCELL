@@ -1,0 +1,1067 @@
+
+// !! BUG: enable uptake, "Use RxD", init & run, "Use BrainCell", init & run => Segmentation error in onStep -> fadvance
+
+// !! when switched to "load file A" or "load file B", clicking "Init & Run" should work in other way
+
+// !! BUG: when using InsideOutDiffManagerMainWidget and SimOutsideInDiffusion at the same time,
+//    it's possible to hit "Section was deleted" due to shared GridOfSections object;
+//    and maybe we hit it in some other scenarios as well
+
+// !! a lot of code dup. with OneExtracellularSourceWidget; think about moving the species selector/params block into a separate template/show helper
+begintemplate InsideOutDiffManagerMainWidget
+    
+    public show, onDoneInPtsToWatchWidget, preRun, preContinue, onStep, postRun, makeSureIonInserted, dismissNeuronPlayerWidget, dismissHandler
+    
+    external disableExtracellularSourcesAndUpdateMainUiDiffStatusIndication, getBaseConcValue, insertThisIonIntoTheseSectsAndOptionallySetBaseConc, insertThisMechOrIonIntoTheseSectsAndOptionallySetBaseConc, setLayerParamsForInsideOutDiffHelperMech, createGraphsForAllOPs, getRecSectsListAndNumSegms, destroyTempSects, uninsertInsideOutDiffHelperMechEverywhere
+    external sourcePythonCodeForRangeVarHistory, sourcePythonCode, showIntegratesWithAltRunControlMsg, getNonZeroValence, createEmptyPanel, unmapIfNotNil, codeContractViolation
+    external speciesLibrary
+    external mwh, mmIcrHelper
+    external setdt
+    external runStopAt, runStopIn, tstop, steps_per_ms
+    external eachItemInList
+    external altRunControlWidget, lastUsedGridToWatchWidget
+    external mainUiDiffIndicHelper
+    external simManager, miniSimManagerForInsideOutDiffusion
+    external pyObj
+    external enumBinFileTypes
+    external gridOfSections
+    
+    objref mainBox, deck1, deck2, deck3, deck4, deck5, deck6, decks7[1], decks8[1], deck9, deck10, deck11
+    objref genSettingsWidget, ionGlobalsWidget, ptsToWatchWidget, gridToWatchWidget, animSettingsWidget, neuronPlayerWidget
+    objref gridRegion
+    objref recordA, recorderA, calculator, recordB, recorderB
+    
+    isBinFileLoaded = -1
+    
+    isContinue = -1
+    
+    isCalcOnTheFly = -1
+    startFromIdx = -1
+    spcCatIdx = -1
+    spcNameIdx = -1
+    
+    // !! isDiffDependOnTemp = -1   // !! move this inside speciesInfo
+    
+    objref spcCatsList, spcNamesList
+    objref simManager_copy
+    
+    strdef title
+    
+    objref this
+    
+    
+    proc init() { local numSpcCats localobj playerB
+        strdef callerName
+        
+        callerName = "InsideOutDiffManagerMainWidget ctor"
+        sourcePythonCodeForRangeVarHistory("\\..\\_Code", callerName)
+        
+        // !! the path depends on whether we are in the test mode; the same problem for sourcePythonCodeForRangeVarHistory just above (but no error there)
+        sourcePythonCode("\\..\\_Code\\Extracellular\\InsideOutDiffusion\\PythonCode", "", callerName)
+        sourcePythonCode("\\_Code\\Extracellular\\InsideOutDiffusion\\PythonCode", "from InsideOutDiffCalculator import InsideOutDiffCalculator", callerName)
+        
+        title = "Manager of inside-out diffusion"
+        
+        isBinFileLoaded = 0
+        
+        isCalcOnTheFly = 0
+        startFromIdx = 0
+        spcCatIdx = 0           // 0: Basic ions
+        spcNameIdx = 1          // 1: K+
+        
+        // "recorderA.DtOrMinus1" will be set in "proc show" because we adjust "dt" after calling this ctor
+        
+        spcCatsList = speciesLibrary.spcCatsList
+        numSpcCats = spcCatsList.count()
+        objref decks7[numSpcCats]
+        objref decks8[numSpcCats]
+        
+        gridRegion = new GridRegion()
+        
+        ionGlobalsWidget = new GlobalsEditorWidget()
+        ptsToWatchWidget = new PointsToWatchWidget("concentration", 1, this)
+        gridToWatchWidget = new GridToWatchWidget(0, new OPsShowHelper(), gridRegion, this) // !! we won't show any observation points, and use OPsShowHelper-s here
+        neuronPlayerWidget = new NeuronPlayerWidget(0, new OPsShowHelper())                 //     and here just as stubs
+        
+        recordA = new RangeVarAnimationRecord(enumBinFileTypes.iod_a)
+        recorderA = new RangeVarAnimationRecorder(recordA)
+        
+        recordB = new RangeVarAnimationRecord(enumBinFileTypes.iod_b)
+        recorderB = new RangeVarAnimationRecorder(recordB)
+        
+        playerB = pyObj.RangeVarAnimationPlayer(recordB, neuronPlayerWidget)
+        
+        animSettingsWidget = new AnimationSettingsWidget(this, 0, recordB, playerB, gridRegion, neuronPlayerWidget)
+        
+        calculator = pyObj.InsideOutDiffCalculator(recordA, recordB, recorderB, pyObj.ms_veryMinOuterConc)
+        
+        genSettingsWidget = new GeneralSettingsWidget(this, calculator)
+        
+        miniSimManagerForInsideOutDiffusion.setParentForAllSims(this)
+    }
+    
+    proc show() { local isCalledFromGenSettingsWidget, wasEnabled, thisSpcCatIdx, thisSpcNameIdx localobj hBox, vBox, vBox2, spcCat, thisSpcNamesList, spcInfoList, thisDeck7, theseDecks8, speciesInfo, vBox3, thisDeck8, spacerDeck, nil
+        strdef diffVarName, text, handlerHocCommand
+        
+        isCalledFromGenSettingsWidget = $1
+        
+        if (isCalledFromGenSettingsWidget) {
+            dismissChilds(1)
+            unmapIfNotNil(mainBox)
+            cleanup()
+        }
+        
+        wasEnabled = disableExtracellularSourcesAndUpdateMainUiDiffStatusIndication()
+        
+        if (isUseRxD()) {
+            isCalcOnTheFly = 1
+            if (startFromIdx == 1) {
+                startFromIdx = 0
+            }
+        }
+        
+        if (spcCatIdx == -1) {
+            spcCatIdx = 0
+            spcNameIdx = 0
+        } else if (spcNameIdx == -1) {
+            spcNameIdx = 0
+        }
+        
+        // !! isDiffDependOnTemp = 0
+        
+        if (simManager != nil) {
+            simManager.exitLastSim()    // This can change "dt"
+        }
+        
+        // !! code dup. with SimOutsideInDiffusion
+        /* !!
+        steps_per_ms = 0.01
+        runStopAt = 5000    // ms
+        runStopIn = 1000    // ms
+        tstop = 10000       // ms
+        dt = 100            // ms
+        */
+        setdt()
+        
+        recorderA.setDefaultDt(20)      // factor
+        
+        if (!isCalledFromGenSettingsWidget) {
+            simManager_copy = simManager
+            simManager = miniSimManagerForInsideOutDiffusion
+        }
+        
+        lastUsedGridToWatchWidget = gridToWatchWidget
+        
+        mainBox = new VBox()
+        mainBox.intercept(1)
+        {
+            hBox = new HBox()
+            hBox.intercept(1)
+            {
+                xpanel("")
+                xlabel("Inside-out diffusion calculation:")
+                xlabel("")
+                if (!isUseRxD()) {
+                    xradiobutton("On the fly", "calcStrategyChangedHandler(1)", isCalcOnTheFly)
+                    xradiobutton("Deferred", "calcStrategyChangedHandler(0)", !isCalcOnTheFly)
+                } else {
+                    xlabel("     On the fly (RxD)")
+                }
+                xlabel("")
+                xpanel()
+                deck1 = new Deck()
+                deck1.intercept(1)
+                {
+                    xpanel("")
+                    if (!isUseRxD()) {
+                        xlabel("Option 1: On the fly")
+                    } else {
+                        xlabel("Option 1: On the fly (RxD)")
+                    }
+                    xlabel("Slows down the simulation.")
+                    xlabel("Doesn't require after-stop calculations.")
+                    if (!isUseRxD()) {
+                        xlabel("Recommended for short runs with just a few observation points.")
+                    }
+                    xpanel()
+                    xpanel("")
+                    xlabel("Option 2: Deferred")
+                    xlabel("Doesn't slow down the simulation.")
+                    xlabel("Requires after-stop calculations.")
+                    xlabel("Recommended for long runs with massive grids of observation points.")
+                    xpanel()
+                }
+                deck1.intercept(0)
+                deck1.map()
+                // deck1.flip_to(*)      // Will be done below in calcStrategyChangedHandler
+            }
+            hBox.intercept(0)
+            hBox.map()
+            deck2 = new Deck()
+            deck2.intercept(1)
+            {
+                xpanel("")
+                addPoints1And2()
+                xlabel("3. Specify a few points in 3D space where to calculate the diffused concentration vs time.")
+                xlabel("4. Run simulation. The file A can be saved in the end.")
+                xpanel()
+                xpanel("")
+                addPoints1And2()
+                xlabel("3. Run simulation and watch the concentration on cell membrane. The file A can be saved in the end.")
+                xlabel("4. Specify a grid of points in 3D space where to calculate the diffused concentration vs time.")
+                xlabel("5. Calculate the diffused concentration on the grid. The file B can be saved in the end.")
+                xlabel("6. Show the inside-out diffusion animation.")
+                xlabel("")
+                xlabel("Hint: If you already have file A or file B, then skip to step 4 or step 6 respectively.")
+                xpanel()
+                xpanel("")
+                addPoints1And2ForRxD()
+                xlabel("3. Specify a grid of points in 3D space where to calculate the diffused concentration vs time.")
+                xlabel("4. Run simulation. The files A and B can be saved in the end.")
+                xlabel("5. Show the inside-out diffusion animation.")
+                xlabel("")
+                xlabel("Hints: If you already have file B, then skip to step 5.")
+                xlabel("          The file A created with RxD diffusion module can be loaded and used with BrainCell diffusion module.")
+                xpanel()
+            }
+            deck2.intercept(0)
+            deck2.map()
+            // deck2.flip_to(*)      // Will be done below in calcStrategyChangedHandler
+            deck3 = new Deck()
+            deck3.intercept(1)
+            {
+                xpanel("")
+                if (isUseRxD()) {
+                    xradiobutton("Start from beginning", "startFromChangedHandler(0)", startFromIdx == 0)
+                    xradiobutton("Start from file B", "startFromChangedHandler(2)", startFromIdx == 2)
+                }
+                xpanel()
+                xpanel("")
+                xradiobutton("Start from beginning", "startFromChangedHandler(0)", startFromIdx == 0)
+                xradiobutton("Start from file A", "startFromChangedHandler(1)", startFromIdx == 1)
+                xradiobutton("Start from file B", "startFromChangedHandler(2)", startFromIdx == 2)
+                xpanel()
+            }
+            deck3.intercept(0)
+            deck3.map()
+            // deck3.flip_to(*)      // Will be done below in calcStrategyChangedHandler
+            deck4 = new Deck()
+            deck4.intercept(1)
+            {
+                vBox = new VBox()
+                vBox.intercept(1)
+                {
+                    // !! code dup. with OneExtracellularSourceWidget
+                    hBox = new HBox()
+                    hBox.intercept(1)
+                    {
+                        xpanel("")
+                        xlabel("1:")
+                        xpanel()
+                        vBox2 = new VBox()
+                        vBox2.intercept(1)
+                        {
+                            xpanel("")
+                            xlabel("Species category:")
+                            xpanel()
+                            spcCatsList.browser("", "spcCatName")
+                            spcCatsList.select_action("spcCatSelectHandler(hoc_ac_)")
+                        }
+                        vBox2.intercept(0)
+                        vBox2.map()
+                        vBox2 = new VBox()
+                        vBox2.intercept(1)
+                        {
+                            xpanel("")
+                            xlabel("Species name:")
+                            xpanel()
+                            deck5 = new Deck()
+                            deck5.intercept(1)
+                            {
+                                for eachItemInList(spcCat, spcCatsList) {
+                                    thisSpcNamesList = spcCat.spcNamesList
+                                    thisSpcNamesList.browser("", "s")
+                                    thisSpcNamesList.select(0)  // Must be called only after ".browser"
+                                    thisSpcNamesList.select_action("spcNameSelectHandler(hoc_ac_)")
+                                }
+                            }
+                            deck5.intercept(0)
+                            deck5.map()
+                            // deck5.flip_to(*)      // Will be done below in spcCatSelectHandler
+                            xpanel("")
+                            // !! xbutton("Edit species", "editSpeciesHandler()")
+                            xbutton("How do I add new species?", "addNewSpeciesHandler()")
+                            xpanel()
+                        }
+                        vBox2.intercept(0)
+                        vBox2.map()
+                        // !! code dup. with OneExtracellularSourceWidget
+                        vBox2 = new VBox()
+                        vBox2.intercept(1)
+                        {
+                            xpanel("")
+                            xlabel("Species GLOBAL-s:")
+                            xpanel()
+                            deck6 = new Deck()
+                            deck6.intercept(1)
+                            {
+                                for thisSpcCatIdx = 0, spcCatsList.count() - 1 {
+                                    spcCat = spcCatsList.o(thisSpcCatIdx)
+                                    spcInfoList = spcCat.spcInfoList
+                                    thisSpcNamesList = spcCat.spcNamesList
+                                    thisDeck7 = new Deck()
+                                    thisDeck7.intercept(1)
+                                    {
+                                        theseDecks8 = new List()
+                                        for thisSpcNameIdx = 0, spcInfoList.count() - 1 {
+                                            speciesInfo = spcInfoList.o(thisSpcNameIdx)
+                                            vBox3 = new VBox()
+                                            vBox3.intercept(1)
+                                            {
+                                                xpanel("")
+                                                // !! code dup. with OneExtracellularSourceWidget
+                                                xbutton("* Edit base concentration", "editBaseConcHandler()")
+                                                // !! maybe move this label to the child widget, then remove "* " above
+                                                xlabel("* Hint: We'll read \"o0\" and ignore \"i0\" var")   // !! maybe remove this hint because user's dist mech may use both
+                                                sprint(diffVarName, "Diff_%s", speciesInfo.suffix)
+                                                xpvalue(diffVarName, &speciesInfo.diff, 1)
+                                                /* !!
+                                                sprint(text, "Make %s depend on temperature", diffVarName)
+                                                xcheckbox(text, &isDiffDependOnTemp, "isDiffDependOnTempChangedHandler()")
+                                                */
+                                                sprint(text, "Enable uptake for %s", thisSpcNamesList.o(thisSpcNameIdx).s)
+                                                sprint(handlerHocCommand, "isEnableUptakeChangedHandler(%d, %d)", thisSpcCatIdx, thisSpcNameIdx)
+                                                xcheckbox(text, &speciesInfo.isEnableUptake, handlerHocCommand)
+                                                xpanel()
+                                                thisDeck8 = new Deck()
+                                                thisDeck8.intercept(1)
+                                                {
+                                                    createEmptyPanel()
+                                                    xpanel("")
+                                                    sprint(text, "t_alpha_%s", speciesInfo.suffix)
+                                                    xpvalue(text, &speciesInfo.t_alpha, 1)
+                                                    sprint(text, "reversalConc_%s", speciesInfo.suffix)
+                                                    xpvalue(text, &speciesInfo.uptakeReversalConc, 1)
+                                                    xpanel()
+                                                }
+                                                thisDeck8.intercept(0)
+                                                // thisDeck8.flip_to(*)     // Will be done below in updateDecks678
+                                                thisDeck8.map()
+                                                theseDecks8.append(thisDeck8)
+                                            }
+                                            vBox3.intercept(0)
+                                            vBox3.map()
+                                        }
+                                        decks8[thisSpcCatIdx] = theseDecks8
+                                    }
+                                    thisDeck7.intercept(0)
+                                    // thisDeck7.flip_to(*)     // Will be done below in updateDecks678
+                                    thisDeck7.map()
+                                    decks7[thisSpcCatIdx] = thisDeck7
+                                }
+                            }
+                            deck6.intercept(0)
+                            deck6.map()
+                            // deck6.flip_to(*)     // Will be done below in updateDecks678
+                        }
+                        vBox2.intercept(0)
+                        vBox2.map()
+                    }
+                    hBox.intercept(0)
+                    hBox.map("", -1, -1, 1, 185)
+                    deck9 = new Deck()
+                    deck9.intercept(1)
+                    {
+                        xpanel("")
+                        recorderA.createDtEditBoxAndHint()
+                        xpanel()
+                        xpanel("")
+                        recorderA.createDtEditBoxAndHint()
+                        xbutton("3: Run simulation and record the conc on membrane", "runSimHandler()")
+                        createSaveConcOnMembraneCheckBoxes()
+                        xlabel("")
+                        xpanel()
+                    }
+                    deck9.intercept(0)
+                    deck9.map()
+                    // deck9.flip_to(*)     // Will be done below in calcStrategyChangedHandler
+                }
+                vBox.intercept(0)
+                vBox.map()
+                xpanel("")
+                xlabel("")
+                xbutton("3: Load file A", "loadFileAHandler()")
+                xpanel()
+                createEmptyPanel()
+            }
+            deck4.intercept(0)
+            deck4.map("", -1, -1, 560, 323)     // The width was chosen to fit "FRAP+"
+            // deck4.flip_to(*)     // Will be done below in startFromChangedHandler
+            deck10 = new Deck()
+            deck10.intercept(1)
+            {
+                vBox = new VBox()
+                vBox.intercept(1)
+                {
+                    spacerDeck = new Deck()
+                    spacerDeck.intercept(1)
+                    {
+                        xpanel("")
+                        if (!isUseRxD()) {
+                            xbutton("3: Specify pts in 3D space to watch the diffused conc", "specifyPtsHandler()")
+                            xbutton("4: Run simulation", "runSimHandler()")
+                            createSaveConcOnMembraneCheckBoxes()
+                        }
+                        xpanel()
+                    }
+                    spacerDeck.intercept(0)
+                    spacerDeck.map()
+                    spacerDeck.flip_to(0)
+                }
+                vBox.intercept(0)
+                vBox.map()
+                vBox = new VBox()
+                vBox.intercept(1)
+                {
+                    deck11 = new Deck()
+                    deck11.intercept(1)
+                    {
+                        xpanel("")
+                        if (!isUseRxD()) {
+                            xbutton("4: Specify a grid in 3D space to watch the diffused conc", "specifyGridHandler()")
+                            xbutton("5: Calculate inside-out conc diffusion", "calcInsideOutDiffHandler(0)")
+                        } else {
+                            xbutton("3: Specify a grid in 3D space to calculate the diffused conc", "specifyGridHandler()")
+                            xbutton("4: Run simulation", "runSimHandler()")
+                            createSaveConcOnMembraneCheckBoxes()
+                        }
+                        createSaveDiffusedConcCheckBoxes()
+                        xpanel()
+                        xpanel("")
+                        xlabel("")
+                        if (!isUseRxD()) {
+                            xbutton("5: Load file B", "loadFileBHandler()")
+                        } else {
+                            xbutton("4: Load file B", "loadFileBHandler()")
+                        }
+                        xpanel()
+                    }
+                    deck11.intercept(0)
+                    deck11.map()
+                    // deck11.flip_to(*)    // Will be done below in startFromChangedHandler
+                    createAnimButtonAndFooter(6 - isUseRxD())
+                }
+                vBox.intercept(0)
+                vBox.map()
+            }
+            deck10.intercept(0)
+            deck10.map()
+            // deck10.flip_to(*)    // Will be done below in calcStrategyChangedHandler
+        }
+        mainBox.intercept(0)
+        mainBox.dismiss_action("dismissHandler()")
+        makeSelectionsInLists()    // !! test this: doing it before mainBox.map to avoid blinking in List-s and Deck-s
+        mainBox.map(title, 540, 0, -1, -1)      // !!
+        
+        calcStrategyChangedHandler(isCalcOnTheFly)      // --> startFromChangedHandler(startFromIdx)
+        
+        setMainUiInsideOutDiffBtnLED(1)
+        
+        if (!isCalledFromGenSettingsWidget) {
+            genSettingsWidget.show()
+        }
+        
+        mwh.startIntercepting()
+        {
+            if (wasEnabled) {
+                showDiffDisabledWarning("outside-in")
+            }
+            speciesLibrary.validateAndWarnUser("inside-out diffusion", "inside-out")
+            showIntegratesWithAltRunControlMsg("widget")
+        }
+        mwh.endIntercepting()
+    }
+    
+    // !! see also: SimLocalFieldPotential.onDoneInPtsToWatchWidget
+    proc onDoneInPtsToWatchWidget() { localobj listOfPts, listOfGraphs, nil
+        strdef suffix, species
+        
+        listOfPts = $o1
+        listOfGraphs = $o2
+        
+        if (gridOfSections != nil) {
+            destroyTempSects()
+        }
+        gridOfSections = new GridOfSections(listOfPts)
+        
+        getSuffix(suffix)
+        
+        insertThisIonIntoTheseSectsAndOptionallySetBaseConc(enumBinFileTypes.iod_b, suffix, 1)
+        
+        species = spcNamesList.o(spcNameIdx).s
+        createGraphsForAllOPs(listOfPts, listOfGraphs, species, suffix)
+    }
+    
+    func preRun() { local _isCalcOnTheFly, isCancel localobj nil
+        
+        _isCalcOnTheFly = $1
+        
+        if (recorderA.validateDt()) {
+            return 1
+        }
+        
+        isContinue = 0
+        
+        if (_isCalcOnTheFly) {
+            if (!isUseRxD()) {
+                if (!ptsToWatchWidget.isDoneClicked) {
+                    ptsToWatchWidget.doneHandler()
+                }
+            } else {
+                animSettingsWidget.dismissHandler()
+                makeSureGridDeployed()
+            }
+        } else {
+            animSettingsWidget.dismissHandler()
+        }
+        
+        insertMechOrIonSetBaseConcAndInitRecordAndRecorder(enumBinFileTypes.iod_a, 1)
+        
+        if (!isUseRxD()) {
+            calculator.concScalingHelper.preRun(recorderA.list_ref)
+            isCancel = setSpeciesParamsForHelperMech()
+            if (isCancel) {
+                return 1
+            }
+        }
+        
+        if (_isCalcOnTheFly) {
+            recorderB.DtOrMinus1 = recorderA.DtOrMinus1
+            insertMechOrIonSetBaseConcAndInitRecordAndRecorder(enumBinFileTypes.iod_b, 1)
+        }
+        
+        if (mmIcrHelper != nil) {   // !! can be nil in tests
+            mmIcrHelper.scheduleRescan(2)
+        }
+        
+        if (_isCalcOnTheFly) {
+            isCancel = setSpeciesParamsForCalc()    // Calling it as late as possible
+            if (isCancel) {
+                return 1
+            }
+            calculator.onTheFlyPreRun()
+        }
+        
+        return 0
+    }
+    
+    func preContinue() { local _isCalcOnTheFly, isCancel
+        _isCalcOnTheFly = $1    // Just a placeholder
+        isContinue = 1
+        if (!isUseRxD()) {
+            isCancel = setSpeciesParamsForHelperMech()
+            if (isCancel) {
+                return 1
+            }
+        }
+        isCancel = setSpeciesParamsForCalc()
+        return isCancel
+    }
+    
+    proc onStep() { local _isCalcOnTheFly
+        _isCalcOnTheFly = $1
+        fadvance()
+        recorderA.onStep()
+        if (_isCalcOnTheFly) {
+            calculator.onTheFlyStep()
+        }
+    }
+    
+    proc postRun() { local _isCalcOnTheFly
+        _isCalcOnTheFly = $1
+        
+        recordA.onJustAfterRun()
+        
+        if (_isCalcOnTheFly) {
+            if (isUseRxD()) {
+                commonAnimPostRun()
+            }
+        } else {
+            calcInsideOutDiffHandler(1)
+        }
+    }
+    
+    proc makeSureIonInserted() {
+        strdef suffix
+        
+        getSuffix(suffix)
+        // !! BUG: we need to get the suffix from recordB.varNameWithIndexAndUnits
+        
+        insertThisIonIntoTheseSectsAndOptionallySetBaseConc(enumBinFileTypes.iod_b, suffix, 0)
+    }
+    
+    proc dismissNeuronPlayerWidget() {
+        neuronPlayerWidget.dismissHandler()
+    }
+    
+    proc dismissHandler() { localobj nil
+        if (mainBox == nil) {
+            return
+        }
+        if (!mainBox.ismapped()) {
+            return
+        }
+        
+        dismissChilds(0)
+        mainBox.unmap()
+        
+        cleanup()
+        
+        // !! code dup. with SimOutsideInDiffusion
+        /* !!
+        steps_per_ms = 10
+        runStopAt = 5   // ms
+        runStopIn = 1   // ms
+        tstop = 100     // ms
+        dt = 0.1        // ms
+        setdt()
+        */
+        
+        setMainUiInsideOutDiffBtnLED(0)
+        
+        simManager = simManager_copy
+        simManager_copy = nil
+        
+        // !! BUG: obscured by other widgets (that close this one automatically just before showing up)
+        showDiffDisabledWarning("inside-out")
+        
+        // !! show a message that we don't uninsert ions and don't reset concs (like for outside-in diffusion)
+    }
+    
+    // All next staff is private
+    
+    
+    proc addPoints1And2() {
+        xlabel("1. Choose a species (ion), so we will record \"{species}o\" vs time in each segment of each section of the cell.")
+        xlabel("2. Make sure \"i{species}\" is written by some membrane mechanism.")
+    }
+    
+    proc addPoints1And2ForRxD() {
+        xlabel("1. Choose a species (ion), so we will watch \"i{species}\" vs time in each segment of each section of the cell.")
+        xlabel("2. Make sure \"i{species}\" is written by some membrane mechanism.")
+    }
+    
+    proc createSaveConcOnMembraneCheckBoxes() {
+        recordA.createTwoCheckBoxes( \
+            "Save conc on membrane to BIN file (the file A)", \
+            "Save conc on membrane to TXT file")
+    }
+    
+    proc createSaveDiffusedConcCheckBoxes() {
+        recordB.createTwoCheckBoxes( \
+            "Save conc on the grid to BIN file (the file B)", \
+            "Save conc on the grid to TXT file")
+    }
+    
+    proc createAnimButtonAndFooter() { local idx
+        strdef text
+        idx = $1
+        xpanel("")
+        sprint(text, "%d: Show the diffused conc animation", idx)
+        xbutton(text, "animSettingsWidget.show(isBinFileLoaded, 0)")
+        xpanel()
+        createEmptyPanel(1)
+    }
+    
+    // !! code dup. with OneExtracellularSourceWidget
+    proc makeSelectionsInLists() {
+        // !! maybe after this I don't need spcNamesList.select and spcNameSelectHandler below
+        spcCatsList.select(spcCatIdx)
+        spcCatSelectHandler(spcCatIdx, 1)
+        
+        spcNamesList.select(spcNameIdx)
+        spcNameSelectHandler(spcNameIdx)
+    }
+    
+    proc calcStrategyChangedHandler() { local cardIdx, simIdx localobj nil
+        isCalcOnTheFly = $1
+        
+        if (isCalcOnTheFly) {
+            gridToWatchWidget.dismissHandler()
+            animSettingsWidget.dismissHandler()
+            neuronPlayerWidget.dismissHandler()
+        } else {
+            ptsToWatchWidget.dismissHandler(1)
+        }
+        
+        cardIdx = 1 - isCalcOnTheFly
+        deck1.flip_to(cardIdx)
+        if (!isUseRxD()) {
+            deck2.flip_to(cardIdx)
+        } else {
+            deck2.flip_to(2)
+        }
+        deck3.flip_to(cardIdx)
+        deck9.flip_to(cardIdx)
+        if (!isUseRxD()) {
+            deck10.flip_to(cardIdx)
+        } else {
+            deck10.flip_to(1)
+        }
+        
+        if (isCalcOnTheFly) {
+            cardIdx = 0
+            deck4.flip_to(cardIdx)
+            deck11.flip_to(cardIdx)
+            if (isUseRxD()) {
+                startFromChangedHandler(startFromIdx)
+            } else {
+                ptsToWatchWidget.isDoneClicked = 0
+            }
+        } else {
+            startFromChangedHandler(startFromIdx)
+        }
+        
+        simIdx = isCalcOnTheFly
+        miniSimManagerForInsideOutDiffusion.simSelect(simIdx)
+        
+        recorderB.list_ref = nil
+        
+        altRunControlWidget.isInited = 0
+    }
+    
+    proc startFromChangedHandler() { local cardIdx
+        startFromIdx = $1
+        
+        cardIdx = startFromIdx
+        deck4.flip_to(cardIdx)
+        
+        cardIdx = (startFromIdx == 2)
+        deck11.flip_to(cardIdx)
+    }
+    
+    // !! code dup. with OneExtracellularSourceWidget
+    proc spcCatSelectHandler() { local numArg, isCalledFromShow, cardIdx
+        numArg = numarg()
+        
+        if (numArg < 1 || numArg > 2) {
+            codeContractViolation()
+        }
+        
+        spcCatIdx = $1
+        
+        if (numArg == 2) {
+            isCalledFromShow = $2
+            if (isCalledFromShow != 1) {
+                codeContractViolation()
+            }
+        } else {
+            isCalledFromShow = 0
+        }
+        
+        spcNamesList = spcCatsList.o(spcCatIdx).spcNamesList
+        
+        cardIdx = spcCatIdx
+        deck5.flip_to(cardIdx)
+        
+        if (!isCalledFromShow) {
+            spcNameIdx = spcNamesList.selected()
+            spcNameSelectHandler(spcNameIdx)
+        }
+        
+        ptsToWatchWidget.isDoneClicked = 0
+    }
+    
+    proc spcNameSelectHandler() {
+        
+        spcNameIdx = $1
+        
+        ionGlobalsWidget.dismissHandler()
+        
+        updateDecks678()
+        
+        if (!isUseRxD()) {
+            // Set GLOBAL param for the helper membrane mechanism
+            spcIdx_InsideOutDiffHelper = getSpecesFlatIdx()
+        }
+        
+        spcCatsList.o(spcCatIdx).checkForUnrecSpcCatAndWarnUser("inside-out")
+        
+        ptsToWatchWidget.isDoneClicked = 0
+        
+        altRunControlWidget.isInited = 0
+    }
+    
+    // !! keep in sync with OneExtracellularSourceWidget
+    proc addNewSpeciesHandler() {
+        strdef line1, line2, line3, line4, line5, line6, line7, line8, line9
+        
+        sprint(line1, "Adding a new species to use in the \"%s\" requires several steps:", title)
+        line2 = "1. Close the BrainCell program."
+        line3 = "2. Add a new record to the JSON file \"Mechanisms\\Settings\\diffusible_species.json\" following the Legend inside."
+        line4 = "3. Edit the special MOD file \"Mechanisms\\Common\\MOD_files\\_InsideOutDiffHelper.mod\" following the instructions inside."
+        line5 = "4. Edit the special MOD file \"Mechanisms\\Common\\MOD_files\\_OutsideInDiffHelper.mod\" following the instructions inside."
+        line6 = "5. Launch the PS1 or BAT script \"Mechanisms\\Common\\build_astrocyte_&_neuron_mechs.<ps1/bat>\" and make sure it finishes without the errors."
+        line7 = "6. Start the BrainCell program."
+        line8 = "Note:"
+        line9 = "    The point 4 above is needed to avoid a problem with the outside-in diffusion caused by desync between the JSON file and the MOD file."
+        mwh.showMessageBox(line1, "", line2, line3, line4, line5, line6, line7, "", line8, line9, "", "Instructions")
+        
+        // !! maybe copy the "(Optional)" point and hint from corresponding message for outside-in diffusion
+    }
+    
+    // !! code dup. with OneExtracellularSourceWidget
+    proc editBaseConcHandler() {
+        strdef ionMechName
+        
+        ionMechName = spcNamesList.o(spcNameIdx).ionMechName
+        
+        // !! a problem with the shown widget: unnecessary "i0" var is exposed (the base concentration inside the cell);
+        //    would it be better just to add an "xpvalue" in this widget instead of showing the whole new one?
+        ionGlobalsWidget.show(ionMechName, 900, 330)    // !! review the coords
+    }
+    
+    // !! code dup. with OneExtracellularSourceWidget
+    /* !!
+    proc isDiffDependOnTempChangedHandler() {
+        if (isDiffDependOnTemp) {
+            mwh.showNotImplementedWarning()
+        }
+    }
+    */
+    
+    // !! code dup. with OneExtracellularSourceWidget
+    proc isEnableUptakeChangedHandler() { local thisSpcCatIdx, thisSpcNameIdx, isEnableUptake, cardIdx
+        thisSpcCatIdx = $1
+        thisSpcNameIdx = $2
+        
+        isEnableUptake = spcCatsList.o(thisSpcCatIdx).spcInfoList.o(thisSpcNameIdx).isEnableUptake
+        cardIdx = isEnableUptake
+        decks8[thisSpcCatIdx].o(thisSpcNameIdx).flip_to(cardIdx)
+    }
+    
+    proc runSimHandler() {
+        altRunControlWidget.initAndRunHandler()
+    }
+    
+    proc loadFileAHandler() { local isCancel, _
+        
+        isCancel = recordA.loadFromBinFile()
+        if (isCancel) {
+            return
+        }
+        
+        recorderA.list_ref = getRecSectsListAndNumSegms(recordA.binFileType, &_)    // !! maybe make a new proc in the recorder for this
+        
+        calculator.concScalingHelper.preRun(recorderA.list_ref)
+        
+        recordB.isSmthRecordedOrLoaded = 0
+        
+        specifyGridHandler()
+    }
+    
+    proc specifyPtsHandler() {
+        ptsToWatchWidget.dismissHandler(0)
+        ptsToWatchWidget.isDoneClicked = 0      // !! ideally, do this only on changes in PointsToWatchWidget
+        ptsToWatchWidget.show()
+    }
+    
+    proc specifyGridHandler() {
+        gridToWatchWidget.dismissHandler()
+        gridToWatchWidget.show()
+    }
+    
+    proc calcInsideOutDiffHandler() { local isCalledFromPostRun, _isContinue, isCancel
+        
+        isCalledFromPostRun = $1
+        
+        if (!recordA.isSmthRecordedOrLoaded) {
+            mwh.showWarningBox("Please run the simulation first or load file A.")
+            return
+        }
+        
+        if (isCalledFromPostRun) {
+            _isContinue = isContinue
+        } else {
+            _isContinue = 0
+        }
+        
+        if (!_isContinue) {
+            makeSureGridDeployed()
+            
+            recorderB.DtOrMinus1 = recorderA.DtOrMinus1
+            insertMechOrIonSetBaseConcAndInitRecordAndRecorder(enumBinFileTypes.iod_b, 0)
+        }
+        
+        isCancel = setSpeciesParamsForCalc()    // Calling it as late as possible
+        if (isCancel) {
+            return
+        }
+        
+        if (!_isContinue) {
+            calculator.deferredPreRun()
+        }
+        
+        calculator.deferredPostRun()    // This writes to recordB, but also reads static data from recordB
+        
+        commonAnimPostRun()
+    }
+    
+    proc loadFileBHandler() { local isCancel
+        
+        isCancel = recordB.loadFromBinFile()
+        if (isCancel) {
+            return
+        }
+        
+        isBinFileLoaded = 1
+        animSettingsWidget.show(isBinFileLoaded, 1)
+    }
+    
+    proc commonAnimPostRun() {
+        recordB.onJustAfterRun()
+        
+        isBinFileLoaded = 0
+        animSettingsWidget.show(isBinFileLoaded, 1)
+    }
+    
+    // !! code dup. with OneExtracellularSourceWidget
+    proc updateDecks678() { local cardIdx
+        
+        cardIdx = spcCatIdx
+        deck6.flip_to(cardIdx)
+        
+        cardIdx = spcNameIdx
+        decks7[spcCatIdx].flip_to(cardIdx)
+        
+        isEnableUptakeChangedHandler(spcCatIdx, spcNameIdx)     // This flips decks8
+    }
+    
+    proc setMainUiInsideOutDiffBtnLED() { local isEnabled localobj nil
+        isEnabled = $1
+        if (mainUiDiffIndicHelper != nil) {     // !! nil in test mode
+            mainUiDiffIndicHelper.btnLEDs[1] = isEnabled
+            doNotify()
+        }
+    }
+    
+    proc makeSureGridDeployed() {
+        gridRegion.onJustBeforeShow()   // !! rename this proc
+        
+        // !! we need to call it if user changes grid, but doesn't click Done
+        //    idea 1: create new Boolean "isSensorSecsDirty" and check it here; set it to 1 once user opens PointsToWatchWidget or GridToWatchWidget;
+        //            then maybe get rid of recorderB.list_ref == nil check and assignment
+        //    idea 2: InsideOutDiffManagerMainWidget should send a signal to miniSimManager to make AltRunControl require Init and block Continue
+        gridRegion.deployGrid()     // !! skip if already deployed and no changes
+    }
+    
+    proc insertMechOrIonSetBaseConcAndInitRecordAndRecorder() { local binFileType, isRecordTime localobj record, recorder
+        strdef ionSuffix, mechName, watchedRangeVarNameWithIndex
+        
+        binFileType = $1
+        isRecordTime = $2
+        
+        getSuffix(ionSuffix)
+        
+        if (binFileType == enumBinFileTypes.iod_a) {
+            // !! there is no need to insert it each time, maybe just do it once from "proc show";
+            //    however, we do need to set the base conc each time
+            if (!isUseRxD()) {
+                mechName = "InsideOutDiffHelper"
+            } else {
+                sprint(mechName, "%s_ion", ionSuffix)
+            }
+            record = recordA
+            recorder = recorderA
+        } else if (binFileType == enumBinFileTypes.iod_b) {
+            sprint(mechName, "%s_ion", ionSuffix)
+            record = recordB
+            recorder = recorderB
+        } else {
+            codeContractViolation()
+        }
+        
+        insertThisMechOrIonIntoTheseSectsAndOptionallySetBaseConc(binFileType, mechName, ionSuffix, 1)  // !! this calls getRecSectsListAndNumSegms ...
+        if (binFileType == enumBinFileTypes.iod_a && !isUseRxD()) {
+            setLayerParamsForInsideOutDiffHelperMech(genSettingsWidget.bcLayer, genSettingsWidget.bcN)
+        }
+        
+        record.setStaticData()
+        
+        sprint(watchedRangeVarNameWithIndex, "%so", ionSuffix)
+        recorder.onJustBeforeRun(watchedRangeVarNameWithIndex, isRecordTime)                            //       ... and this too - try to reuse for performance
+    }
+    
+    proc showDiffDisabledWarning() {
+        strdef what, msg
+        what = $s1
+        sprint(msg, "The %s diffusion was disabled.", what)
+        mwh.showWarningBox(msg)
+    }
+    
+    func setSpeciesParamsForHelperMech() { local isForceDialog, isCancel
+        strdef suffix
+        
+        getSuffix(suffix)
+        
+        isForceDialog = (spcCatIdx == 1)    // 1: Neurotransmitters
+        
+        // Set GLOBAL params for the helper membrane mechanism
+        isCancel = getNonZeroValence(suffix, isForceDialog, &spcValence_InsideOutDiffHelper)
+        if (isCancel) {
+            return 1
+        }
+        spcOinit_InsideOutDiffHelper = getBaseConcValue(suffix) // !! maybe BUG: this assignment has no effect for the MOD file in "continue" mode, however, InsideOutDiffCalculator will use the new value
+        spcDiff_InsideOutDiffHelper = spcCatsList.o(spcCatIdx).spcInfoList.o(spcNameIdx).diff   // No problem here
+        
+        return 0
+    }
+    
+    func setSpeciesParamsForCalc() { local baseConc, isCancel localobj speciesInfo
+        strdef suffix
+        getSuffix(suffix)
+        baseConc = getBaseConcValue(suffix)
+        speciesInfo = spcCatsList.o(spcCatIdx).spcInfoList.o(spcNameIdx)
+        isCancel = calculator.setThisSpeciesAndRxdParams(suffix, baseConc, speciesInfo, gridRegion, genSettingsWidget)
+        return isCancel
+    }
+    
+    proc getSuffix() {
+        $s1 = spcCatsList.o(spcCatIdx).spcInfoList.o(spcNameIdx).suffix
+    }
+    
+    // !! do we already have such an util?
+    func getSpecesFlatIdx() { local spcFlatIdx, thisSpcCatIdx
+        spcFlatIdx = 0
+        for thisSpcCatIdx = 0, spcCatIdx - 1 {
+            spcFlatIdx += spcCatsList.o(thisSpcCatIdx).spcInfoList.count()
+        }
+        spcFlatIdx += spcNameIdx
+        return spcFlatIdx
+    }
+    
+    func isUseRxD() {
+        return calculator.isUseRxD
+    }
+    
+    proc dismissChilds() { local isSkipGenSettingsWidget
+        isSkipGenSettingsWidget = $1
+        
+        if (!isSkipGenSettingsWidget) {
+            genSettingsWidget.dismissHandler()
+        }
+        ionGlobalsWidget.dismissHandler()
+        ptsToWatchWidget.dismissHandler(1)
+        gridToWatchWidget.dismissHandler()
+        animSettingsWidget.dismissHandler()
+        neuronPlayerWidget.dismissHandler()
+    }
+    
+    proc cleanup() {
+        calculator.cleanup()
+        destroyTempSects()
+        uninsertInsideOutDiffHelperMechEverywhere()
+        miniSimManagerForInsideOutDiffusion.exitLastSim()
+    }
+    
+endtemplate InsideOutDiffManagerMainWidget

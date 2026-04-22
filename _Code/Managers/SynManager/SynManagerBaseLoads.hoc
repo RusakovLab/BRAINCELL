@@ -1,0 +1,5 @@
+
+// !! it would be better to avoid the 3rd arg "1" below
+loadIfNotDeclared("EnumSynCompIdxs", "Exported/SynEnums.hoc", 1)
+loadIfNotDeclared("SynEventsHelper", "Exported/SynEventsHelper.hoc", 1)
+loadIfNotDeclared("FakeMechanismStandardForNetCon", "FakesForNetCon/Exported/FakeMechanismStandardForNetCon.hoc", 1)

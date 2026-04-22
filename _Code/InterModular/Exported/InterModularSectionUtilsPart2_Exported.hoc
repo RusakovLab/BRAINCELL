@@ -1,0 +1,40 @@
+
+func getTotalNumSegms() { local numSegms
+    numSegms = 0
+    forall {
+        numSegms += nseg
+    }
+    return numSegms
+}
+
+// See also: "%NEURONHOME%\lib\python\neuron\__init__.py" -> _get_3d_pt
+proc interpEachSegmCentreCoordsFromSec3DPointCoords() { local numPts, ptIdx, du, u_start localobj xSegm_vec, ySegm_vec, zSegm_vec, x3d_vec, y3d_vec, z3d_vec, u3d_vec, uSegm_vec
+    
+    xSegm_vec = $o1
+    ySegm_vec = $o2
+    zSegm_vec = $o3
+    
+    numPts = n3d()
+    
+    x3d_vec = new Vector(numPts)
+    y3d_vec = new Vector(numPts)
+    z3d_vec = new Vector(numPts)
+    u3d_vec = new Vector(numPts)
+    
+    for ptIdx = 0, numPts - 1 {
+        x3d_vec.x[ptIdx] = x3d(ptIdx)
+        y3d_vec.x[ptIdx] = y3d(ptIdx)
+        z3d_vec.x[ptIdx] = z3d(ptIdx)
+        u3d_vec.x[ptIdx] = arc3d(ptIdx) / L
+    }
+    
+    uSegm_vec = new Vector(nseg)
+    
+    du = 1 / nseg
+    u_start = du / 2
+    uSegm_vec.indgen(u_start, du)
+    
+    xSegm_vec.interpolate(uSegm_vec, u3d_vec, x3d_vec)
+    ySegm_vec.interpolate(uSegm_vec, u3d_vec, y3d_vec)
+    zSegm_vec.interpolate(uSegm_vec, u3d_vec, z3d_vec)
+}

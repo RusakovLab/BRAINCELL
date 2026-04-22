@@ -1,0 +1,10 @@
+proc reseedNeuronNanoBranches() {
+    createPhantomSpineOnFirstDendrite()
+    if (!ImportWithoutSpines) {
+        nanoBranchesManager.reseedBranches(createVecOfVals(isUniformOrNormalSpineGeometry))
+    }
+}
+
+proc UpdateSpines() {
+    nanoBranchesManager.updateBranches(createVecOfVals(isUniformOrNormalSpineGeometry))
+}

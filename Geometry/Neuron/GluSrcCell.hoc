@@ -1,0 +1,23 @@
+// Create a soma
+create soma
+access soma
+
+// Set the geometry of the soma
+soma {
+    L = 50    // Length in micrometers
+    diam = 50 // Diameter in micrometers
+    
+}
+
+
+
+// Define biophysical properties for the soma
+soma {
+    Ra = 100   // Axial resistance in Ohm*cm
+    cm = 1     // Membrane capacitance in uF/cm^2
+	insert pas
+	e_pas=-80
+	g_pas=0.001
+    
+}
+

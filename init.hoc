@@ -1,0 +1,88 @@
+
+// User choices made with "Roadmap" widget
+isBaseOrNanoStart = -1      // 1 - base, 0 - nano
+isAstrocyteOrNeuron = -1    // 1 - astrocyte, 0 - neuron
+isExternalSimStart = -1     // 1 - external simulation, 0 - base or nano geometry
+
+{ load_file("_Code/InterModular/InterModularLoads.hoc") }
+
+objref mechsDllUtils
+mechsDllUtils = new MechsDllUtils(getcwd())
+
+proc prologueCompleteHandler() {
+    load_file("_Code/MainUI/MainProgram.hoc")
+    runMain()
+}
+
+proc roadmapChosenHandler() { local isLoaded localobj pwm, nil
+    strdef showWarningBoxHocCommand
+    
+    if (!isBaseOrNanoStart) {
+        showWarningBoxHocCommand = ""
+        isLoaded = loadNanoHocFile(showWarningBoxHocCommand)
+        if (!isLoaded) {
+            showRoadmapWidget()
+            if (!stringEmpty(showWarningBoxHocCommand)) {
+                execute(showWarningBoxHocCommand)
+            }
+            return
+        }
+    }
+    
+    // Restoring the default GUI scale
+    pwm = PWManager[0]
+    pwm.scale(1.2)      // Defined here: %NEURONHOME%\lib\nrn.defaults -> "*mswin_scale"
+    
+    load_file("_Code/MainUI/Utils.hoc")
+    
+    if (isBaseOrNanoStart) {
+        load_file("_Code/Import/ImportBaseGeometry/Import.hoc")
+        if (isAstrocyteOrNeuron) {
+            load_file("_Code/Prologue/Astrocyte/initAstrocyte.hoc")     // This will call prologueCompleteHandler() in the end
+        } else {
+            load_file("_Code/Prologue/Neuron/initNeuron.hoc")
+            initNeuron()    // This will call prologueCompleteHandler() in the end
+            // (Don't encapsulate initNeuron() into "initNeuron.hoc" because the file browser will use different default folder)
+        }
+    } else {
+        load_file("_Code/Import/CommonUtils.hoc")
+        if (gjmAllGapJuncSets == nil) {
+            // !! maybe don't create the default gap junc set because user can do it themself in contrast to the default syn set
+            printWasNotExportedSoWeWillCreateDefaultWarning("gap junctions")
+        }
+        if (!isAstrocyteOrNeuron && smAllSynSets == nil) {
+            printWasNotExportedSoWeWillCreateDefaultWarning("synapses")
+        }
+        
+        initVoltageAndRunControlParams()
+        prologueCompleteHandler()
+    }
+}
+
+{ load_file("_Code/RoadmapWidget.hoc") }
+
+proc showRoadmapWidget() { localobj pwm, roadmapWidgetCopy
+    
+    // We'll use a bit higher scale for the very first widget
+    pwm = PWManager[0]
+    pwm.scale(1)
+    
+    // !! not sure why this temporary copy is needed, but without it we'll catch Segmentation violation
+    roadmapWidgetCopy = roadmapWidget
+    
+    roadmapWidget = new RoadmapWidget()
+    roadmapWidget.show()
+}
+
+// Don't rename this proc to "init" because NEURON will call it once user clicks "Init & Run"
+proc theEntryPoint() {
+    
+    load_file("_Code/Export/ExportCoreLoads.hoc")
+    
+    // Calling here just to show up all the Python warnings early
+    sourcePythonCodeForExport()
+    
+    showRoadmapWidget()
+}
+
+theEntryPoint()

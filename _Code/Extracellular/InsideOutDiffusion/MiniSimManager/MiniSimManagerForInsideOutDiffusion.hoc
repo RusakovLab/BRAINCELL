@@ -1,0 +1,90 @@
+
+{ load_file("Sims/SimInsideOutDiffOnTheFly.hoc") }
+{ load_file("Sims/SimInsideOutDiffDeferred.hoc") }
+
+// !! see also: SimManager
+begintemplate MiniSimManagerForInsideOutDiffusion
+
+    public setParentForAllSims, simSelect, preRun, preContinue, postRun, exitLastSim
+    public simIdxToSim
+    
+    external deployDefaultProcAdvance, deployCustomProcAdvance
+    external altRunControlWidget
+    external pyObj
+    
+    numSims = -1
+    objref simIdxToSim[1]
+    
+    lastSimIdxOrMinus1 = -1
+    isLastSimInited = -1
+    
+    
+    proc init() {
+        
+        numSims = 2
+        objref simIdxToSim[numSims]
+        simIdxToSim[1] = new InsideOutDiffOnTheFly()
+        simIdxToSim[0] = new InsideOutDiffDeferred()
+        
+        lastSimIdxOrMinus1 = -1
+    }
+    
+    proc setParentForAllSims() { local simIdx localobj parentWidget
+        parentWidget = $o1
+        for simIdx = 0, numSims - 1 {
+            simIdxToSim[simIdx].setParent(parentWidget)
+        }
+    }
+    
+    proc simSelect() { local simIdx localobj sim
+        
+        simIdx = $1
+        
+        if (lastSimIdxOrMinus1 != -1) {
+            simIdxToSim[lastSimIdxOrMinus1].simDismissHandler()
+        }
+        
+        sim = simIdxToSim[simIdx]
+        
+        deployCustomProcAdvance("miniSimManagerForInsideOutDiffusion.simIdxToSim", simIdx)
+        
+        altRunControlWidget.show()
+        altRunControlWidget.plugSim(pyObj.getTemplOrClassName(sim))
+        
+        lastSimIdxOrMinus1 = simIdx
+        isLastSimInited = 0
+    }
+    
+    func preRun() { local isInitOnly
+        isInitOnly = $1
+        isLastSimInited = 1
+        return simIdxToSim[lastSimIdxOrMinus1].preRun(isInitOnly)
+    }
+    
+    func preContinue() {
+        if (!isLastSimInited) {
+            altRunControlWidget.showNotInitedWarning()
+            return 1
+        }
+        return simIdxToSim[lastSimIdxOrMinus1].preContinue()
+    }
+    
+    proc postRun() {
+        simIdxToSim[lastSimIdxOrMinus1].postRun()
+    }
+    
+    proc exitLastSim() {
+        if (lastSimIdxOrMinus1 == -1) {
+            return
+        }
+        
+        simIdxToSim[lastSimIdxOrMinus1].simDismissHandler()
+        altRunControlWidget.unplugSim()
+        deployDefaultProcAdvance()
+        lastSimIdxOrMinus1 = -1
+    }
+    
+endtemplate MiniSimManagerForInsideOutDiffusion
+
+objref miniSimManagerForInsideOutDiffusion
+miniSimManagerForInsideOutDiffusion = new MiniSimManagerForInsideOutDiffusion()

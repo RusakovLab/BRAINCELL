@@ -1,0 +1,105 @@
+
+begintemplate FakeMechanismStandardForExtValue
+
+    public count, name, get, set, in, out
+    
+    external utils4FakeMech4GapJuncExtValue
+    external stringsEqual, codeContractViolation
+    
+    theVarValue = -1
+    
+    
+    proc init() {
+        // !! BUG: not in sync with GapJunction.extValue (assigned in ctor)
+        theVarValue = 12.34     // !! just for test
+    }
+    
+    func count() {
+        return 1
+    }
+    
+    func name() { local numArg, varIdx
+        numArg = numarg()
+        
+        if (numArg == 1) {
+            $s1 = utils4FakeMech4GapJuncExtValue.mechName
+            return 0
+        } else if (numArg == 2) {
+            varIdx = $2
+            if (varIdx != 0) {
+                codeContractViolation()
+            }
+            $s1 = utils4FakeMech4GapJuncExtValue.theDynVarName
+            return 1
+        } else {
+            codeContractViolation()
+        }
+    }
+    
+    func get() { local numArg, arrayIndex
+        // strdef varName
+        
+        numArg = numarg()
+        if (numArg == 0 || numArg > 2) {
+            codeContractViolation()
+        }
+        
+        /*
+        varName = $s1
+        if (!stringsEqual(varName, utils4FakeMech4GapJuncExtValue.theDynVarName)) {
+            // !! we hit this from InhomAndStochTarget.gapJuncPartStep after making ExternalValue stoch in one mech (e.g. GapCa),
+            //    then switching to other mech (e.g. Gap) and then starting the simulation
+            codeContractViolation()
+        }
+        */
+        
+        if (numArg == 2) {
+            arrayIndex = $2     // Just a placeholder
+            if (arrayIndex != 0) {
+                codeContractViolation()
+            }
+        }
+        
+        return theVarValue
+    }
+    
+    proc set() { local numArg, value, arrayIndex
+        // strdef varName
+        
+        numArg = numarg()
+        if (numArg < 2 || numArg > 3) {
+            codeContractViolation()
+        }
+        
+        // varName = $s1
+        value = $2
+        
+        /*
+        if (!stringsEqual(varName, utils4FakeMech4GapJuncExtValue.theDynVarName)) {
+            // !! we hit this from InhomAndStochTarget.gapJuncPartStep after making ExternalValue stoch in one mech (e.g. GapCa),
+            //    then switching to other mech (e.g. Gap) and then starting the simulation
+            codeContractViolation()
+        }
+        */
+        
+        if (numArg == 3) {
+            arrayIndex = $3     // Just a placeholder
+            if (arrayIndex != 0) {
+                codeContractViolation()
+            }
+        }
+        
+        theVarValue = value
+    }
+    
+    proc in() { localobj otherPtr
+        otherPtr = $o1
+        theVarValue = otherPtr.val
+    }
+    
+    proc out() { localobj otherPtr
+        otherPtr = $o1
+        otherPtr.val = theVarValue
+    }
+    
+endtemplate FakeMechanismStandardForExtValue

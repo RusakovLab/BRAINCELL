@@ -1,0 +1,29 @@
+
+{ load_file("../Common/Species/SpeciesLibrary/SpeciesLibraryLoads.hoc") }
+
+loadIfNotDeclared("ECLDeploymentCache", "ExtracellularSourcesLibrary/Exported/ECLDeploymentCache.hoc")
+
+{ load_file("Utils/ExtracellularApplicatorUtils_Exported.hoc") }
+{ load_file("Utils/ExtracellularApplicatorUtils.hoc") }
+{ load_file("Utils/ECSsShowHelper.hoc") }
+
+loadIfNotDeclared("ECSSpatialInfo", "ExtracellularSourcesLibrary/Exported/ECSSpatialInfo.hoc")
+loadIfNotDeclared("ECSTemporalInfo", "ExtracellularSourcesLibrary/Exported/ECSTemporalInfo.hoc")
+loadIfNotDeclared("ECSCapacityInfo", "ExtracellularSourcesLibrary/Exported/ECSCapacityInfo.hoc")
+loadIfNotDeclared("ECSSeriesInfo", "ExtracellularSourcesLibrary/Exported/ECSSeriesInfo.hoc")
+loadIfNotDeclared("ExtracellularSource", "ExtracellularSourcesLibrary/Exported/ExtracellularSource.hoc")
+loadIfNotDeclared("ExtracellularSourcesLibrary", "ExtracellularSourcesLibrary/Exported/ExtracellularSourcesLibrary.hoc")
+
+// !! (?)
+cond = (!isBaseOrNanoStart && ecsLibrary.isEmpty())
+if (cond) {
+    printWasNotExportedSoWeWillCreateDefaultWarning("extracellular sources")
+}
+if (isBaseOrNanoStart || cond) {
+    load_file("ExtracellularSourcesLibrary/CreateDefaultECSs.hoc")
+}
+
+{ load_file("Widgets/NetStimParamsWidget.hoc") }
+{ load_file("Widgets/OneExtracellularSourceWidget.hoc") }
+{ load_file("Widgets/GenerateRandomInSphereWidget.hoc") }
+{ load_file("Widgets/ExtracellularManagerMainWidget.hoc") }
