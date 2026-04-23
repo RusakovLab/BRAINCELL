@@ -1,0 +1,10 @@
+# Keep the build context small -- BrainCell itself is cloned at container
+# start, not copied in at build time.
+.git
+.gitignore
+results/
+*.md
+README*
+!docker-entrypoint.sh
+!Dockerfile
+!docker-compose.yml

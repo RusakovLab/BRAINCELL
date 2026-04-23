@@ -1,0 +1,69 @@
+# docker-compose.yml
+#
+# Three services, one image. Pick whichever fits the task:
+#
+#   docker compose run --rm braincell-shell      # interactive bash, BrainCell cloned & compiled
+#   docker compose run --rm braincell-gui        # NEURON GUI on your desktop (Linux host)
+#   docker compose run --rm braincell-headless   # batch sim -- edit BRAINCELL_SCRIPT first
+#
+# On macOS/Windows, the GUI service needs XQuartz / VcXsrv (see README-Docker.md).
+
+services:
+
+  # -----------------------------------------------------------------------
+  # Base image build definition, shared by all services below.
+  # The `image` tag lets us build once and reuse.
+  # -----------------------------------------------------------------------
+  braincell-shell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: braincell:8.2.2
+    environment:
+      BRAINCELL_MODE: shell
+      BRAINCELL_REPO: https://github.com/RusakovLab/BRAINCELL/BrainCell.git
+      BRAINCELL_REF: main
+    volumes:
+      # Persist simulation results on the host
+      - ./results:/workspace/results
+      # OPTIONAL: mount a local BrainCell checkout for in-place development.
+      # Uncomment the next line and edit the host path if you want to hack
+      # on BrainCell without re-cloning every container start.
+      # - /absolute/path/to/your/BrainCell:/workspace/BrainCell
+    stdin_open: true
+    tty: true
+
+  # -----------------------------------------------------------------------
+  # GUI mode -- Linux hosts only by default.
+  # For macOS: install XQuartz, run `xhost +localhost`, set DISPLAY=host.docker.internal:0
+  # For Windows: install VcXsrv, set DISPLAY=host.docker.internal:0, same idea.
+  # -----------------------------------------------------------------------
+  braincell-gui:
+    image: braincell:8.2.2
+    environment:
+      BRAINCELL_MODE: gui
+      DISPLAY: ${DISPLAY:-:0}
+    volumes:
+      - ./results:/workspace/results
+      # X11 socket (Linux). On macOS/Windows, remove this line and rely on TCP.
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    # X11 auth passthrough (Linux); harmless on other platforms
+    network_mode: host
+    # Depends_on ensures the image is built even if you only call gui directly
+    depends_on:
+      - braincell-shell
+
+  # -----------------------------------------------------------------------
+  # Headless mode -- for batch runs. Set BRAINCELL_SCRIPT to the path of
+  # the simulation script *inside the container*, e.g.
+  #   BRAINCELL_SCRIPT=/workspace/BrainCell/_Testing/my_batch_run.py
+  # -----------------------------------------------------------------------
+  braincell-headless:
+    image: braincell:8.2.2
+    environment:
+      BRAINCELL_MODE: headless
+      BRAINCELL_SCRIPT: ${BRAINCELL_SCRIPT:-/workspace/BrainCell/_Testing/example_headless.py}
+    volumes:
+      - ./results:/workspace/results
+    depends_on:
+      - braincell-shell
