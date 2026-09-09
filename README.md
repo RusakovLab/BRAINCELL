@@ -1,121 +1,120 @@
 # BRAINCELL
 
-> **An immersive modeling platform for computational neuroscience and neurology — focused on cell and tissue physiology, stochastic nano-morphology, and experimental-design replication.**
-
 [![License: BSD 3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Version](https://img.shields.io/badge/version-2026.03-brightgreen.svg)](#)
 [![Built on NEURON](https://img.shields.io/badge/built%20on-NEURON-8A2BE2.svg)](#)
-[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#installation)
+[![Platform](https://img.shields.io/badge/GUI-Windows%2010%2F11-lightgrey.svg)](#platform-support)
 
----
+BrainCell is a NEURON-based platform for modelling neurons, astrocytes and
+extracellular dynamics at nanoscale resolution. It combines NEURON (HOC and
+MOD) with a Python export framework, JSON biophysics presets and a
+manager-driven architecture, and it provides a GUI-driven workflow that takes
+a model from geometry (imported reconstructions or procedurally seeded
+nano-morphology), through biophysics presets and simulation, to an exported,
+self-contained HOC and MOD package that runs anywhere NEURON runs.
 
-BRAINCELL is developed by the **Savtchenko / Rusakov Lab (UCL)** as a structured simulation environment that combines the numerical rigor of NEURON (HOC + MOD) with a Python-driven export framework, JSON biophysics presets, and a manager-based architecture. It lets experimentalists and theorists model neurons, astrocytes, and surrounding tissue with nano-scale geometric precision — and reproduce in silico the conditions of the bench.
+## Platform support
 
----
+| Component | Windows 10/11 | macOS | Linux |
+|---|---|---|---|
+| Graphical environment (Main UI, Managers) | Supported | In development | In development |
+| Mechanism compilation (bundled build scripts) | Supported | Manual (nrnivmodl) | Manual (nrnivmodl) |
+| Morphology import (NLMorphologyConverter) | Supported | Planned | Not available |
+| Model export (HOC + MOD package) | Supported | - | - |
+| Running an exported model | Supported | Supported | Supported |
+| NSG / cluster submission | Supported | Supported | Supported |
 
-## Key Features
+The BrainCell graphical environment currently runs on Windows 10/11. Models
+exported from BrainCell are platform-independent: the generated HOC and MOD
+package compiles and runs unchanged on macOS, Linux and HPC clusters,
+including the Neuroscience Gateway. Support for the graphical environment on
+macOS and Linux is under active development.
 
-- **Stochastic nano-morphology generation** — procedurally seed spines, processes, and fine nano-structures on imported cell skeletons, producing statistically realistic ultrastructure rather than smoothed cylinders.
-- **Stop-save-go simulation control** — pause long-running simulations, save full state to disk, and resume later (or on a different machine) without loss of fidelity. Essential for parameter sweeps and interactive exploration.
-- **Adaptive morphology import** — ingest a wide range of reconstruction formats (SWC, ASC, HOC, NRX, XML, ESWC, IMS, and more) and adaptively refine segmentation for biophysically meaningful compartmentalization.
-- **Dynamic extracellular interactions** — coupled inside-out / outside-in ion diffusion engines for realistic tissue-scale ionic dynamics (K⁺ buffering, glutamate spillover, Ca²⁺ waves).
-- **Manager-driven architecture** — `BioManager`, `SynManager`, `GapJuncManager`, `InhomManager`, `StochManager`, and `ExportManager` provide clean separation of biophysics, synapses, gap junctions, inhomogeneity, stochasticity, and export.
-- **JSON biophysics presets** — version-controllable, reproducible configurations for astrocyte and neuron models.
-- **Ready-to-run simulations** — including `SimMyelinatedAxon`, calcium dynamics, FRAP, calcium waves, glutamate dynamics, and voltage distributions.
+## Requirements
 
----
+- Windows 10 or 11 (64-bit) for the graphical environment
+- NEURON 8.2.x (tested with 8.2.2, mingw build)
+- Python 3.11 (tested with Anaconda3 2023.09-0, which ships Python 3.11.5)
+- 4 GB RAM minimum, 8 GB recommended; about 5 GB of free disk space
+
+Python packages used at run time are listed in `requirements.txt`. Anaconda
+2023.09-0 already provides all of them except `plotly` in some builds.
 
 ## Installation
 
-> [!IMPORTANT]
-> **Forum registration is required.** Downloads and the setup password are distributed through the Neuroalgebra Forum. Please register at **[forum.neuroalgebra.net](https://forum.neuroalgebra.net)** before attempting installation.
+Full instructions, including the three installation categories and
+troubleshooting, are in `BRAINCELL_Instalation.docx` (also part of
+`BRAINCELL_User_Guide.docx`). In short:
 
-### System Requirements
+1. Install Anaconda 2023.09-0 for the current user only ("Just Me").
+   Download it from the official Anaconda archive:
+   https://repo.anaconda.com/archive/Anaconda3-2023.09-0-Windows-x86_64.exe
+   (all versions: https://repo.anaconda.com/archive/ ).
+   SHA256: `810da8bff79c10a708b7af9e8f21e6bb47467261a31741240f27bd807f155cb9`
+   Do not use third-party mirrors.
+2. Install NEURON 8.2.2 (64-bit, mingw build) and restart Windows.
+3. Clone or unpack this repository into a short path, for example
+   `C:\braincell`.
+4. Compile the mechanisms only if you added or changed MOD files: run
+   `build_mechs.bat` in the repository root.
 
-| Resource | Minimum | Recommended |
-|---|---|---|
-| RAM | 4 GB | 8 GB or more |
-| Disk space | 5 GB | 10 GB (for saved simulation states) |
-| Python | 3.10+ (Anaconda suggested) | 3.11 via Anaconda |
-| NEURON | 8.x | 8.2 or newer |
-| Graphics | Any OpenGL-capable GPU | Discrete GPU for nano-geometry rendering |
+## Quick start
 
-### Platform-Specific Installation
+1. Double-click `init.bat` in the repository root (or run `nrngui init.hoc`
+   from a Command Prompt opened there).
+2. Choose Astrocyte or Neuron mode in the BrainCell main window.
+3. Load a demo: `Examples/01_CA1_SingleNeuron/Run.bat` builds and runs a
+   single CA1 neuron; `Examples/02_init_InsideOutDiffManager/Run.bat` runs the
+   inside-out diffusion demo.
+4. Use the Managers (MechManager, BioManager, SynManager, ExportManager) to
+   apply a biophysics preset and export a runnable model package.
 
-| Platform | Method | Notes |
-|---|---|---|
-| **Windows** | All-in-One Installer (`.exe`) | Recommended path. Bundles NEURON, compiled mechanisms (`nrnmech.dll`), and BRAINCELL. Run as administrator. |
-| **macOS** | Source build + NEURON wheel | Install NEURON via `pip install neuron`, then clone the repository. Compile MOD files with `nrnivmodl` in each `Mechanisms/*/MOD_files` directory. Apple Silicon is supported. |
-| **Linux** | Source build + system NEURON | Install NEURON from your distribution or via `pip`. Compile mechanisms with `nrnivmodl`. Works on Ubuntu 22.04+, Debian 12+, and Fedora 38+. |
+## Citation
 
-> [!WARNING]
-> **Password required during setup.** The All-in-One Installer and source archives are protected. Obtain the current password from the **[Neuroalgebra Forum](https://forum.neuroalgebra.net)** after registration.
+If you use BrainCell in published work, please cite the platform paper and the
+ModelDB entry:
 
-### Post-installation check
+```
+Savtchenko, L. P., et al. BrainCell: a simulation platform for nanoscale
+neuron-astrocyte-extracellular modelling. Nature Communications,
+<in press>, <in press>. doi:<in press>
 
-After installation, launch the main entry point. You should see the BRAINCELL GUI load with the Main UI panel, geometry selectors, and manager buttons (MechManager, GapJuncManager, SynManager, ExportManager).
+ModelDB accession 243508. https://modeldb.science/243508
+```
 
----
+A `CITATION.cff` file in this repository carries the same metadata in machine
+-readable form. The volume, page range and DOI will be completed on
+publication.
 
-## Usage & AI Agents
+## Licence
 
-BRAINCELL ships with two companion AI assistants that help new users navigate the codebase and run simulations.
+BrainCell's own source code is distributed under the BSD-3-Clause licence; see
+`LICENSE` for the full text. The repository additionally contains third-party
+binaries, vendored source and reference models that carry their own separate
+licences - including one component that is licensed for non-commercial use
+only - so read `THIRD_PARTY_NOTICES.md` before redistributing BrainCell or
+using it commercially.
 
-- **Setup & Installation AI Guide** — step-by-step walk-through of Anaconda, API keys, the `anthropic` package, file placement, and first-run diagnostics. See `BrainCell_Agent_Setup_Manual.html` in the repository root.
-- **End-User AI Manual** — how to ask questions about MOD files, KINETIC schemes, biophysics, architecture, and request code modifications. See `BrainCell_Agent_User_Manual.html`.
+## Contact and issues
 
-The agents themselves are provided as two Python scripts in the repository root:
+- Bug reports and feature requests: https://github.com/RusakovLab/BRAINCELL/issues
+- Community forum and installation support: https://forum.neuroalgebra.net
+- BrainCell is developed by the Rusakov Lab, UCL Queen Square Institute of
+  Neurology.
 
-| Script | Purpose |
-|---|---|
-| `braincell_mapper.py` | Indexes all MOD, HOC, and Python files into `braincell_map.json`. Run once after installation and again whenever files are added. |
-| `braincell_agent.py` | Interactive AI assistant that answers questions about the codebase and proposes changes. Also available as a GUI via `braincell_panel.py`. |
+## Architecture at a glance
 
-> [!NOTE]
-> The AI agents use the Anthropic API and require an API key. Running cost is typically **$5–20 / month** for active research use.
+Contributors should respect these layer boundaries (see `CLAUDE.md` and
+`AGENTS.md` for the full contribution rules):
 
----
-
-## Resources
-
-| Resource | Link |
-|---|---|
-| Community Forum | [forum.neuroalgebra.net](https://forum.neuroalgebra.net) |
-| Documentation PDFs | Available through the Forum downloads area |
-| GitHub repository | [github.com/RusakovLab/BRAINCELL](https://github.com/RusakovLab/BRAINCELL) |
-| NEURON simulator | [neuron.yale.edu](https://neuron.yale.edu) |
-
----
-
-## Architecture at a Glance
-
-BRAINCELL is organized into clearly separated layers. Contributors should respect these boundaries:
-
-- **Geometry** (classic + nano) — cell morphologies, with or without procedural nano-structures
-- **Biophysics** — JSON presets under `Biophysics/Astrocyte/` and `Biophysics/Neuron/`
-- **Mechanisms** — MOD files, split into `Astrocyte/`, `Neuron/`, and `Common/` trees
-- **Managers** — `BioManager`, `SynManager`, `GapJuncManager`, `InhomManager`, `StochManager`, `ExportManager`
-- **Simulation layer** — ready-to-run scenarios in `_Code/Simulations/`
-- **Extracellular engines** — inside-out and outside-in diffusion calculators
-- **Export framework** — marker-driven (`@meta`, `py:`) Python generators and skeleton templates
-- **Reduced Inhomogeneous / Stochastic system** — segmentation, distribution, and variable mapping
-- **GUI widgets** — Tk-based control panels, interleaved with the engine
-- **Testing entry points** — `_Testing/init_*.hoc` for development
-
----
-
-## Contributing / Claude Code
-
-A `CLAUDE.md` file in the repository root provides architecture guidance and common commands for [Claude Code](https://claude.ai/code). If you use Claude Code to work in this repository, it will be loaded automatically.
-
----
-
-## License
-
-BRAINCELL is distributed under the **3-clause BSD license**. See `LICENSE` for the full text.
-
----
-
-## Citing BRAINCELL
-
-If you use BRAINCELL in published research, please cite the platform and the Savtchenko / Rusakov Lab. Canonical citation details are available on the Forum.
+- Geometry (classic and nano) - morphologies with or without seeded nano-structures
+- Biophysics - JSON presets under `Biophysics/Astrocyte/` and `Biophysics/Neuron/`
+- Mechanisms - MOD files split into `Astrocyte/`, `Neuron/` and `Common/` trees
+- Managers - `BioManager`, `SynManager`, `GapJuncManager`, `InhomManager`,
+  `StochManager`, `ExportManager`
+- Simulation layer - ready-to-run scenarios under `_Code/Simulations/`
+- Extracellular engines - inside-out and outside-in diffusion calculators
+- Export framework - marker-driven (`@meta`, `py:`) generators and skeletons
+- Reduced inhomogeneous / stochastic system - segmentation and variable mapping
+- GUI widgets - interleaved with the engine, not separable today
+- Testing entry points - `_Testing/init_*.hoc`, for development only
