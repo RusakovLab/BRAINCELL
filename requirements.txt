@@ -1,0 +1,30 @@
+# BrainCell runtime Python dependencies.
+#
+# Upper bounds are deliberate, not defensive boilerplate. The Plotly
+# animation front-end (Plotly2dPlayer / Plotly3dPlayer) and the Numba CPU and
+# CUDA backends of the inside-out diffusion calculator both break across major
+# releases of their upstream packages: Plotly 6 changed the figure and
+# animation APIs, and Numba major releases regularly change nopython typing
+# and the CUDA target. Pinning the upper bound keeps a fresh installation
+# reproducible when those projects publish a new major version.
+#
+# Tested configuration: Anaconda3 2023.09-0 (Python 3.11.5) with NEURON 8.2.2
+# on Windows 10/11. The lower bounds below are the versions shipped by that
+# Anaconda release or later; exact versions in the tested environment were not
+# re-measured for this file, so treat the lower bounds as conservative.
+#
+# NEURON itself is installed separately (see the installation guide) and is
+# deliberately not listed here.
+
+numpy>=1.24,<2.0
+scipy>=1.10
+matplotlib>=3.7,<3.10
+numba>=0.57,<0.61
+plotly>=5.14,<6.0
+pandas>=2.0,<3.0
+sortedcontainers>=2.4
+
+# Optional, not required for a standard installation:
+#   cupy          - GPU arrays for the LFP calculator and XpuUtils
+#   paramiko      - SSH transport for the optional cluster panel in Docker/
+#   anthropic     - the optional AI assistant scripts in the repository root

@@ -1,0 +1,57 @@
+cff-version: 1.2.0
+# TODO: complete the author list before publication - only the two authors
+# named in the repository (LICENSE, README) are listed here.
+title: BrainCell
+message: >-
+  If you use this software, please cite both the software itself and the
+  accompanying paper listed under preferred-citation.
+type: software
+authors:
+  - family-names: Savtchenko
+    given-names: Leonid P.
+    affiliation: >-
+      Rusakov Lab, UCL Queen Square Institute of Neurology, University College
+      London, London, United Kingdom
+  - family-names: Rusakov
+    given-names: Dmitri A.
+    affiliation: >-
+      Rusakov Lab, UCL Queen Square Institute of Neurology, University College
+      London, London, United Kingdom
+repository-code: https://github.com/RusakovLab/BRAINCELL
+url: https://github.com/RusakovLab/BRAINCELL
+abstract: >-
+  BrainCell is a NEURON-based platform for modelling neurons, astrocytes and
+  extracellular dynamics at nanoscale resolution, with a GUI-driven workflow
+  for geometry, biophysics presets, simulation and model export.
+keywords:
+  - computational neuroscience
+  - NEURON
+  - astrocyte
+  - synapse
+  - extracellular diffusion
+  - nanoscale morphology
+license: BSD-3-Clause
+version: 2026.03
+identifiers:
+  - type: other
+    value: "ModelDB:243508"
+    description: ModelDB accession number for BrainCell
+preferred-citation:
+  type: article
+  title: >-
+    BrainCell: a simulation platform for nanoscale neuron-astrocyte and
+    extracellular modelling
+  authors:
+    - family-names: Savtchenko
+      given-names: Leonid P.
+    - family-names: Rusakov
+      given-names: Dmitri A.
+  journal: Nature Communications
+  year: 2026
+  volume: 0            # TODO: complete on publication
+  start: 0             # TODO: complete on publication
+  end: 0               # TODO: complete on publication
+  doi: 10.0000/000000  # TODO: replace with the final DOI on publication
+  notes: >-
+    In press. Volume, pages and DOI are placeholders and must be completed
+    when the paper is published.
