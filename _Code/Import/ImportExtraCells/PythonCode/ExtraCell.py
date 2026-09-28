@@ -120,7 +120,7 @@ class ExtraCell:
             with open(scriptFileDirPath + '/temp.pickle', 'wb') as f:
                 pickle.dump(data, f)
                 
-            neuronAppPathName = h.neuronhome() + '/bin/neuron.exe'
+            neuronAppPathName = h.neuronhome() + '/bin/nrniv.exe'
             
             print('')
             process = subprocess.Popen([neuronAppPathName, scriptFileName], cwd=scriptFileDirPath)
